@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(FarLib)
 
-option(FARLIB_BUILD_APPLICATIONS "Build applications from an external AE checkout" OFF)
+option(FARLIB_BUILD_APPLICATIONS "Build the bundled applications" OFF)
 
 enable_language(CXX ASM)
 
@@ -122,9 +122,9 @@ if(FARLIB_BUILD_APPLICATIONS)
     find_package(hdr_histogram REQUIRED)
     find_package(OpenSSL REQUIRED)
 
-    # Applications are shared by the independently built runtimes.
-    set(FARLIB_APPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../apps"
-        CACHE PATH "Shared application source directory")
+    # Use bundled sources by default; allow an external application tree.
+    set(FARLIB_APPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/apps"
+        CACHE PATH "Application source directory")
     get_filename_component(FARLIB_APPS_DIR "${FARLIB_APPS_DIR}" ABSOLUTE)
     foreach(app IN ITEMS llama bfs)
         if(NOT EXISTS "${FARLIB_APPS_DIR}/${app}/CMakeLists.txt")

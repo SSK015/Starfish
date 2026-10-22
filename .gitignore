@@ -2,3 +2,6 @@
 /build-*/
 /compile_commands.json
 /CMakeUserPresets.json
+/apps/wordcount/testdata/input.txt
+/apps/wordcount/testdata/expected-counts.json
+/apps/wordcount/testdata/manifest.json
