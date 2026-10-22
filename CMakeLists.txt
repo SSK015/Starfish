@@ -99,12 +99,12 @@ if(ISAL_LIBRARY)
     target_link_libraries(server ${ISAL_LIBRARY})
 endif()
 
-# libfibre, https://git.uwaterloo.ca/mkarsten/libfibre
-set(LIBFIBRE_DIR "$ENV{LIBFIBRE_DIR}")
-message(STATUS "LibFibre path: " ${LIBFIBRE_DIR})
-find_library(LibFibre libfibre.so PATHS ${LIBFIBRE_DIR}/src REQUIRED)
-include_directories(SYSTEM ${LIBFIBRE_DIR}/src)
-set(COMMON_LIBS ${COMMON_LIBS} ${LibFibre})
+# Build the pinned source snapshot by default; no external checkout is needed.
+include(cmake/LibFibre.cmake)
+include_directories(SYSTEM ${FARLIB_FIBRE_INCLUDE_DIRS})
+target_link_libraries(libcache PUBLIC farlib_libfibre)
+target_link_libraries(libasync PUBLIC farlib_libfibre)
+set(COMMON_LIBS ${COMMON_LIBS} farlib_libfibre)
 if(PAPI_INCLUDE_DIR AND PAPI_LIBRARY)
     set(COMMON_LIBS ${COMMON_LIBS} ${PAPI_LIBRARY})
 endif()

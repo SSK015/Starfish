@@ -11,7 +11,9 @@ Xiaobing Feng, Huimin Cui, and Chenxi Wang.
 
 We plan to keep developing and maintaining this standalone repository over the
 long term. It contains the Starfish runtime, its memory server, existing runtime
-tests, and application source code under `apps/`. It does not contain the Non-FT,
+tests, application source code under `apps/`, and the pinned libfibre source
+with its errnoname dependency under `third_party/`. One normal clone includes
+these sources; no recursive clone is needed. It does not contain the Non-FT,
 Hydra-like or Carbink-like baselines, input datasets, model weights, or paper-level
 experiment scripts.
 
@@ -24,16 +26,23 @@ that complete artifact, not to a separate evaluation of this maintained reposito
 
 Use Linux with CMake 3.16 or newer, a C++20 compiler with `std::format` support
 (e.g., GCC 13), Boost program_options, libibverbs development files, and ISA-L
-development files. Build [libfibre](https://git.uwaterloo.ca/mkarsten/libfibre)
-separately and set `LIBFIBRE_DIR` to its source root, containing
-`src/libfibre.so` and the headers. PAPI is optional. No input datasets are needed
-to build the runtime libraries and memory server.
+development files. PAPI is optional. CMake builds the bundled libfibre source
+automatically; neither a separate libfibre checkout nor `LIBFIBRE_DIR` is needed.
+Generated headers and libraries stay in the build directory. No input datasets
+are needed to build the runtime libraries and memory server.
 
 ```bash
-export LIBFIBRE_DIR=/absolute/path/to/libfibre
-cmake -S . -B build -DFARLIB_BUILD_APPLICATIONS=OFF
+cmake -S . -B build \
+  -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
+  -DFARLIB_BUILD_APPLICATIONS=OFF
 cmake --build build --target libcache libasync server -j
 ```
+
+The source is self-contained, but the compiler, CMake, and the system development
+libraries listed above are not bundled. The default configure/build does not
+download source code. To use a separately built custom libfibre instead, pass
+`-DLIBFIBRE_DIR=/absolute/path/to/libfibre` explicitly. The old environment
+variable alone no longer selects an external checkout.
 
 Running the system requires separate compute and memory servers with RDMA
 connectivity and an appropriate site configuration. A successful build alone
@@ -46,8 +55,8 @@ The bundled `apps/` directory is used by default; no AE checkout is needed.
 Applications are disabled by default. Enable them and the optional targets with:
 
 ```bash
-export LIBFIBRE_DIR=/absolute/path/to/libfibre
 cmake -S . -B build-apps \
+  -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
   -DFARLIB_BUILD_APPLICATIONS=ON \
   -DFARLIB_BUILD_MG=ON \
   -DFARLIB_BUILD_WORDCOUNT=ON \
@@ -91,6 +100,8 @@ configuration, and documentation are adapted for this layout; the application
 algorithms and the original AE source tree are unchanged.
 
 Starfish source uses [Apache-2.0](LICENSE). Third-party notices are retained,
-including the [MIT license for the LLaMA inference code](apps/llama/LICENSE) and the NAS Parallel Benchmarks
-notices in `apps/mg/`. External dependencies retain their own licenses, including
-GPL-3.0 for libfibre; no dependency binaries are bundled here.
+including the [MIT license for the LLaMA inference code](apps/llama/LICENSE)
+and the NAS Parallel Benchmarks notices in `apps/mg/`. Bundled libfibre retains
+its GPL license, and errnoname retains its separate license; see
+[third-party sources and licenses](third_party/README.md). External dependencies
+retain their own licenses. No dependency binaries are bundled here.

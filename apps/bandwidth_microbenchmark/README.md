@@ -5,10 +5,11 @@ with fixed 4000-byte or 512-byte objects. It is not an application object-size
 profiler and is not part of the default Figure 9–12 application matrix.
 The rename from `object_size` does not change the workload or its arguments.
 
-Build both sizes from this repository's root, with `LIBFIBRE_DIR` set:
+Build both sizes from this repository's root; CMake builds bundled libfibre:
 
 ```bash
 cmake -S . -B build-apps \
+  -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
   -DFARLIB_BUILD_APPLICATIONS=ON \
   -DFARLIB_BUILD_BANDWIDTH_MICROBENCHMARK=ON
 cmake --build build-apps --target bandwidth_microbenchmark bandwidth_microbenchmark_512 -j
