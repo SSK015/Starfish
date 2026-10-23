@@ -1,11 +1,23 @@
 # Starfish Runtime and Applications
 
+<p align="center">
+  <img src="assets/starfish-logo.png" alt="Starfish logo" width="520">
+</p>
+
 Starfish is a fault-tolerant far-memory runtime from
 **Starfish: Fault-Tolerant Far Memory with Low Resource and Performance Overhead**
 (ATC 2026).
 
 By Yanwen Xia, Benyong Deng, Hong Huang, Yuzheng Wang, Quanxi Li, Xingda Wei,
 Xiaobing Feng, Huimin Cui, and Chenxi Wang.
+
+<p align="center">
+  <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_available_1.1.png" alt="Artifacts Available" width="100"></a>
+  <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_functional_1.1.png" alt="Artifacts Evaluated - Functional" width="100"></a>
+  <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_reproduced_1.1.png" alt="Results Reproduced" width="100"></a>
+</p>
+
+The ATC 2026 paper artifact received **Available, Functional, and Reproduced** badges.
 
 ## Scope
 
