@@ -34,49 +34,66 @@ For the preserved ATC 2026 artifact and complete reproduction instructions, see
 The [official AE results](https://sysartifacts.github.io/atc2026/results) apply to
 that complete artifact, not to a separate evaluation of this maintained repository.
 
-## Build the runtime
+## One-command build
 
-Use Linux with CMake 3.16 or newer, a C++20 compiler with `std::format` support
-(e.g., GCC 13), Boost program_options, libibverbs development files, and ISA-L
-development files. PAPI is optional. CMake builds the bundled libfibre source
-automatically; neither a separate libfibre checkout nor `LIBFIBRE_DIR` is needed.
-Generated headers and libraries stay in the build directory. No input datasets
-are needed to build the runtime libraries and memory server.
-
-```bash
-cmake -S . -B build \
-  -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
-  -DFARLIB_BUILD_APPLICATIONS=OFF
-cmake --build build --target libcache libasync server -j
-```
-
-The source is self-contained, but the compiler, CMake, and the system development
-libraries listed above are not bundled. The default configure/build does not
-download source code. To use a separately built custom libfibre instead, pass
-`-DLIBFIBRE_DIR=/absolute/path/to/libfibre` explicitly. The old environment
-variable alone no longer selects an external checkout.
-
-Running the system requires separate compute and memory servers with RDMA
-connectivity and an appropriate site configuration. A successful build alone
-does not establish end-to-end correctness or reproduce the paper's results.
-
-## Build the applications
-
-Application builds additionally require the HdrHistogram CMake package and OpenSSL.
-The bundled `apps/` directory is used by default; no AE checkout is needed.
-Applications are disabled by default. Enable them and the optional targets with:
+Install the prerequisites first: Linux, Git, Bash, Python 3, CMake 3.16 or newer,
+GNU Make or Ninja, a C++20 compiler with `std::format` support (e.g., GCC 13),
+Boost program_options,
+libibverbs development files, and ISA-L development files. Building the applications
+also requires the HdrHistogram CMake package and OpenSSL. PAPI is optional.
 
 ```bash
-cmake -S . -B build-apps \
-  -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
-  -DFARLIB_BUILD_APPLICATIONS=ON \
-  -DFARLIB_BUILD_MG=ON \
-  -DFARLIB_BUILD_WORDCOUNT=ON \
-  -DFARLIB_BUILD_NQ=ON \
-  -DFARLIB_BUILD_KVS=ON \
-  -DFARLIB_BUILD_BANDWIDTH_MICROBENCHMARK=ON
-cmake --build build-apps -j
+git clone https://github.com/SSK015/Starfish.git
+cd Starfish
+bash scripts/build.sh
 ```
+
+This configures and builds the runtime, memory server, and all application targets
+in the table below. It builds the bundled libfibre automatically; no recursive
+clone, separate libfibre checkout, or AE checkout is needed. Generated files stay
+under `build/`, and the build log is `build/build.log`. The script does not install
+system packages, download datasets, start memory servers, or run experiments.
+
+```bash
+# Runtime libraries and memory server only; no HdrHistogram/OpenSSL dependency.
+bash scripts/build.sh --runtime-only
+
+# Selected targets, with explicit build parallelism.
+bash scripts/build.sh --targets server,mg --jobs 2
+
+# Inspect the configure/build commands without building.
+bash scripts/build.sh --dry-run
+```
+
+The default is two parallel jobs. The launcher also enforces a quota of two CPUs
+and an aggregate memory limit of 8 GiB for the whole build process tree, not just
+each compiler process. It verifies existing cgroup limits or creates a temporary
+systemd unit. Modern cgroup v2 systems need a working user systemd manager with
+delegated CPU/memory controllers. Legacy cgroup v1 systems need an
+administrator-provided limited scope or existing passwordless permission to run
+`systemd-run` via `sudo -n`; the compiler still runs as the invoking user. If limits
+cannot be enforced, the build stops before CMake. Swap is disabled for the unit
+where supported; unsupported swap control is reported in the log.
+
+Set `BUILD_CPUS`, `BUILD_MEMORY_GIB`, and `--jobs` to change these budgets.
+Use `--build-dir DIR` for a separate build tree. A fresh build prefers Ninja and
+GCC 13 when available; `CC` and `CXX` override the compiler choice. An existing
+CMake cache retains its compiler and generator, so use a new build directory to
+change them. Nonstandard dependencies can be selected with `BOOST_ROOT`,
+`BOOST_LIBRARYDIR`, `HDR_HISTOGRAM_PREFIX`, or CMake options after `--`:
+
+```bash
+bash scripts/build.sh --build-dir build-custom --targets server,mg -- \
+  -DCMAKE_PREFIX_PATH=/path/to/dependencies
+```
+
+PAPI is disabled by default, as in the AE build script; opt in with
+`--enable-papi`. To use custom, prebuilt libfibre, pass
+`-DLIBFIBRE_DIR=/absolute/path/to/libfibre` after `--`. The old environment
+variable alone does not select an external checkout. See
+`bash scripts/build.sh --help` for all options.
+
+## Applications
 
 | Source directory | Executable targets |
 | --- | --- |
@@ -89,8 +106,9 @@ cmake --build build-apps -j
 | `apps/bandwidth_microbenchmark/` | `bandwidth_microbenchmark`, `bandwidth_microbenchmark_512` |
 
 LLaMA and BFS are included whenever application builds are enabled. The other
-applications require their corresponding options above. An external application
-source tree can still be selected with `-DFARLIB_APPS_DIR=/absolute/path/to/apps`.
+application options are enabled automatically by the script for the selected
+targets. An external application source tree can still be selected with
+`-DFARLIB_APPS_DIR=/absolute/path/to/apps` after `--`.
 
 Input graphs, text datasets, model weights, and generated correctness fixtures
 are not bundled. Wordcount's fixture generator remains in
@@ -100,6 +118,18 @@ original AE repository. Building these targets does not run experiments.
 
 Existing runtime tests are available with `-DFARLIB_BUILD_TESTS=ON`; some tests
 require RDMA hardware, separate physical servers, and a valid site configuration.
+
+## Hardware and deployment
+
+Running Starfish needs **at least two physical Linux x86-64 machines connected
+by InfiniBand**: one compute machine and one memory machine. The memory machine
+may run several memory-server processes on different ports. Multiple physical
+memory machines are supported too.
+
+Multiple processes on one memory machine are logical endpoints, not independent
+physical failure domains. For hardware requirements, endpoint configuration, and
+physical-failure testing boundaries, see the
+[deployment guide](docs/DEPLOYMENT.md).
 
 ## Source and license
 
