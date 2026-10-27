@@ -16,6 +16,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/SSK015/Starfish/commits/main/"><img src="https://img.shields.io/github/commit-activity/w/SSK015/Starfish?color=007ec6" alt="Commits per week"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/SSK015/Starfish?color=brightgreen" alt="Starfish license: Apache-2.0"></a>
+  <a href="CMakeLists.txt"><img src="https://img.shields.io/badge/C%2B%2B-20-00599C" alt="C++20"></a>
+  <a href="docs/DEPLOYMENT.md"><img src="https://img.shields.io/badge/platform-Linux-007ec6" alt="Linux"></a>
+  <a href="docs/DEPLOYMENT.md"><img src="https://img.shields.io/badge/backend-RDMA-009688" alt="RDMA backend"></a>
+</p>
+
+<p align="center">
   <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_available_1.1.png" alt="Artifacts Available" width="100"></a>
   <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_functional_1.1.png" alt="Artifacts Evaluated - Functional" width="100"></a>
   <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_reproduced_1.1.png" alt="Results Reproduced" width="100"></a>
