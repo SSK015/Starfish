@@ -3,7 +3,7 @@
 </p>
 
 <h2 align="center">
-  A High-Performance Far-Memory Runtime with Optional Fault Tolerance
+  A High-Performance Far-Memory Runtime with Fault Tolerance Support
 </h2>
 
 <p align="center">
