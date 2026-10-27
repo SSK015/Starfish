@@ -1,17 +1,19 @@
-# Starfish Runtime and Applications
-
 <p align="center">
   <img src="assets/starfish-logo.png" alt="Starfish logo" width="520">
 </p>
 
-Starfish is a fault-tolerant far-memory runtime from
-**Starfish: Fault-Tolerant Far Memory with Low Resource and Performance Overhead**
-(ATC 2026).
+<h2 align="center">
+  A High-Performance Far-Memory Runtime with Optional Fault Tolerance
+</h2>
 
-By Yanwen Xia, Benyong Deng, Hong Huang, Yuzheng Wang, Quanxi Li, Xingda Wei,
-Xiaobing Feng, Huimin Cui, and Chenxi Wang.
-
-[Paper (PDF)](docs/starfish-atc-2026.pdf) · [DOI](https://doi.org/10.1145/3828523.3857010)
+<p align="center">
+  <a href="#quick-start"><strong>Quickstart</strong></a> |
+  <a href="docs/DEPLOYMENT.md"><strong>Documentation</strong></a> |
+  <a href="#benchmarks"><strong>Benchmarks</strong></a> |
+  <a href="#roadmap"><strong>Roadmap</strong></a> |
+  <a href="docs/starfish-atc-2026.pdf"><strong>Paper</strong></a> |
+  <a href="https://doi.org/10.1145/3828523.3857010"><strong>DOI</strong></a>
+</p>
 
 <p align="center">
   <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_available_1.1.png" alt="Artifacts Available" width="100"></a>
@@ -19,30 +21,33 @@ Xiaobing Feng, Huimin Cui, and Chenxi Wang.
   <a href="https://sysartifacts.github.io/atc2026/results"><img src="assets/badges/acm_reproduced_1.1.png" alt="Results Reproduced" width="100"></a>
 </p>
 
-The ATC 2026 paper artifact received **Available, Functional, and Reproduced** badges.
+<p align="center">
+  <sub>Available · Functional · Reproduced — awarded to the ATC 2026 paper artifact</sub>
+</p>
 
-## Scope
+## About
+
+Starfish aims to deliver state-of-the-art far-memory performance, with or without
+fault tolerance. Performance with fault tolerance disabled is a first-class goal.
+Our current implementation uses RDMA, with CXL and other memory interconnects on
+the roadmap.
+
+<details>
+<summary><strong>Repository scope</strong></summary>
 
 We plan to keep developing and maintaining this standalone repository over the
 long term. It contains the Starfish runtime, its memory server, existing runtime
 tests, application source code under `apps/`, and the pinned libfibre source
 with its errnoname dependency under `third_party/`. One normal clone includes
-these sources; no recursive clone is needed. It does not contain the Non-FT,
-Hydra-like or Carbink-like baselines, input datasets, model weights, or paper-level
-experiment scripts.
+these sources; no recursive clone is needed. It does not bundle the paper's
+separate Non-FT, Hydra-like, or Carbink-like baseline trees, input datasets, model
+weights, or paper-level experiment scripts.
 
-For the preserved ATC 2026 artifact and complete reproduction instructions, see
-[ICTPLSys/Starfish](https://github.com/ICTPLSys/Starfish).
-The [official AE results](https://sysartifacts.github.io/atc2026/results) apply to
-that complete artifact, not to a separate evaluation of this maintained repository.
+</details>
 
-## One-command build
+## Quick start
 
-Install the prerequisites first: Linux, Git, Bash, Python 3, CMake 3.16 or newer,
-GNU Make or Ninja, a C++20 compiler with `std::format` support (e.g., GCC 13),
-Boost program_options,
-libibverbs development files, and ISA-L development files. Building the applications
-also requires the HdrHistogram CMake package and OpenSSL. PAPI is optional.
+Install the system prerequisites listed below, then build from one normal clone:
 
 ```bash
 git clone https://github.com/SSK015/Starfish.git
@@ -55,6 +60,20 @@ in the table below. It builds the bundled libfibre automatically; no recursive
 clone, separate libfibre checkout, or AE checkout is needed. Generated files stay
 under `build/`, and the build log is `build/build.log`. The script does not install
 system packages, download datasets, start memory servers, or run experiments.
+
+<details>
+<summary><strong>Build prerequisites</strong></summary>
+
+Install the prerequisites first: Linux, Git, Bash, Python 3, CMake 3.16 or newer,
+GNU Make or Ninja, a C++20 compiler with `std::format` support (e.g., GCC 13),
+Boost program_options,
+libibverbs development files, and ISA-L development files. Building the applications
+also requires the HdrHistogram CMake package and OpenSSL. PAPI is optional.
+
+</details>
+
+<details>
+<summary><strong>Build options and resource limits</strong></summary>
 
 ```bash
 # Runtime libraries and memory server only; no HdrHistogram/OpenSSL dependency.
@@ -95,6 +114,8 @@ PAPI is disabled by default, as in the AE build script; opt in with
 variable alone does not select an external checkout. See
 `bash scripts/build.sh --help` for all options.
 
+</details>
+
 ## Applications
 
 | Source directory | Executable targets |
@@ -132,6 +153,47 @@ Multiple processes on one memory machine are logical endpoints, not independent
 physical failure domains. For hardware requirements, endpoint configuration, and
 physical-failure testing boundaries, see the
 [deployment guide](docs/DEPLOYMENT.md).
+
+## Benchmarks
+
+The [paper](docs/starfish-atc-2026.pdf) reports Starfish's fault-tolerant evaluation.
+For the complete baselines, workload inputs, site configuration, and reproduction
+workflow, use the preserved [ATC 2026 artifact](https://github.com/ICTPLSys/Starfish).
+This maintained repository includes the application and microbenchmark sources
+under [`apps/`](apps/).
+
+## Roadmap
+
+- **Runtime performance:** Continue optimizing with fault tolerance both disabled
+  and enabled.
+- **Memory interconnects:** Extend beyond the current RDMA implementation to CXL
+  and other memory interconnects.
+- **Developer experience:** Improve application integration, testing, and
+  reproducible benchmarking.
+
+### Contributing
+
+Contributions to runtime performance, new backends, application integrations,
+and reproducible benchmarks are welcome. Use
+[GitHub Issues](https://github.com/SSK015/Starfish/issues) to report problems or
+discuss ideas.
+
+## Paper and artifact
+
+**Starfish: Fault-Tolerant Far Memory with Low Resource and Performance Overhead**
+(SIGOPS ATC 2026).
+
+By Yanwen Xia, Benyong Deng, Hong Huang, Yuzheng Wang, Quanxi Li, Xingda Wei,
+Xiaobing Feng, Huimin Cui, and Chenxi Wang.
+
+[Paper (PDF)](docs/starfish-atc-2026.pdf) ·
+[DOI](https://doi.org/10.1145/3828523.3857010) ·
+[Artifact](https://github.com/ICTPLSys/Starfish) ·
+[AE results](https://sysartifacts.github.io/atc2026/results)
+
+The ATC 2026 paper artifact received **Available, Functional, and Reproduced** badges.
+The [official AE results](https://sysartifacts.github.io/atc2026/results) apply to
+that complete artifact, not to a separate evaluation of this maintained repository.
 
 ## Source and license
 
