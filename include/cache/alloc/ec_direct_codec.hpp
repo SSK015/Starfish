@@ -32,88 +32,87 @@ inline constexpr size_t kEcDirectMaxSlotSize = 4096;
 // valid and is handled by clearing both parity slots.  The only data copied by
 // this function is the stack-resident pointer arrays passed to ISA-L; object
 // bytes are never copied to a staging buffer.
-inline bool encode_direct_shards(
-    const void *const data[kEcDirectDataShards],
-    const uint32_t sizes[kEcDirectDataShards],
-    void *const parity[kEcDirectParityShards], size_t slot_size,
-    const void *zero_pad) {
-    if (data == nullptr || sizes == nullptr || parity == nullptr ||
-        slot_size == 0 || slot_size > kEcDirectMaxSlotSize) {
-        return false;
-    }
+inline bool encode_direct_shards(const void *const data[kEcDirectDataShards],
+                                 const uint32_t sizes[kEcDirectDataShards],
+                                 void *const parity[kEcDirectParityShards],
+                                 size_t slot_size, const void *zero_pad) {
+  if (data == nullptr || sizes == nullptr || parity == nullptr ||
+      slot_size == 0 || slot_size > kEcDirectMaxSlotSize) {
+    return false;
+  }
 
-    bool needs_zero_pad = false;
-    bool any_object = false;
-    for (size_t i = 0; i < kEcDirectDataShards; ++i) {
-        if (sizes[i] > slot_size) return false;
-        if (sizes[i] != 0) {
-            any_object = true;
-            if (data[i] == nullptr) return false;
-        }
-        if (sizes[i] < slot_size) needs_zero_pad = true;
+  bool needs_zero_pad = false;
+  bool any_object = false;
+  for (size_t i = 0; i < kEcDirectDataShards; ++i) {
+    if (sizes[i] > slot_size) return false;
+    if (sizes[i] != 0) {
+      any_object = true;
+      if (data[i] == nullptr) return false;
     }
+    if (sizes[i] < slot_size) needs_zero_pad = true;
+  }
+  for (size_t i = 0; i < kEcDirectParityShards; ++i) {
+    if (parity[i] == nullptr) return false;
+  }
+  // An entirely empty group never reads zero_pad because its parity is
+  // cleared directly; short non-empty groups do require the zero source.
+  if (needs_zero_pad && any_object && zero_pad == nullptr) return false;
+
+  auto *zero = static_cast<const uint8_t *>(zero_pad);
+  if (!any_object) {
+    // The empty group is a valid all-zero stripe.  Avoid an unnecessary
+    // ISA-L call and make its output deterministic even if zero_pad is a
+    // caller-provided read-only page.
     for (size_t i = 0; i < kEcDirectParityShards; ++i) {
-        if (parity[i] == nullptr) return false;
-    }
-    // An entirely empty group never reads zero_pad because its parity is
-    // cleared directly; short non-empty groups do require the zero source.
-    if (needs_zero_pad && any_object && zero_pad == nullptr) return false;
-
-    auto *zero = static_cast<const uint8_t *>(zero_pad);
-    if (!any_object) {
-        // The empty group is a valid all-zero stripe.  Avoid an unnecessary
-        // ISA-L call and make its output deterministic even if zero_pad is a
-        // caller-provided read-only page.
-        for (size_t i = 0; i < kEcDirectParityShards; ++i) {
-            std::memset(parity[i], 0, slot_size);
-        }
-        return true;
-    }
-
-    size_t offset = 0;
-    while (offset < slot_size) {
-        size_t next = slot_size;
-        bool active = false;
-        for (size_t i = 0; i < kEcDirectDataShards; ++i) {
-            if (sizes[i] > offset) {
-                active = true;
-                if (sizes[i] < next) next = sizes[i];
-            }
-        }
-        if (!active) {
-            // Every remaining input is padding.  Do not read zero_pad and do
-            // not issue a second ISA-L call for a zero-only tail.
-            const size_t tail = slot_size - offset;
-            for (size_t i = 0; i < kEcDirectParityShards; ++i) {
-                auto *dst = static_cast<uint8_t *>(parity[i]);
-                std::memset(dst + offset, 0, tail);
-            }
-            break;
-        }
-
-        const size_t segment_size = next - offset;
-        if (segment_size == 0) return false;
-
-        const void *segment_data[kEcDirectDataShards];
-        void *segment_parity[kEcDirectParityShards];
-        for (size_t i = 0; i < kEcDirectDataShards; ++i) {
-            if (sizes[i] > offset) {
-                segment_data[i] = static_cast<const uint8_t *>(data[i]) + offset;
-            } else {
-                segment_data[i] = zero + offset;
-            }
-        }
-        for (size_t i = 0; i < kEcDirectParityShards; ++i) {
-            segment_parity[i] = static_cast<uint8_t *>(parity[i]) + offset;
-        }
-
-        if (!small_object_stripe_encode_shards(
-                segment_data, segment_parity, segment_size, 0)) {
-            return false;
-        }
-        offset = next;
+      std::memset(parity[i], 0, slot_size);
     }
     return true;
+  }
+
+  size_t offset = 0;
+  while (offset < slot_size) {
+    size_t next = slot_size;
+    bool active = false;
+    for (size_t i = 0; i < kEcDirectDataShards; ++i) {
+      if (sizes[i] > offset) {
+        active = true;
+        if (sizes[i] < next) next = sizes[i];
+      }
+    }
+    if (!active) {
+      // Every remaining input is padding.  Do not read zero_pad and do
+      // not issue a second ISA-L call for a zero-only tail.
+      const size_t tail = slot_size - offset;
+      for (size_t i = 0; i < kEcDirectParityShards; ++i) {
+        auto *dst = static_cast<uint8_t *>(parity[i]);
+        std::memset(dst + offset, 0, tail);
+      }
+      break;
+    }
+
+    const size_t segment_size = next - offset;
+    if (segment_size == 0) return false;
+
+    const void *segment_data[kEcDirectDataShards];
+    void *segment_parity[kEcDirectParityShards];
+    for (size_t i = 0; i < kEcDirectDataShards; ++i) {
+      if (sizes[i] > offset) {
+        segment_data[i] = static_cast<const uint8_t *>(data[i]) + offset;
+      } else {
+        segment_data[i] = zero + offset;
+      }
+    }
+    for (size_t i = 0; i < kEcDirectParityShards; ++i) {
+      segment_parity[i] = static_cast<uint8_t *>(parity[i]) + offset;
+    }
+
+    if (!small_object_stripe_encode_shards(segment_data, segment_parity,
+                                           segment_size, 0)) {
+      return false;
+    }
+    offset = next;
+  }
+  return true;
 }
 
 // Descriptive alias for call sites that use the existing small-object codec
@@ -123,15 +122,14 @@ inline bool small_object_stripe_encode_direct(
     const uint32_t sizes[kEcDirectDataShards],
     void *const parity[kEcDirectParityShards], size_t slot_size,
     const void *zero_pad) {
-    return encode_direct_shards(data, sizes, parity, slot_size, zero_pad);
+  return encode_direct_shards(data, sizes, parity, slot_size, zero_pad);
 }
 
-inline bool ec_direct_encode_4(
-    const void *const data[kEcDirectDataShards],
-    const uint32_t sizes[kEcDirectDataShards],
-    void *const parity[kEcDirectParityShards], size_t slot_size,
-    const void *zero_pad) {
-    return encode_direct_shards(data, sizes, parity, slot_size, zero_pad);
+inline bool ec_direct_encode_4(const void *const data[kEcDirectDataShards],
+                               const uint32_t sizes[kEcDirectDataShards],
+                               void *const parity[kEcDirectParityShards],
+                               size_t slot_size, const void *zero_pad) {
+  return encode_direct_shards(data, sizes, parity, slot_size, zero_pad);
 }
 
 }  // namespace FarLib::cache

@@ -184,7 +184,8 @@ under [`apps/`](apps/).
 Contributions to runtime performance, new backends, application integrations,
 and reproducible benchmarks are welcome. Use
 [GitHub Issues](https://github.com/SSK015/Starfish/issues) to report problems or
-discuss ideas.
+discuss ideas. See [CONTRIBUTING.md](CONTRIBUTING.md) for formatting rules and
+build/test instructions.
 
 ## Paper and artifact
 

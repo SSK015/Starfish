@@ -12,5 +12,5 @@ static std::unordered_map<Algorithm, const char *> alg2str = {
     {PARAROUTINE, "pararoutine"},
     {PREFETCH, "prefetch"}};
 inline std::string get_alg_str(Algorithm alg = DEFAULT_ALG) {
-    return alg2str[alg];
+  return alg2str[alg];
 }

@@ -1,0 +1,10 @@
+# Upstream applications and vendored libraries keep their own source style.
+apps/**
+third_party/**
+
+# Microsoft ALEX's MIT-licensed Zipfian generator.
+include/utils/zipfian.hpp
+
+# Generated sources are not maintained C++ source.
+build/**
+build-*/**

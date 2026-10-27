@@ -11,42 +11,42 @@ namespace debug {
 
 inline void assert_fail(const char *expr, const char *file, int line,
                         const char *function) {
-    std::cerr << "Assertion failed: " << expr << " at " << file << ":" << line
-              << " in function " << function << std::endl;
-    abort();
+  std::cerr << "Assertion failed: " << expr << " at " << file << ":" << line
+            << " in function " << function << std::endl;
+  abort();
 }
 
 inline void check_err(int err, const char *msg) {
-    if (err != 0) {
-        std::cerr << "Error (" << errno << ") on " << msg << std::endl;
-        abort();
-    }
+  if (err != 0) {
+    std::cerr << "Error (" << errno << ") on " << msg << std::endl;
+    abort();
+  }
 }
 
 [[noreturn]] inline void todo(const char *msg) {
-    std::cerr << "TODO: " << msg << std::endl;
-    abort();
+  std::cerr << "TODO: " << msg << std::endl;
+  abort();
 }
 
 [[noreturn]] inline void error(const char *msg) {
-    std::cerr << "ERROR: " << msg << std::endl;
-    abort();
+  std::cerr << "ERROR: " << msg << std::endl;
+  abort();
 }
 
 inline void warn(const char *msg) { std::cerr << "WARN: " << msg << std::endl; }
 
 inline bool verbose_log_enabled() {
-    static const bool enabled = [] {
-        const char *value = std::getenv("FARLIB_VERBOSE_LOG");
-        return value != nullptr && value[0] == '1' && value[1] == '\0';
-    }();
-    return enabled;
+  static const bool enabled = [] {
+    const char *value = std::getenv("FARLIB_VERBOSE_LOG");
+    return value != nullptr && value[0] == '1' && value[1] == '\0';
+  }();
+  return enabled;
 }
 
 inline void info(const char *msg) {
-    if (verbose_log_enabled()) {
-        std::fprintf(stdout, "INFO: %s\n", msg);
-    }
+  if (verbose_log_enabled()) {
+    std::fprintf(stdout, "INFO: %s\n", msg);
+  }
 }
 
 }  // namespace debug

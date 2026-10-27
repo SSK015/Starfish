@@ -20,22 +20,22 @@ inline bool backup_endpoint_is_dead(const StripeManager &manager,
                                     std::uint64_t remote_addr,
                                     bool split_object,
                                     DeadAddressPredicate dead_address) {
-    if (split_object && manager.owns(remote_addr)) {
-        typename StripeManager::SlotLayout layout;
-        typename StripeManager::SlotGroupHandle group;
-        if (!manager.slot_group_is_split(remote_addr) ||
-            !manager.get_slot_layout(remote_addr, &layout)) {
-            return true;
-        }
-        const typename StripeManager::SlotGroupId group_id{
-            layout.stripe_id, layout.slot_id};
-        if (!manager.get_slot_group_layout(group_id, &group)) return true;
-        for (const auto &segment : group.segments) {
-            if (dead_address(segment.addr)) return true;
-        }
-        return false;
+  if (split_object && manager.owns(remote_addr)) {
+    typename StripeManager::SlotLayout layout;
+    typename StripeManager::SlotGroupHandle group;
+    if (!manager.slot_group_is_split(remote_addr) ||
+        !manager.get_slot_layout(remote_addr, &layout)) {
+      return true;
     }
-    return dead_address(remote_addr);
+    const typename StripeManager::SlotGroupId group_id{layout.stripe_id,
+                                                       layout.slot_id};
+    if (!manager.get_slot_group_layout(group_id, &group)) return true;
+    for (const auto &segment : group.segments) {
+      if (dead_address(segment.addr)) return true;
+    }
+    return false;
+  }
+  return dead_address(remote_addr);
 }
 
 // Clean-backup reuse is legal only when the policy is enabled, the object is
@@ -45,7 +45,7 @@ inline bool backup_endpoint_is_dead(const StripeManager &manager,
 constexpr bool can_reuse_clean_backup(bool policy_enabled, bool dirty,
                                       bool valid_remote,
                                       bool has_reservation) noexcept {
-    return policy_enabled && !dirty && valid_remote && has_reservation;
+  return policy_enabled && !dirty && valid_remote && has_reservation;
 }
 
 }  // namespace FarLib::cache::ec_backup_policy

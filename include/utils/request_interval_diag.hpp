@@ -12,7 +12,7 @@
 namespace FarLib::request_interval_diag {
 
 inline void begin_stage(std::size_t fibres) noexcept {
-    ::FarLib::benchmark_phase::begin_stage(fibres);
+  ::FarLib::benchmark_phase::begin_stage(fibres);
 }
 
 inline void end_stage() noexcept { ::FarLib::benchmark_phase::end_stage(); }

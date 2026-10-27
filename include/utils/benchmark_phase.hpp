@@ -13,9 +13,8 @@ inline std::atomic<uint32_t> stage_ordinal{0};
 inline std::atomic<uint32_t> formal_fibres{0};
 
 inline void begin_stage(std::size_t fibres) noexcept {
-    stage_ordinal.fetch_add(1, std::memory_order_relaxed);
-    formal_fibres.store(static_cast<uint32_t>(fibres),
-                        std::memory_order_relaxed);
+  stage_ordinal.fetch_add(1, std::memory_order_relaxed);
+  formal_fibres.store(static_cast<uint32_t>(fibres), std::memory_order_relaxed);
 }
 
 inline void end_stage() noexcept {}

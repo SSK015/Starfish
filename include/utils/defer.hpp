@@ -13,16 +13,16 @@
 
 template <std::invocable F>
 class Defer {
-public:
-    Defer(const Defer &) = delete;
-    Defer(Defer &&) = delete;
-    Defer &operator=(const Defer &) = delete;
-    Defer &operator=(Defer &&) = delete;
-    Defer(F &&f) : cleanup(std::move(f)) {}
-    ~Defer() { cleanup(); }
+ public:
+  Defer(const Defer &) = delete;
+  Defer(Defer &&) = delete;
+  Defer &operator=(const Defer &) = delete;
+  Defer &operator=(Defer &&) = delete;
+  Defer(F &&f) : cleanup(std::move(f)) {}
+  ~Defer() { cleanup(); }
 
-private:
-    F cleanup;
+ private:
+  F cleanup;
 };
 
 #define DEFER_ACTUALLY_JOIN(x, y) x##y

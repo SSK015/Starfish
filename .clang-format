@@ -1,0 +1,22 @@
+# Use clang-format 20 for Starfish-owned C++ source.
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++20
+IndentWidth: 2
+ColumnLimit: 80
+
+# Keep this migration formatting-only, including macro-driven include sites.
+SortIncludes: Never
+IncludeBlocks: Preserve
+SortUsingDeclarations: Never
+FixNamespaceComments: false
+ReflowComments: false
+BreakStringLiterals: false
+# BEGIN/END macros can contain deliberately unmatched braces.
+SkipMacroDefinitionBody: true
+RawStringFormats: []
+InsertBraces: false
+RemoveBracesLLVM: false
+RemoveParentheses: Leave
+RemoveSemicolon: false
+QualifierAlignment: Leave

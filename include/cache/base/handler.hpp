@@ -14,12 +14,12 @@ using fetch_ddl_t = uint64_t;
 static_assert(sizeof(fetch_ddl_t) <= sizeof(uint64_t));
 
 inline fetch_ddl_t create_fetch_ddl() {
-    fetch_ddl_t start_time = __rdtsc();
-    return start_time + 4000;
+  fetch_ddl_t start_time = __rdtsc();
+  return start_time + 4000;
 }
 
 inline fetch_ddl_t delay_fetch_ddl(fetch_ddl_t last_ddl) {
-    return last_ddl + 1000;
+  return last_ddl + 1000;
 }
 
 template <typename Fn>
@@ -27,28 +27,27 @@ concept DataMissHandlerFn = requires(Fn &fn, FarObjectEntry *on_demand,
                                      fetch_ddl_t ddl) { fn(on_demand, ddl); };
 
 class DataMissHandler {
-public:
-    virtual void call(FarObjectEntry *on_demand, fetch_ddl_t ddl) const = 0;
+ public:
+  virtual void call(FarObjectEntry *on_demand, fetch_ddl_t ddl) const = 0;
 
-    void operator()(FarObjectEntry *on_demand, fetch_ddl_t ddl) const {
-        return call(on_demand, ddl);
-    }
+  void operator()(FarObjectEntry *on_demand, fetch_ddl_t ddl) const {
+    return call(on_demand, ddl);
+  }
 };
 
 template <DataMissHandlerFn Fn>
 class DataMissHandlerImpl : public DataMissHandler {
-private:
-    Fn fn;
+ private:
+  Fn fn;
 
-public:
-    DataMissHandlerImpl(Fn &&fn) : fn(fn) {}
+ public:
+  DataMissHandlerImpl(Fn &&fn) : fn(fn) {}
 
-    virtual void call(FarObjectEntry *on_demand,
-                      fetch_ddl_t ddl) const override {
-        profile::start_on_miss();
-        fn(on_demand, ddl);
-        profile::end_on_miss();
-    }
+  virtual void call(FarObjectEntry *on_demand, fetch_ddl_t ddl) const override {
+    profile::start_on_miss();
+    fn(on_demand, ddl);
+    profile::end_on_miss();
+  }
 };
 
 }  // namespace cache
