@@ -79,7 +79,7 @@ if [[ "$DRY_RUN" != 1 ]]; then
   mkdir -p "$BUILD_DIR"
   BUILD_DIR=$(cd "$BUILD_DIR" && pwd)
   case "$BUILD_DIR/" in
-    "$ROOT/"|"$ROOT/src/"*|"$ROOT/include/"*|"$ROOT/apps/"*|"$ROOT/tests/"*|"$ROOT/third_party/"*|"$ROOT/scripts/"*|"$ROOT/cmake/"*)
+    "$ROOT/"|"$ROOT/runtime/"*|"$ROOT/apps/"*|"$ROOT/tests/"*|"$ROOT/third_party/"*|"$ROOT/scripts/"*|"$ROOT/cmake/"*)
       die 'choose a separate build directory, not a source directory' ;;
   esac
   exec > >(tee -a "$BUILD_DIR/build.log") 2>&1

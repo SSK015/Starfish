@@ -20,11 +20,13 @@ bash scripts/format.sh --check  # Check without changing files.
 Set `CLANG_FORMAT` if the version-20 executable has a different name or path.
 
 The maintained scope is tracked `.h`, `.hpp`, `.cc`, `.cpp`, and `.ipp` files
-under `include/`, `src/`, and `tests/`. These are excluded:
+under `runtime/include/`, `runtime/src/`, and `tests/`. Header include paths
+are relative to `runtime/include/`; existing includes such as
+`#include "cache/cache.hpp"` stay the same. These are excluded:
 
 - `apps/`: retained application and upstream sources.
 - `third_party/`: pinned dependencies and their own licenses.
-- `include/utils/zipfian.hpp`: the Microsoft MIT-licensed upstream generator.
+- `runtime/include/utils/zipfian.hpp`: the Microsoft MIT-licensed upstream generator.
 - Build output and generated files.
 
 Keep include order, using-declaration order, comments, and string literals intact.

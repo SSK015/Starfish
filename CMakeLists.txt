@@ -66,14 +66,14 @@ if(FARLIB_BUILD_TESTS)
 endif()
 
 include_directories(
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include"
     /usr/include/
 )
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 link_directories(/usr/lib/x86_64-linux-gnu/)
 
-set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/runtime/src)
 add_library(libcache STATIC
     ${SRC_DIR}/rdma/client.cpp
     ${SRC_DIR}/rdma/exchange_msg.cpp

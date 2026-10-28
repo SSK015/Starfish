@@ -11,7 +11,7 @@ case "${1:-}" in
   --list) mode=list; shift ;;
   -h|--help)
     printf 'Usage: bash scripts/format.sh [--check|--list]\n'
-    printf 'Format tracked Starfish C++ under include/, src/, and tests/.\n'
+    printf 'Format tracked Starfish C++ under runtime/include/, runtime/src/, and tests/.\n'
     printf 'Upstream apps, third_party, and the Microsoft Zipfian header are excluded.\n'
     printf 'Requires clang-format 20; override its path with CLANG_FORMAT.\n'
     exit 0 ;;
@@ -22,10 +22,10 @@ esac
 files=()
 while IFS= read -r -d '' file; do
   case "$file" in
-    include/utils/zipfian.hpp) continue ;;
+    runtime/include/utils/zipfian.hpp) continue ;;
     *.h|*.hpp|*.cc|*.cpp|*.ipp) files+=("$file") ;;
   esac
-done < <(git ls-files -z -- include src tests)
+done < <(git ls-files -z -- runtime/include runtime/src tests)
 (("${#files[@]}" > 0)) || { printf 'format: no owned C++ files found\n' >&2; exit 2; }
 
 if [[ "$mode" = list ]]; then

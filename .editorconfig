@@ -1,6 +1,6 @@
 root = true
 
-[{include,src,tests}/**.{h,hpp,cc,cpp,ipp}]
+[{runtime/include,runtime/src,tests}/**.{h,hpp,cc,cpp,ipp}]
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
@@ -9,7 +9,7 @@ indent_size = 2
 max_line_length = 80
 
 # Keep the embedded upstream generator outside the Starfish style policy.
-[include/utils/zipfian.hpp]
+[runtime/include/utils/zipfian.hpp]
 charset = unset
 end_of_line = unset
 insert_final_newline = unset

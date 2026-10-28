@@ -51,6 +51,20 @@ these sources; no recursive clone is needed. It does not bundle the paper's
 separate Non-FT, Hydra-like, or Carbink-like baseline trees, input datasets, model
 weights, or paper-level experiment scripts.
 
+The runtime is a separate source module alongside applications and tests:
+
+```text
+runtime/
+  include/       Runtime headers and inline implementations
+  src/           Compiled runtime and memory-server sources
+apps/            Applications and microbenchmarks
+tests/           Runtime tests and test support
+third_party/     Pinned dependencies and retained licenses
+cmake/           Dependency build integration
+scripts/         Build and formatting tools
+docs/            Deployment guide and paper
+```
+
 </details>
 
 ## Quick start
