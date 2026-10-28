@@ -52,15 +52,15 @@ Authors of the C++ code:
 #include <numeric>
 #include <thread>
 
-#include "cache/cache.hpp"
+#include "mm/cache/cache.hpp"
 #include "common/npb-CPP.hpp"
 #include "data_structure/far_vector.hpp"
 #include "npbparams.hpp"
-#include "rdma/client.hpp"
-#include "rdma/server.hpp"
-#include "utils/control.hpp"
-#include "utils/parallel.hpp"
-#include "utils/stats.hpp"
+#include "transport/rdma/client.hpp"
+#include "transport/rdma/server.hpp"
+#include "lib/control.hpp"
+#include "async/parallel.hpp"
+#include "profiling/stats.hpp"
 
 using namespace FarLib;
 using namespace FarLib::rdma;

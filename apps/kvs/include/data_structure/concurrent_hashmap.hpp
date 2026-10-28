@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "async/context.hpp"
-#include "cache/cache.hpp"
-#include "utils/spinlock.hpp"
-#include "utils/cpu_cycles.hpp"
-#include "utils/parallel.hpp"
+#include "mm/cache/cache.hpp"
+#include "async/spinlock.hpp"
+#include "lib/cpu_cycles.hpp"
+#include "async/parallel.hpp"
 
 namespace FarLib {
 

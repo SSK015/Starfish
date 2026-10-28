@@ -14,16 +14,16 @@
 #include <chrono>
 #include <thread>
 
-#include "cache/accessor.hpp"
-#include "cache/region_based_allocator.hpp"
+#include "mm/cache/accessor.hpp"
+#include "mm/allocator/region_based_allocator.hpp"
 #include "data_structure/far_vector.hpp"
-#include "rdma/client.hpp"
-#include "rdma/server.hpp"
-#include "utils/control.hpp"
-#include "utils/debug.hpp"
-#include "utils/parallel.hpp"
-#include "utils/perf.hpp"
-#include "utils/stats.hpp"
+#include "transport/rdma/client.hpp"
+#include "transport/rdma/server.hpp"
+#include "lib/control.hpp"
+#include "lib/debug.hpp"
+#include "async/parallel.hpp"
+#include "profiling/perf.hpp"
+#include "profiling/stats.hpp"
 #if defined _WIN32
 #include "win.h"
 #else

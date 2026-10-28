@@ -25,24 +25,24 @@
 
 #include "latency_mode.hpp"
 #include "logging.hpp"
-#include "runtime_common/benchmark_memory.hpp"
+#include "profiling/benchmark_memory.hpp"
 #include "completion_series.hpp"
 #include "async/stream_runner.hpp"
-#include "cache/cache.hpp"
+#include "mm/cache/cache.hpp"
 #include "data_structure/concurrent_hashmap.hpp"
 #include "test/fixed_size_string.hpp"
-#include "utils/control.hpp"
-#include "utils/debug.hpp"
-#include "utils/perf.hpp"
+#include "lib/control.hpp"
+#include "lib/debug.hpp"
+#include "profiling/perf.hpp"
 #include "utils/rank_permutation.hpp"
-#include "utils/stats.hpp"
-#include "utils/fork_join.hpp"
-#include "utils/threads.hpp"
-#include "utils/uthreads.hpp"
-#include "utils/zipfian.hpp"
+#include "profiling/stats.hpp"
+#include "async/fork_join.hpp"
+#include "async/threads.hpp"
+#include "async/uthreads.hpp"
+#include "lib/zipfian.hpp"
 
-#if __has_include("utils/request_interval_diag.hpp")
-#include "utils/request_interval_diag.hpp"
+#if __has_include("profiling/request_interval_diag.hpp")
+#include "profiling/request_interval_diag.hpp"
 #define FARLIB_KVS_HAS_REQUEST_INTERVAL_DIAG 1
 #endif
 

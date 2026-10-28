@@ -34,15 +34,26 @@ remain included by their headers; the existing EC update/RMW fragments remain
 included by their compiled coordinator. Include order and existing guards are
 preserved.
 
-Legacy application paths under `cache/`, `rdma/`, and `utils/`, plus `option.hpp`,
-`inline_task_option.hpp` and `runtime_common/benchmark_memory.hpp`, remain
-forwarding includes. These files contain no duplicate implementation. In
-particular, `rdma/config.def` forwards without a guard so repeated macro expansion
-still works. New internal includes should use the canonical module paths.
+Applications and tests include canonical module paths directly. Types, function
+signatures and namespaces are unchanged. Earlier include spellings have been
+replaced as follows:
 
-The Microsoft generator stays unchanged at `utils/zipfian.hpp`. KVS keeps its
-application-specific string at `apps/kvs/include/test/fixed_size_string.hpp`;
-the app-local include directory retains precedence.
+| Previous include | Canonical include |
+| --- | --- |
+| `cache/cache.hpp` | `mm/cache/cache.hpp` |
+| `rdma/client.hpp` | `transport/rdma/client.hpp` |
+| `utils/uthreads.hpp` | `async/uthreads.hpp` |
+| `utils/perf.hpp` | `profiling/perf.hpp` |
+| `utils/control.hpp` | `lib/control.hpp` |
+| `runtime_common/benchmark_memory.hpp` | `profiling/benchmark_memory.hpp` |
+
+The previous forwarding headers have been removed. Macro-expansion lists such as
+`transport/rdma/config.def` remain deliberately re-includable.
+
+The Microsoft generator is retained unchanged at `lib/zipfian.hpp` and excluded
+from formatting. KVS keeps its application-specific string at
+`apps/kvs/include/test/fixed_size_string.hpp`; the app-local include directory
+retains precedence.
 
 ## C++ formatting
 
@@ -63,11 +74,11 @@ Set `CLANG_FORMAT` if the version-20 executable has a different name or path.
 The maintained scope is tracked `.h`, `.hpp`, `.cc`, `.cpp`, and `.ipp` files
 under `runtime/include/`, `runtime/src/`, and `tests/`. Header include paths
 are relative to `runtime/include/`; existing includes such as
-`#include "cache/cache.hpp"` stay the same. These are excluded:
+`#include "mm/cache/cache.hpp"` use the module paths above. These are excluded:
 
 - `apps/`: retained application and upstream sources.
 - `third_party/`: pinned dependencies and their own licenses.
-- `runtime/include/utils/zipfian.hpp`: the Microsoft MIT-licensed upstream generator.
+- `runtime/include/lib/zipfian.hpp`: the Microsoft MIT-licensed upstream generator.
 - Build output and generated files.
 
 Keep include order, using-declaration order, comments, and string literals intact.

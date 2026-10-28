@@ -22,15 +22,15 @@
 #include <hdr/hdr_histogram.h>
 
 #include "async/scoped_inline_task.hpp"
-#include "cache/cache.hpp"
-#include "cache/alloc/memory_usage.hpp"
-#include "utils/control.hpp"
-#include "utils/zipfian.hpp"
-#include "utils/perf.hpp"
-#include "utils/stats.hpp"
-#include "utils/wait_trace.hpp"
-#include "utils/scope_diag.hpp"
-#include "utils/request_interval_diag.hpp"
+#include "mm/cache/cache.hpp"
+#include "mm/allocator/memory_usage.hpp"
+#include "lib/control.hpp"
+#include "lib/zipfian.hpp"
+#include "profiling/perf.hpp"
+#include "profiling/stats.hpp"
+#include "profiling/wait_trace.hpp"
+#include "profiling/scope_diag.hpp"
+#include "profiling/request_interval_diag.hpp"
 
 #define PRESSURE_TEST
 namespace FarLib::allocator {

@@ -22,7 +22,7 @@ esac
 files=()
 while IFS= read -r -d '' file; do
   case "$file" in
-    runtime/include/utils/zipfian.hpp) continue ;;
+    runtime/include/lib/zipfian.hpp) continue ;;
     *.h|*.hpp|*.cc|*.cpp|*.ipp) files+=("$file") ;;
   esac
 done < <(git ls-files -z -- runtime/include runtime/src tests)

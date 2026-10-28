@@ -72,7 +72,7 @@ scripts/         Build and formatting tools
 docs/            Deployment guide and paper
 ```
 
-Existing application include paths remain available through forwarding headers.
+Applications include headers directly through the module paths shown above.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for module boundaries and header conventions.
 
 </details>

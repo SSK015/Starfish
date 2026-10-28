@@ -19,15 +19,15 @@
 #include <vector>
 #include <unistd.h>
 
-#include "cache/alloc/region_remote_allocator.hpp"
-#include "cache/cache.hpp"
+#include "mm/allocator/region_remote_allocator.hpp"
+#include "mm/cache/cache.hpp"
 #include "data_structure/concurrent_hashmap.hpp"
-#include "rdma/config.hpp"
-#include "utils/control.hpp"
-#include "utils/debug.hpp"
-#include "utils/parallel.hpp"
-#include "utils/spinlock.hpp"
-#include "utils/stats.hpp"
+#include "transport/rdma/config.hpp"
+#include "lib/control.hpp"
+#include "lib/debug.hpp"
+#include "async/parallel.hpp"
+#include "async/spinlock.hpp"
+#include "profiling/stats.hpp"
 
 #ifndef FARLIB_WORDCOUNT_STARFISH
 #define FARLIB_WORDCOUNT_STARFISH 0

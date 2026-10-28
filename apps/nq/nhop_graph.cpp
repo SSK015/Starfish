@@ -16,14 +16,14 @@
 #include <fstream>
 
 #include "latency_mode.hpp"
-#include "cache/cache.hpp"
-#include "utils/control.hpp"
-#include "utils/debug.hpp"
-#include "utils/parallel.hpp"
-#include "utils/perf.hpp"
-#include "utils/stats.hpp"
-#include "utils/timer.hpp"
-#include "utils/uthreads.hpp"
+#include "mm/cache/cache.hpp"
+#include "lib/control.hpp"
+#include "lib/debug.hpp"
+#include "async/parallel.hpp"
+#include "profiling/perf.hpp"
+#include "profiling/stats.hpp"
+#include "lib/timer.hpp"
+#include "async/uthreads.hpp"
 
 #include "graph_utils.hpp"
 using namespace FarLib;

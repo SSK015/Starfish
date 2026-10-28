@@ -3,7 +3,7 @@ apps/**
 third_party/**
 
 # Microsoft ALEX's MIT-licensed Zipfian generator.
-runtime/include/utils/zipfian.hpp
+runtime/include/lib/zipfian.hpp
 
 # Generated sources are not maintained C++ source.
 build/**
