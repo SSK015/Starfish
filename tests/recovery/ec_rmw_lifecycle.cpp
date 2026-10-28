@@ -1,7 +1,7 @@
 // Bounded-bank lifecycle + RS delta math. Registers memory on mlx5_1, but
 // posts NO network WRs: a local mock validates partial-post bookkeeping.
-#include "rdma/ec_rmw_client.hpp"
-#include "cache/alloc/small_object_stripe_codec.hpp"
+#include "transport/rdma/ec/ec_rmw_client.hpp"
+#include "ft/ec/small_object_stripe_codec.hpp"
 #include <array>
 #include <cstdio>
 #include <cstring>

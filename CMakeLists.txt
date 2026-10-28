@@ -75,15 +75,15 @@ link_directories(/usr/lib/x86_64-linux-gnu/)
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/runtime/src)
 add_library(libcache STATIC
-    ${SRC_DIR}/rdma/client.cpp
-    ${SRC_DIR}/rdma/exchange_msg.cpp
-    ${SRC_DIR}/cache/cache.cpp
-    ${SRC_DIR}/internal/cache/rdma/ec_update.cpp
-    ${SRC_DIR}/internal/placement/backup_budget.cpp
-    ${SRC_DIR}/internal/profiling/stats.cpp
-    ${SRC_DIR}/utils/control.cpp
-    ${SRC_DIR}/utils/uthreads.cpp)
-add_library(libasync STATIC ${SRC_DIR}/utils/signal.cpp)
+    ${SRC_DIR}/transport/rdma/client.cpp
+    ${SRC_DIR}/transport/rdma/exchange_msg.cpp
+    ${SRC_DIR}/mm/cache/cache.cpp
+    ${SRC_DIR}/ft/ec/ec_update.cpp
+    ${SRC_DIR}/mm/placement/backup_budget.cpp
+    ${SRC_DIR}/profiling/stats.cpp
+    ${SRC_DIR}/lib/control.cpp
+    ${SRC_DIR}/async/uthreads.cpp)
+add_library(libasync STATIC ${SRC_DIR}/async/signal.cpp)
 # Also propagate the layout contract to targets outside this directory.
 target_compile_definitions(libcache INTERFACE ${FARLIB_CACHE_LAYOUT_DEFINITION})
 target_include_directories(libcache PUBLIC ${ISAL_INCLUDE_DIR})
@@ -93,7 +93,7 @@ if(ISAL_LIBRARY)
     set(COMMON_LIBS ${COMMON_LIBS} ${ISAL_LIBRARY})
 endif()
 
-add_executable(server ${SRC_DIR}/rdma/server.cpp ${SRC_DIR}/rdma/exchange_msg.cpp)
+add_executable(server ${SRC_DIR}/transport/rdma/server.cpp ${SRC_DIR}/transport/rdma/exchange_msg.cpp)
 target_link_libraries(server ibverbs Threads::Threads)
 if(ISAL_LIBRARY)
     target_link_libraries(server ${ISAL_LIBRARY})

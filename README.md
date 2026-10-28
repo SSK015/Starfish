@@ -55,9 +55,15 @@ The runtime is a separate source module alongside applications and tests:
 
 ```text
 runtime/
-  include/       Application headers and compatibility entry points
-    internal/    Cache, placement, behavior, recovery, and profiling implementations
-  src/           Compiled implementations in corresponding header module paths
+  include/
+    mm/              Allocation, evacuation, and placement
+    ft/              EC, recovery, and recomputation
+    transport/       RDMA backend and protocol adapters
+    async/           Fibres, threads, and task support
+    data_structure/  Application data structures
+    profiling/       Measurements and diagnostics
+    lib/             Shared utilities and runtime control
+  src/               Matching modules for compiled implementations
 apps/            Applications and microbenchmarks
 tests/           Runtime tests and test support
 third_party/     Pinned dependencies and retained licenses
@@ -65,6 +71,9 @@ cmake/           Dependency build integration
 scripts/         Build and formatting tools
 docs/            Deployment guide and paper
 ```
+
+Existing application include paths remain available through forwarding headers.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for module boundaries and header conventions.
 
 </details>
 

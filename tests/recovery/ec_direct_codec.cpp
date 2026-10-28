@@ -2,7 +2,7 @@
 #undef NDEBUG
 #endif
 
-#include "cache/alloc/ec_direct_codec.hpp"
+#include "ft/ec/ec_direct_codec.hpp"
 
 #include <array>
 #include <cassert>

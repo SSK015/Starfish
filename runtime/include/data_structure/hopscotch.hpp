@@ -2,8 +2,8 @@
 
 #include <utility>
 
-#include "cache/accessor.hpp"
-#include "cache/cache.hpp"
+#include "mm/cache/accessor.hpp"
+#include "mm/cache/cache.hpp"
 
 namespace FarLib {
 

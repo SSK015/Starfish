@@ -9,7 +9,7 @@
 
 #if __has_include(<infiniband/verbs.h>)
 
-#include "cache/region_based_allocator.hpp"
+#include "mm/allocator/region_based_allocator.hpp"
 
 namespace {
 

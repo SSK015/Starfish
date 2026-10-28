@@ -12,14 +12,14 @@
 #include <utility>
 #include <vector>
 
-#include "cache/accessor.hpp"
-#include "cache/alloc/region_remote_allocator.hpp"
-#include "cache/cache.hpp"
-#include "rdma/config.hpp"
-#include "utils/control.hpp"
-#include "utils/debug.hpp"
-#include "utils/parallel.hpp"
-#include "internal/profiling/stats.hpp"
+#include "mm/cache/accessor.hpp"
+#include "mm/allocator/region_remote_allocator.hpp"
+#include "mm/cache/cache.hpp"
+#include "transport/rdma/config.hpp"
+#include "lib/control.hpp"
+#include "lib/debug.hpp"
+#include "async/parallel.hpp"
+#include "profiling/stats.hpp"
 
 using namespace FarLib;
 using namespace FarLib::cache;

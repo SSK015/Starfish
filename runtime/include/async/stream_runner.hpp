@@ -10,8 +10,8 @@
 #include <type_traits>
 
 #include "async/context.hpp"
-#include "cache/cache.hpp"
-#include "utils/linked_list.hpp"
+#include "mm/cache/cache.hpp"
+#include "lib/linked_list.hpp"
 
 // #define PROFILE_STREAM_RUNNER_SCHEDULE
 

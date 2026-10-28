@@ -1,4 +1,4 @@
-#include "cache/entry_frequency.hpp"
+#include "mm/placement/entry_frequency.hpp"
 
 #include <cassert>
 #include <cstdint>

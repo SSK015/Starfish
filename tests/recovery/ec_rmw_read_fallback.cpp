@@ -4,8 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
-#include "cache/alloc/ec_rmw_fallback_policy.hpp"
-#include "cache/alloc/ec_direct_group_builder.hpp"
+#include "ft/ec/ec_rmw_fallback_policy.hpp"
+#include "ft/ec/ec_direct_group_builder.hpp"
 
 namespace FarLib {
 static rdma::Configure fixture;

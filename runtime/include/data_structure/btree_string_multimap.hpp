@@ -7,11 +7,11 @@
 #include <cstring>
 #include <string_view>
 
-#include "cache/accessor.hpp"
-#include "cache/cache.hpp"
-#include "cache/region_based_allocator.hpp"
+#include "mm/cache/accessor.hpp"
+#include "mm/cache/cache.hpp"
+#include "mm/allocator/region_based_allocator.hpp"
 #include "data_structure/dyn_sized_object.hpp"
-#include "utils/debug.hpp"
+#include "lib/debug.hpp"
 
 namespace FarLib {
 

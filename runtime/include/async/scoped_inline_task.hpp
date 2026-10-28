@@ -7,9 +7,9 @@
 
 #include "async/context.hpp"
 #include "async/stream_runner.hpp"
-#include "cache/cache.hpp"
-#include "utils/cpu_cycles.hpp"
-#include "utils/debug.hpp"
+#include "mm/cache/cache.hpp"
+#include "lib/cpu_cycles.hpp"
+#include "lib/debug.hpp"
 
 namespace FarLib {
 namespace async {

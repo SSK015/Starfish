@@ -6,8 +6,8 @@
 #undef NDEBUG
 #endif
 
-#include "cache/alloc/ec_split_buffers.hpp"
-#include "cache/alloc/ec_split_layout.hpp"
+#include "ft/ec/ec_split_buffers.hpp"
+#include "ft/ec/ec_split_layout.hpp"
 
 #include <algorithm>
 #include <cassert>

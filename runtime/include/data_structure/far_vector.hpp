@@ -6,10 +6,10 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "cache/accessor.hpp"
-#include "cache/cache.hpp"
-#include "option.hpp"
-#include "utils/parallel.hpp"
+#include "mm/cache/accessor.hpp"
+#include "mm/cache/cache.hpp"
+#include "async/option.hpp"
+#include "async/parallel.hpp"
 #include "async/scoped_inline_task.hpp"
 namespace FarLib {
 // TODO VecElementType can be non-trivially destructible

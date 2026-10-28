@@ -15,7 +15,7 @@
 #include <vector>
 
 #define private public
-#include "cache/region_based_allocator.hpp"
+#include "mm/allocator/region_based_allocator.hpp"
 #undef private
 
 using FarLib::allocator::EvacuationEligibility;

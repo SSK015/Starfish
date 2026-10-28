@@ -8,16 +8,16 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "internal/behavior/behavior_group_runtime.hpp"
-#include "internal/placement/simple_region_budget.hpp"
-#include "internal/recovery/ec_backup_policy.hpp"
+#include "mm/placement/behavior_group_runtime.hpp"
+#include "mm/placement/simple_region_budget.hpp"
+#include "ft/recovery/ec_backup_policy.hpp"
 
 #if __has_include(<infiniband/verbs.h>)
-#include "rdma/config.hpp"
-#include "cache/alloc/small_object_stripe.hpp"
-#include "internal/cache/fixed_six_runtime.hpp"
-#include "internal/placement/simple_region_heat.hpp"
-#include "utils/control.hpp"
+#include "transport/rdma/config.hpp"
+#include "ft/ec/small_object_stripe.hpp"
+#include "mm/allocator/fixed_six_runtime.hpp"
+#include "mm/placement/simple_region_heat.hpp"
+#include "lib/control.hpp"
 #endif
 
 #if __has_include(<infiniband/verbs.h>)

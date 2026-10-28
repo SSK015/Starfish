@@ -4,9 +4,9 @@
 
 #include "async/scoped_inline_task.hpp"
 #include "data_structure/far_vector.hpp"
-#include "utils/debug.hpp"
-#include "utils/parallel.hpp"
-#include "internal/profiling/stats.hpp"
+#include "lib/debug.hpp"
+#include "async/parallel.hpp"
+#include "profiling/stats.hpp"
 namespace FarLib {
 
 /* lite sort */

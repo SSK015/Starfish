@@ -15,9 +15,9 @@
 #include <vector>
 #include <unistd.h>
 
-#include "cache/cache.hpp"
-#include "cache/alloc/region_remote_allocator.hpp"
-#include "utils/parallel.hpp"
+#include "mm/cache/cache.hpp"
+#include "mm/allocator/region_remote_allocator.hpp"
+#include "async/parallel.hpp"
 
 namespace FarLib {
 

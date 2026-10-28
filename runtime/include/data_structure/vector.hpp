@@ -3,9 +3,9 @@
 #include <array>
 #include <vector>
 
-#include "cache/accessor.hpp"
-#include "cache/cache.hpp"
-#include "cache/base/scope.hpp"
+#include "mm/cache/accessor.hpp"
+#include "mm/cache/cache.hpp"
+#include "mm/cache/base/scope.hpp"
 
 // #define USE_YIELD
 

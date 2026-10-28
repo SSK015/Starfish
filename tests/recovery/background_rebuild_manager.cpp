@@ -1,5 +1,5 @@
 #define FARLIB_REBUILD_TEST_HOOK 1
-#include "cache/alloc/small_object_stripe.hpp"
+#include "ft/ec/small_object_stripe.hpp"
 #include <cassert>
 #include <iostream>
 

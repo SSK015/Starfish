@@ -2,8 +2,8 @@
 #undef NDEBUG
 #endif
 
-#include "cache/alloc/small_object_stripe_codec.hpp"
-#include "rdma/ec_update_participant.hpp"
+#include "ft/ec/small_object_stripe_codec.hpp"
+#include "ft/ec/ec_update_participant.hpp"
 
 #include <algorithm>
 #include <array>

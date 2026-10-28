@@ -1,3 +1,3 @@
 #pragma once
 
-#include "internal/profiling/stats.hpp"
+#include "profiling/stats.hpp"

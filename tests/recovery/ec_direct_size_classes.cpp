@@ -13,9 +13,9 @@
 
 #if __has_include(<infiniband/verbs.h>)
 
-#include "cache/alloc/ec_direct_group_builder.hpp"
-#include "cache/alloc/small_object_stripe_codec.hpp"
-#include "rdma/config.hpp"
+#include "ft/ec/ec_direct_group_builder.hpp"
+#include "ft/ec/small_object_stripe_codec.hpp"
+#include "transport/rdma/config.hpp"
 
 namespace FarLib {
 static rdma::Configure g_ec_direct_size_class_config;

@@ -7,11 +7,11 @@
 #include <memory>
 #include <vector>
 
-#include "cache/entry.hpp"
-#include "cache/region_based_allocator.hpp"
-#include "internal/placement/simple_region_heat.hpp"
-#include "rdma/config.hpp"
-#include "utils/control.hpp"
+#include "mm/cache/entry.hpp"
+#include "mm/allocator/region_based_allocator.hpp"
+#include "mm/placement/simple_region_heat.hpp"
+#include "transport/rdma/config.hpp"
+#include "lib/control.hpp"
 
 namespace allocator = FarLib::allocator;
 namespace heat = FarLib::simple_region_heat;

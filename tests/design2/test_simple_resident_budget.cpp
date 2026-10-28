@@ -1,6 +1,6 @@
 // Ported from nq-resident-six r2/t8; assertions intentionally retained.
-#include "internal/placement/simple_region_budget.hpp"
-#include "internal/placement/simple_region_heat.hpp"
+#include "mm/placement/simple_region_budget.hpp"
+#include "mm/placement/simple_region_heat.hpp"
 
 #include <array>
 #include <cstddef>

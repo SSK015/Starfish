@@ -2,8 +2,8 @@
 #include <concepts>
 #include <type_traits>
 
-#include "cache/cache.hpp"
-#include "utils/debug.hpp"
+#include "mm/cache/cache.hpp"
+#include "lib/debug.hpp"
 
 namespace FarLib {
 namespace async {

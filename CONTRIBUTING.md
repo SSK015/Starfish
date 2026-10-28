@@ -3,33 +3,46 @@
 Contributions to runtime performance, applications, testing, and reproducibility
 are welcome. Keep each change focused and explain how it was checked.
 
-## Header layout
+## Module layout
 
-Application includes keep their existing `cache/`, `data_structure/`, `async/`,
-`rdma/`, and `utils/` paths. The `runtime/include/internal/` subtree groups
-implementation helpers by responsibility:
+Canonical headers and inline implementation fragments live under
+`runtime/include/`. Compiled implementations use matching module paths under
+`runtime/src/`; header-only modules do not need empty source directories.
 
-| Directory | Responsibility |
+| Module | Responsibility |
 | --- | --- |
-| `cache/` | Allocator and cache paths, completion handling, and cache hooks |
-| `placement/` | Remote-backup budgets, resident placement, and region heat/budgets |
-| `behavior/` | Object-group classification/refinement and EC phase policy |
-| `recovery/` | Read recovery, background rebuilding, and recomputation |
-| `profiling/` | Timing, counters, sampled diagnostics, and memory reporting |
+| `mm/cache/` | Cache facade, accessors, object state, fetch and completion handling |
+| `mm/allocator/` | Object/region allocation, local and remote heaps, return queues |
+| `mm/evacuator/` | Marking, eviction, evacuation and commit bookkeeping |
+| `mm/placement/` | Resident placement, region heat, grouping and backup budgets |
+| `ft/ec/` | Codecs, stripes, layouts, batching, update coordination and protocols |
+| `ft/policy/` | Behavior-guided protection selection |
+| `ft/recovery/` | Read recovery, scratch state and background rebuilding |
+| `ft/recompute/` | Recipe registration and recomputation recovery |
+| `transport/rdma/` | RDMA connections, queues and verbs-facing EC adapters |
+| `async/` | Fibres, threads, fork/join, signals and yielding locks |
+| `data_structure/` | Application data structures and their template implementations |
+| `profiling/` | Timing, counters, sampled diagnostics and memory reporting |
+| `lib/` | Shared helpers, timers and runtime lifecycle control |
 
-Compiled implementations use the corresponding module paths under
-`runtime/src/`, including `internal/placement/`, `internal/profiling/`, and
-`internal/cache/rdma/`. Header-only modules do not need a source directory.
+Runtime code and tests use these canonical paths. Existing namespace/type names,
+integration points and build targets are retained. This layout groups files by
+ownership without changing the current implementation or linkage boundaries.
 
-Runtime code and tests include these implementation headers through
-`internal/...` paths. Template and inline implementations remain in headers.
-The application-facing `utils/{perf,stats,wait_trace,scope_diag,request_interval_diag}.hpp`
-and `runtime_common/benchmark_memory.hpp` remain as forwarding headers.
-They preserve existing application includes without duplicating implementation.
+`.ipp` files stay with the subsystem that owns them. Template/inline fragments
+remain included by their headers; the existing EC update/RMW fragments remain
+included by their compiled coordinator. Include order and existing guards are
+preserved.
 
-KVS keeps its application-specific fixed-size string in
-`apps/kvs/include/test/fixed_size_string.hpp`. Its app-local include directory
-takes precedence over runtime headers.
+Legacy application paths under `cache/`, `rdma/`, and `utils/`, plus `option.hpp`,
+`inline_task_option.hpp` and `runtime_common/benchmark_memory.hpp`, remain
+forwarding includes. These files contain no duplicate implementation. In
+particular, `rdma/config.def` forwards without a guard so repeated macro expansion
+still works. New internal includes should use the canonical module paths.
+
+The Microsoft generator stays unchanged at `utils/zipfian.hpp`. KVS keeps its
+application-specific string at `apps/kvs/include/test/fixed_size_string.hpp`;
+the app-local include directory retains precedence.
 
 ## C++ formatting
 

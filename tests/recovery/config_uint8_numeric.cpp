@@ -6,7 +6,7 @@
 #undef NDEBUG
 #endif
 
-#include "rdma/config.hpp"
+#include "transport/rdma/config.hpp"
 
 #include <array>
 #include <cassert>

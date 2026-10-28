@@ -8,7 +8,7 @@
 #include <thread>
 
 #if __has_include(<infiniband/verbs.h>)
-#include "cache/alloc/remote_allocator.hpp"
+#include "mm/allocator/remote_allocator.hpp"
 
 // This allocator-only fixture does not enable phased RMW or link its RDMA
 // coordinator. Fail if that unrelated diagnostic setup is ever requested.

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <memory>
 
-#include "utils/spinlock.hpp"
+#include "async/spinlock.hpp"
 
 namespace FarLib {
 

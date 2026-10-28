@@ -1,4 +1,4 @@
-#include "rdma/shutdown_completion.hpp"
+#include "transport/rdma/shutdown_completion.hpp"
 
 #include <cassert>
 #include <cstdint>

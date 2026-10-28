@@ -1,4 +1,4 @@
-#include "cache/alloc/ec_direct_write_bank.hpp"
+#include "ft/ec/ec_direct_write_bank.hpp"
 
 #include <array>
 #include <atomic>

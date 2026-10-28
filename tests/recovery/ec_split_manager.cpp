@@ -11,8 +11,8 @@
 
 #if __has_include(<infiniband/verbs.h>)
 
-#include "cache/alloc/small_object_stripe.hpp"
-#include "rdma/config.hpp"
+#include "ft/ec/small_object_stripe.hpp"
+#include "transport/rdma/config.hpp"
 
 namespace FarLib {
 static rdma::Configure g_ec_split_manager_config;

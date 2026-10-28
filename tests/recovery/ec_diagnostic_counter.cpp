@@ -1,4 +1,4 @@
-#include "internal/profiling/sharded_diagnostic_counter.hpp"
+#include "profiling/sharded_diagnostic_counter.hpp"
 
 #include <atomic>
 #include <cstddef>

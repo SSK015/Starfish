@@ -5,8 +5,8 @@
 #include <functional>
 #include <utility>
 
-#include "utils/cpu_cycles.hpp"
-#include "utils/debug.hpp"
+#include "lib/cpu_cycles.hpp"
+#include "lib/debug.hpp"
 
 namespace FarLib {
 

@@ -14,10 +14,10 @@
 
 #if __has_include(<infiniband/verbs.h>)
 
-#include "cache/alloc/ec_batch_staging.hpp"
-#include "cache/alloc/ec_group_builder.hpp"
-#include "cache/alloc/small_object_stripe.hpp"
-#include "rdma/config.hpp"
+#include "ft/ec/ec_batch_staging.hpp"
+#include "ft/ec/ec_group_builder.hpp"
+#include "ft/ec/small_object_stripe.hpp"
+#include "transport/rdma/config.hpp"
 
 namespace FarLib {
 static rdma::Configure g_ec_behavior_config;

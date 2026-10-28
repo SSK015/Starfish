@@ -3,7 +3,7 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
-#include "internal/recovery/ec_recovery_scratch.hpp"
+#include "ft/recovery/ec_recovery_scratch.hpp"
 
 #include <algorithm>
 #include <atomic>

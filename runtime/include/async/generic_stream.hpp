@@ -7,9 +7,9 @@
 #include <type_traits>
 
 #include "async/context.hpp"
-#include "cache/cache.hpp"
-#include "utils/debug.hpp"
-#include "utils/linked_list.hpp"
+#include "mm/cache/cache.hpp"
+#include "lib/debug.hpp"
+#include "lib/linked_list.hpp"
 
 namespace FarLib {
 namespace async {

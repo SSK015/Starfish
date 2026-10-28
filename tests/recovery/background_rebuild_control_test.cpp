@@ -1,4 +1,4 @@
-#include "internal/recovery/ec_background_rebuild.hpp"
+#include "ft/recovery/ec_background_rebuild.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
