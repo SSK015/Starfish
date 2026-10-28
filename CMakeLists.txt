@@ -78,9 +78,9 @@ add_library(libcache STATIC
     ${SRC_DIR}/rdma/client.cpp
     ${SRC_DIR}/rdma/exchange_msg.cpp
     ${SRC_DIR}/cache/cache.cpp
-    ${SRC_DIR}/cache/ec_update.cpp
-    ${SRC_DIR}/design1/backup_budget.cpp
-    ${SRC_DIR}/utils/stats.cpp
+    ${SRC_DIR}/internal/cache/rdma/ec_update.cpp
+    ${SRC_DIR}/internal/placement/backup_budget.cpp
+    ${SRC_DIR}/internal/profiling/stats.cpp
     ${SRC_DIR}/utils/control.cpp
     ${SRC_DIR}/utils/uthreads.cpp)
 add_library(libasync STATIC ${SRC_DIR}/utils/signal.cpp)

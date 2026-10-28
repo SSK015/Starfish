@@ -17,6 +17,10 @@ implementation helpers by responsibility:
 | `recovery/` | Read recovery, background rebuilding, and recomputation |
 | `profiling/` | Timing, counters, sampled diagnostics, and memory reporting |
 
+Compiled implementations use the corresponding module paths under
+`runtime/src/`, including `internal/placement/`, `internal/profiling/`, and
+`internal/cache/rdma/`. Header-only modules do not need a source directory.
+
 Runtime code and tests include these implementation headers through
 `internal/...` paths. Template and inline implementations remain in headers.
 The application-facing `utils/{perf,stats,wait_trace,scope_diag,request_interval_diag}.hpp`

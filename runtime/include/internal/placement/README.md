@@ -2,7 +2,7 @@
 
 - `batched_backup_budget.hpp` controls admission against the remote-backup
   byte budget. Its fibre-local and native-thread-local handles are defined in
-  `runtime/src/design1/backup_budget.cpp`.
+  `runtime/src/internal/placement/backup_budget.cpp`.
 - `backup_usage_shards.hpp` collects backup-usage counters.
 - `placement_policy.hpp` and `runtime_types.hpp` define placement decisions
   and state.

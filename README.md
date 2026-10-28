@@ -57,7 +57,7 @@ The runtime is a separate source module alongside applications and tests:
 runtime/
   include/       Application headers and compatibility entry points
     internal/    Cache, placement, behavior, recovery, and profiling implementations
-  src/           Compiled runtime and memory-server sources
+  src/           Compiled implementations in corresponding header module paths
 apps/            Applications and microbenchmarks
 tests/           Runtime tests and test support
 third_party/     Pinned dependencies and retained licenses
