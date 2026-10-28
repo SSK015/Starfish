@@ -9,8 +9,8 @@
 #undef NDEBUG
 #endif
 
-#include "recovery/ec_read_context.hpp"
-#include "recovery/ec_read_recovery.hpp"
+#include "internal/recovery/ec_read_context.hpp"
+#include "internal/recovery/ec_read_recovery.hpp"
 #include "cache/alloc/small_object_stripe_codec.hpp"
 
 #include <array>

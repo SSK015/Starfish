@@ -6,7 +6,7 @@
 #include "data_structure/far_vector.hpp"
 #include "utils/debug.hpp"
 #include "utils/parallel.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 namespace FarLib {
 
 /* lite sort */

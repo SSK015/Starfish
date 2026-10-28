@@ -3,6 +3,30 @@
 Contributions to runtime performance, applications, testing, and reproducibility
 are welcome. Keep each change focused and explain how it was checked.
 
+## Header layout
+
+Application includes keep their existing `cache/`, `data_structure/`, `async/`,
+`rdma/`, and `utils/` paths. The `runtime/include/internal/` subtree groups
+implementation helpers by responsibility:
+
+| Directory | Responsibility |
+| --- | --- |
+| `cache/` | Allocator and cache paths, completion handling, and cache hooks |
+| `placement/` | Remote-backup budgets, resident placement, and region heat/budgets |
+| `behavior/` | Object-group classification/refinement and EC phase policy |
+| `recovery/` | Read recovery, background rebuilding, and recomputation |
+| `profiling/` | Timing, counters, sampled diagnostics, and memory reporting |
+
+Runtime code and tests include these implementation headers through
+`internal/...` paths. Template and inline implementations remain in headers.
+The application-facing `utils/{perf,stats,wait_trace,scope_diag,request_interval_diag}.hpp`
+and `runtime_common/benchmark_memory.hpp` remain as forwarding headers.
+They preserve existing application includes without duplicating implementation.
+
+KVS keeps its application-specific fixed-size string in
+`apps/kvs/include/test/fixed_size_string.hpp`. Its app-local include directory
+takes precedence over runtime headers.
+
 ## C++ formatting
 
 Use **clang-format 20**, Google style, **2-space indentation**, and an **80-column

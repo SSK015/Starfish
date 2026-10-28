@@ -17,14 +17,14 @@
 
 #include "cache/region_based_allocator.hpp"
 #include "cache/alloc/sharded_remote_usage.hpp"
-#include "design2/fixed_six_runtime.hpp"
-#include "design2/simple_region_budget.hpp"
+#include "internal/cache/fixed_six_runtime.hpp"
+#include "internal/placement/simple_region_budget.hpp"
 #include "utils/control.hpp"
 #include "utils/debug.hpp"
 #include "utils/cpu_cycles.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 #include "utils/uthreads.hpp"
-#include "runtime_common/runtime_metadata.hpp"
+#include "internal/profiling/runtime_metadata.hpp"
 
 namespace FarLib {
 

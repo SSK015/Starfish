@@ -5,7 +5,7 @@
 #include <iostream>
 #include <thread>
 
-#include "utils/evict_breakdown.hpp"
+#include "internal/profiling/evict_breakdown.hpp"
 
 #if FARLIB_ENABLE_EVICT_BREAKDOWN
 

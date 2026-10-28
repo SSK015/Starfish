@@ -53,7 +53,7 @@
 #include <cstring>
 #include <limits>
 
-#include "runtime_common/runtime_ec_cpu.hpp"
+#include "internal/profiling/runtime_ec_cpu.hpp"
 
 #if __has_include(<isa-l/erasure_code.h>)
 #include <isa-l/erasure_code.h>

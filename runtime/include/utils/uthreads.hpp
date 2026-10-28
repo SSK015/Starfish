@@ -8,8 +8,8 @@
 #include <string>
 
 #include "libfibre/fibre.h"
-#include "utils/scope_diag.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/scope_diag.hpp"
+#include "internal/profiling/stats.hpp"
 
 namespace FarLib {
 

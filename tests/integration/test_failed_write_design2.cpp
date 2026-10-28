@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "design2/eviction_commit.hpp"
+#include "internal/cache/eviction_commit.hpp"
 
 namespace {
 

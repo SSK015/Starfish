@@ -15,7 +15,7 @@
 
 #include "cache/alloc/ec_batch_staging.hpp"
 #include "cache/alloc/small_object_stripe_codec.hpp"
-#include "utils/evict_breakdown.hpp"
+#include "internal/profiling/evict_breakdown.hpp"
 
 namespace FarLib::cache::ec_split {
 

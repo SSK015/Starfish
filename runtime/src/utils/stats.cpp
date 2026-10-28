@@ -1,4 +1,4 @@
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 
 #include <atomic>
 #include <cstdint>

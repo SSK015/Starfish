@@ -1,4 +1,4 @@
-#include "design2/behavior_group_policy.hpp"
+#include "internal/behavior/behavior_group_policy.hpp"
 
 #include <array>
 #include <cstdint>

@@ -4,7 +4,7 @@
 #undef NDEBUG
 #endif
 
-#include "recovery/ec_read_context.hpp"
+#include "internal/recovery/ec_read_context.hpp"
 
 #include <array>
 #include <atomic>

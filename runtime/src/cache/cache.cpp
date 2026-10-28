@@ -24,7 +24,7 @@ size_t bump_pointer_offset = 0;
 #else
 
 #include "cache/alloc/remote_allocator.hpp"
-#include "design2/fixed_six_runtime.hpp"
+#include "internal/cache/fixed_six_runtime.hpp"
 
 namespace FarLib {
 namespace cache {

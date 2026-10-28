@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "recovery/ec_recovery_scratch.hpp"
+#include "internal/recovery/ec_recovery_scratch.hpp"
 
 #if __has_include(<infiniband/verbs.h>)
 #include "cache/region_based_allocator.hpp"

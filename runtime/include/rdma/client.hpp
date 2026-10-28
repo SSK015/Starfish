@@ -30,9 +30,9 @@
 #include "rdma/ec_update_client.hpp"
 #include "rdma/ec_rmw_client.hpp"
 #include "utils/debug.hpp"
-#include "utils/request_interval_diag.hpp"
-#include "utils/wc_object_diag.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/request_interval_diag.hpp"
+#include "internal/profiling/wc_object_diag.hpp"
+#include "internal/profiling/stats.hpp"
 
 namespace FarLib {
 

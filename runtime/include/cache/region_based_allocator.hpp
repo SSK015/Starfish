@@ -14,15 +14,15 @@
 #include <vector>
 
 #include "cache/entry.hpp"
-#include "design2/simple_region_heat.hpp"
+#include "internal/placement/simple_region_heat.hpp"
 #include "cache/base/object.hpp"
-#include "design2/fixed_six_runtime.hpp"
+#include "internal/cache/fixed_six_runtime.hpp"
 #include "utils/control.hpp"
-#include "utils/alloc_reclaim_rate_diag.hpp"
+#include "internal/profiling/alloc_reclaim_rate_diag.hpp"
 #include "utils/debug.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 #include "utils/bounded_return_queue.hpp"
-#include "runtime_common/runtime_metadata.hpp"
+#include "internal/profiling/runtime_metadata.hpp"
 
 // Debug (compile-time opt-in; zero cost when disabled)
 //
@@ -1185,7 +1185,7 @@ inline runtime_metadata::Snapshot GlobalHeap::metadata_usage() {
 
 }  // namespace FarLib
 
-#include "cache/core/alloc/region_list_path.hpp"
-#include "cache/core/alloc/global_heap_path.hpp"
-#include "cache/core/alloc/async_full_return_path.hpp"
-#include "cache/core/alloc/region_head_path.hpp"
+#include "internal/cache/alloc/region_list_path.hpp"
+#include "internal/cache/alloc/global_heap_path.hpp"
+#include "internal/cache/alloc/async_full_return_path.hpp"
+#include "internal/cache/alloc/region_head_path.hpp"

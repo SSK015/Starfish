@@ -7,7 +7,7 @@
 
 #include "utils/debug.hpp"
 #include "uthreads.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 
 namespace FarLib {
 namespace uthread {

@@ -2,7 +2,7 @@
 
 #include "cache/cache.hpp"
 #include "rdma/config.hpp"
-#include "design2/behavior_group_runtime.hpp"
+#include "internal/behavior/behavior_group_runtime.hpp"
 #include "utils/fork_join.hpp"
 #include "utils/uthreads.hpp"
 

@@ -47,12 +47,12 @@
 #include <mutex>
 #include <vector>
 
-#include "runtime_common/runtime_metadata.hpp"
+#include "internal/profiling/runtime_metadata.hpp"
 #include "cache/alloc/region_remote_allocator.hpp"
 #include "cache/alloc/small_object_stripe_codec.hpp"
 
-#include "utils/ec_benchmark_phase.hpp"
-#include "utils/ec_rmw_prepare_trace.hpp"
+#include "internal/behavior/ec_benchmark_phase.hpp"
+#include "internal/profiling/ec_rmw_prepare_trace.hpp"
 
 #include "rdma/config.hpp"
 #include "utils/debug.hpp"

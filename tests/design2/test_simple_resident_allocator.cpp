@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "cache/region_based_allocator.hpp"
-#include "design2/simple_region_heat.hpp"
+#include "internal/placement/simple_region_heat.hpp"
 #include "rdma/config.hpp"
 #include "utils/control.hpp"
 

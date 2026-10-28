@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 
 #define USE_REGION_BASED_ALLOCATOR
 

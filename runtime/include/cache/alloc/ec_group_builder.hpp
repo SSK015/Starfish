@@ -39,7 +39,7 @@
 //                                a whole (mark_dead_group) so no slot leaks
 // ---------------------------------------------------------------------------
 #pragma once
-#include "utils/evict_breakdown.hpp"
+#include "internal/profiling/evict_breakdown.hpp"
 
 #include <array>
 #include <cstddef>

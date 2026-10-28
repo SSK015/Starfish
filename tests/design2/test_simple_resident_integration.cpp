@@ -19,7 +19,7 @@
 #include "utils/control.hpp"
 #include "utils/debug.hpp"
 #include "utils/parallel.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 
 using namespace FarLib;
 using namespace FarLib::cache;

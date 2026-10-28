@@ -8,15 +8,15 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "design2/behavior_group_runtime.hpp"
-#include "design2/simple_region_budget.hpp"
-#include "recovery/ec_backup_policy.hpp"
+#include "internal/behavior/behavior_group_runtime.hpp"
+#include "internal/placement/simple_region_budget.hpp"
+#include "internal/recovery/ec_backup_policy.hpp"
 
 #if __has_include(<infiniband/verbs.h>)
 #include "rdma/config.hpp"
 #include "cache/alloc/small_object_stripe.hpp"
-#include "design2/fixed_six_runtime.hpp"
-#include "design2/simple_region_heat.hpp"
+#include "internal/cache/fixed_six_runtime.hpp"
+#include "internal/placement/simple_region_heat.hpp"
 #include "utils/control.hpp"
 #endif
 

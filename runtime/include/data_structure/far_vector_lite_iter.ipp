@@ -1,6 +1,6 @@
 #pragma once
 #include "data_structure/far_vector.hpp"
-#include "utils/stats.hpp"
+#include "internal/profiling/stats.hpp"
 #ifndef FORCE_INLINE
 #define FORCE_INLINE inline __attribute__((always_inline))
 // #define FORCE_INLINE
