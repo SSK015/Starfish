@@ -1,0 +1,65 @@
+# Accept the old build-cache spelling while Starfish options become canonical.
+# Runtime FARLIB_* environment variables are a separate, unchanged interface.
+function(starfish_import_legacy_options)
+    get_cmake_property(_starfish_cache_variables CACHE_VARIABLES)
+    foreach(_starfish_legacy IN LISTS _starfish_cache_variables)
+        if(NOT _starfish_legacy MATCHES "^FARLIB_")
+            continue()
+        endif()
+        string(REGEX REPLACE "^FARLIB_" "STARFISH_"
+               _starfish_canonical "${_starfish_legacy}")
+        if(_starfish_legacy STREQUAL "FARLIB_STARFISH_MG")
+            set(_starfish_canonical STARFISH_MG_RUNTIME)
+        elseif(_starfish_legacy STREQUAL "FARLIB_WORDCOUNT_STARFISH")
+            set(_starfish_canonical STARFISH_WORDCOUNT_RECOMPUTE)
+        elseif(_starfish_legacy STREQUAL "FARLIB_WORDCOUNT_STARFISH_RUNTIME")
+            set(_starfish_canonical STARFISH_WORDCOUNT_RUNTIME)
+        endif()
+
+        get_property(_starfish_type CACHE "${_starfish_legacy}" PROPERTY TYPE)
+        get_property(_starfish_help CACHE "${_starfish_legacy}" PROPERTY HELPSTRING)
+        set(_starfish_boolean FALSE)
+        if(_starfish_type STREQUAL "BOOL" OR
+           _starfish_legacy MATCHES "^FARLIB_(BUILD_|ENABLE_)" OR
+           _starfish_legacy MATCHES "^FARLIB_(BACKUP_ACCOUNTING_CACHELINE_ISOLATION|STARFISH_MG|WORDCOUNT_STARFISH|WORDCOUNT_STARFISH_RUNTIME)$")
+            set(_starfish_boolean TRUE)
+        endif()
+
+        if(DEFINED CACHE{${_starfish_canonical}})
+            set(_starfish_equal FALSE)
+            if("${${_starfish_legacy}}" STREQUAL "${${_starfish_canonical}}")
+                set(_starfish_equal TRUE)
+            elseif(_starfish_boolean)
+                if(${_starfish_legacy} AND ${_starfish_canonical})
+                    set(_starfish_equal TRUE)
+                elseif(NOT ${_starfish_legacy} AND NOT ${_starfish_canonical})
+                    set(_starfish_equal TRUE)
+                endif()
+            endif()
+            if(NOT _starfish_equal)
+                message(FATAL_ERROR
+                    "Conflicting ${_starfish_legacy} and ${_starfish_canonical}; "
+                    "use the canonical ${_starfish_canonical} option.")
+            endif()
+        else()
+            if(_starfish_type STREQUAL "UNINITIALIZED")
+                if(_starfish_boolean)
+                    set(_starfish_type BOOL)
+                elseif(_starfish_legacy MATCHES "_DIR$")
+                    set(_starfish_type PATH)
+                elseif(_starfish_legacy MATCHES "_LIBRARY$")
+                    set(_starfish_type FILEPATH)
+                else()
+                    set(_starfish_type STRING)
+                endif()
+            endif()
+            set(${_starfish_canonical} "${${_starfish_legacy}}"
+                CACHE ${_starfish_type} "${_starfish_help}")
+        endif()
+        message(DEPRECATION
+            "${_starfish_legacy} is deprecated; use ${_starfish_canonical}.")
+        unset(${_starfish_legacy} CACHE)
+    endforeach()
+endfunction()
+
+starfish_import_legacy_options()

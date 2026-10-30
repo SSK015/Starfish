@@ -7,7 +7,7 @@
 #include <vector>
 
 int main() {
-  using namespace FarLib::cache::ec_background;
+  using namespace starfish::cache::ec_background;
   constexpr uint64_t kBytes = 262144;
   constexpr uint64_t kMbps = 2500;
   constexpr uint64_t kBase = 1000000000;

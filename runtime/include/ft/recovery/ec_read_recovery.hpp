@@ -46,7 +46,7 @@
 #include "ft/recovery/ec_recovery_profile.hpp"
 #include "ft/ec/small_object_stripe_codec.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // Group view of one object (defined in recovery/ec_read_recovery.ipp):
 // the six segments of the slot group its remote address belongs to plus the
@@ -54,9 +54,9 @@ namespace FarLib::cache {
 // it is produced and consumed inside that file only.
 struct EcRecoveryGroupView;
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache
 
-namespace FarLib::cache::ec_read_recovery {
+namespace starfish::cache::ec_read_recovery {
 
 // ------------------------------ wr_id tag ---------------------------------
 // Same high-half convention as the ec_batch write round, in its own namespace:
@@ -671,7 +671,7 @@ class EcReadTokenTable {
   void free_locked(EcReadToken *entry,
                    ec_batch::EcStagingGroupSlot *scratch_out) {
     EcRecoveryProfile::ScopedTimer release_timer(
-        ::FarLib::cache::ec_recovery_profile(),
+        ::starfish::cache::ec_recovery_profile(),
         EcRecoveryProfile::Stage::kTokenRelease);
     if (scratch_out != nullptr) *scratch_out = entry->scratch;
     entry->in_use = false;
@@ -778,4 +778,4 @@ class EcReadTokenTable {
 // CQEs of a read can be reaped by different threads without holding a lock
 // across the rebuild.
 
-}  // namespace FarLib::cache::ec_read_recovery
+}  // namespace starfish::cache::ec_read_recovery

@@ -15,12 +15,12 @@
 #include "transport/rdma/config.hpp"
 
 #ifdef NO_REMOTE
-namespace FarLib {
+namespace starfish {
 const rdma::Configure &get_config();
 }
 #endif
 
-namespace FarLib {
+namespace starfish {
 namespace async {
 #ifdef PROFILE_STREAM_RUNNER_SCHEDULE
 std::atomic_int64_t StreamRunnerProfiler::global_total_cycles;
@@ -213,7 +213,7 @@ uint64_t effective_reference_bucket_weight(
 }
 
 bool reference_heat_split_access_weighted() {
-  return FarLib::get_config().reference_heat_split_mode == "access_weighted";
+  return starfish::get_config().reference_heat_split_mode == "access_weighted";
 }
 
 void update_reference_heat_thresholds(
@@ -271,8 +271,8 @@ uint32_t bucket_upper_bound(uint32_t bucket) {
 }  // namespace
 
 bool evac_phase_metrics_enabled() noexcept {
-#if defined(FARLIB_ENABLE_EVAC_PHASE_METRICS) && \
-    (FARLIB_ENABLE_EVAC_PHASE_METRICS == 0)
+#if defined(STARFISH_ENABLE_EVAC_PHASE_METRICS) && \
+    (STARFISH_ENABLE_EVAC_PHASE_METRICS == 0)
   return false;
 #else
   static const bool enabled = [] {
@@ -1405,7 +1405,7 @@ void print_profile_data() {
     print_ratio_line("ref dirtiness hot", collect_ref_clean_hot_count(),
                      collect_ref_dirty_hot_count(), "clean", "dirty");
   }
-#if FARLIB_ENABLE_EVAC_VERBOSE_PROFILE
+#if STARFISH_ENABLE_EVAC_VERBOSE_PROFILE
   PRINT_IF("evac cq wait cycles", collect_evac_check_cq_wait_cycles(),
            enabled::Evacuation);
   PRINT_IF("evac evict post cycles", collect_evac_evict_post_cycles(),
@@ -1480,7 +1480,7 @@ void print_profile_data() {
            enabled::Evacuation);
   PRINT_IF("evac evict to full", collect_evac_evict_regions_to_full(),
            enabled::Evacuation);
-#if FARLIB_ENABLE_EVAC_FINE_PROFILE
+#if STARFISH_ENABLE_EVAC_FINE_PROFILE
   PRINT_IF("evac pop empty", collect_evac_evict_pop_empty(),
            enabled::Evacuation);
   PRINT_IF("evac pop head matched", collect_evac_evict_pop_head_matched(),
@@ -1684,4 +1684,4 @@ StreamRunnerProfiler::Warn StreamRunnerProfiler::warn;
 #endif
 }  // namespace async
 
-}  // namespace FarLib
+}  // namespace starfish

@@ -6,7 +6,7 @@
 #include <thread>
 #include <vector>
 
-using Store = FarLib::cache::detail::EntryFrequencyStore;
+using Store = starfish::cache::detail::EntryFrequencyStore;
 
 int main() {
   int first = 0;

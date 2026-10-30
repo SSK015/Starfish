@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <iostream>
 
-namespace FarLib {
+namespace starfish {
 
 namespace debug {
 
@@ -51,15 +51,15 @@ inline void info(const char *msg) {
 
 }  // namespace debug
 
-}  // namespace FarLib
+}  // namespace starfish
 
-#define TODO(MSG) FarLib::debug::todo(MSG)
-#define ERROR(MSG) FarLib::debug::error(MSG)
-#define WARN(MSG) FarLib::debug::warn(MSG)
-#define INFO(MSG) FarLib::debug::info(MSG)
-#define CHECK_ERR(X) FarLib::debug::check_err(X, #X)
+#define TODO(MSG) starfish::debug::todo(MSG)
+#define ERROR(MSG) starfish::debug::error(MSG)
+#define WARN(MSG) starfish::debug::warn(MSG)
+#define INFO(MSG) starfish::debug::info(MSG)
+#define CHECK_ERR(X) starfish::debug::check_err(X, #X)
 #define DEBUG_ASSERT assert
 #define ASSERT(X)         \
     (static_cast<bool>(X) \
          ? void(0)        \
-         : FarLib::debug::assert_fail(#X, __FILE__, __LINE__, __func__))
+         : starfish::debug::assert_fail(#X, __FILE__, __LINE__, __func__))

@@ -2,18 +2,18 @@
 
 #include <mutex>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
-inline ::FarLib::allocator::RegionPlacement
+inline ::starfish::allocator::RegionPlacement
 ConcurrentArrayCache::record_region_fetch_request(
-    ::FarLib::allocator::RegionPlacement placement) {
+    ::starfish::allocator::RegionPlacement placement) {
   if (!region_fetch_diagnostics_enabled()) {
     return placement;
   }
-  if (placement == ::FarLib::allocator::RegionPlacement::Resident) {
+  if (placement == ::starfish::allocator::RegionPlacement::Resident) {
     region_fetch_requested_resident_count.fetch_add(1,
                                                     std::memory_order_relaxed);
-  } else if (placement == ::FarLib::allocator::RegionPlacement::Streaming) {
+  } else if (placement == ::starfish::allocator::RegionPlacement::Streaming) {
     region_fetch_requested_streaming_count.fetch_add(1,
                                                      std::memory_order_relaxed);
   }
@@ -21,22 +21,22 @@ ConcurrentArrayCache::record_region_fetch_request(
 }
 
 inline void ConcurrentArrayCache::record_region_fetch_actual(
-    ::FarLib::allocator::RegionPlacement requested_placement,
-    ::FarLib::allocator::RegionPlacement actual_placement, size_t size,
-    ::FarLib::allocator::RegionHead *actual_region) {
+    ::starfish::allocator::RegionPlacement requested_placement,
+    ::starfish::allocator::RegionPlacement actual_placement, size_t size,
+    ::starfish::allocator::RegionHead *actual_region) {
   const bool diagnostics = region_fetch_diagnostics_enabled();
   if (diagnostics) {
-    if (actual_placement == ::FarLib::allocator::RegionPlacement::Resident) {
+    if (actual_placement == ::starfish::allocator::RegionPlacement::Resident) {
       region_fetch_actual_resident_count.fetch_add(1,
                                                    std::memory_order_relaxed);
     } else if (actual_placement ==
-               ::FarLib::allocator::RegionPlacement::Streaming) {
+               ::starfish::allocator::RegionPlacement::Streaming) {
       region_fetch_actual_streaming_count.fetch_add(1,
                                                     std::memory_order_relaxed);
     }
   }
-  if (requested_placement != ::FarLib::allocator::RegionPlacement::Resident ||
-      actual_placement != ::FarLib::allocator::RegionPlacement::Streaming) {
+  if (requested_placement != ::starfish::allocator::RegionPlacement::Resident ||
+      actual_placement != ::starfish::allocator::RegionPlacement::Streaming) {
     return;
   }
   const uint64_t footprint = local_allocation_footprint(size);
@@ -59,12 +59,12 @@ inline void ConcurrentArrayCache::record_region_fetch_actual(
       footprint, std::memory_order_relaxed);
   ASSERT(actual_region != nullptr);
   ASSERT(actual_region->load_placement() ==
-         ::FarLib::allocator::RegionPlacement::Streaming);
+         ::starfish::allocator::RegionPlacement::Streaming);
   actual_region->profile_window_resident_fetch_intent_bytes.fetch_add(
       footprint, std::memory_order_relaxed);
 }
 
-inline ::FarLib::allocator::RegionPlacement
+inline ::starfish::allocator::RegionPlacement
 ConcurrentArrayCache::region_fetch_placement(const FarObjectEntry &entry) {
   const bool count_placement = region_fetch_diagnostics_enabled() &&
                                region_resident_placement_enabled() &&
@@ -85,12 +85,12 @@ ConcurrentArrayCache::region_fetch_placement(const FarObjectEntry &entry) {
       // joins Streaming. Physical-region demand samples may still
       // promote the complete region on a later planner pass.
       return record_region_fetch_request(
-          ::FarLib::allocator::RegionPlacement::Streaming);
+          ::starfish::allocator::RegionPlacement::Streaming);
     }
     const uint32_t group_id = entry.resident_group_id();
     if (group_id == 0) {
       return record_region_fetch_request(
-          ::FarLib::allocator::RegionPlacement::Streaming);
+          ::starfish::allocator::RegionPlacement::Streaming);
     }
     ASSERT(group_id <
            next_resident_placement_group_id.load(std::memory_order_acquire));
@@ -101,23 +101,23 @@ ConcurrentArrayCache::region_fetch_placement(const FarObjectEntry &entry) {
     return record_region_fetch_request(
         group.fetch_preferred_resident.load(std::memory_order_acquire) &&
                 below_resident_target
-            ? ::FarLib::allocator::RegionPlacement::Resident
-            : ::FarLib::allocator::RegionPlacement::Streaming);
+            ? ::starfish::allocator::RegionPlacement::Resident
+            : ::starfish::allocator::RegionPlacement::Streaming);
   }
   const uint32_t group_id = entry.resident_group_id();
   if (!region_resident_placement_enabled() || group_id == 0) {
-    return ::FarLib::allocator::RegionPlacement::Unclassified;
+    return ::starfish::allocator::RegionPlacement::Unclassified;
   }
   if (!resident_profile_plan_ready.load(std::memory_order_acquire)) {
-    return ::FarLib::allocator::RegionPlacement::Streaming;
+    return ::starfish::allocator::RegionPlacement::Streaming;
   }
   ASSERT(group_id <
          next_resident_placement_group_id.load(std::memory_order_acquire));
   const auto &profile = resident_placement_groups[group_id];
   return profile.resident_current_bytes.load(std::memory_order_relaxed) <
                  profile.resident_target_bytes.load(std::memory_order_acquire)
-             ? ::FarLib::allocator::RegionPlacement::Resident
-             : ::FarLib::allocator::RegionPlacement::Streaming;
+             ? ::starfish::allocator::RegionPlacement::Resident
+             : ::starfish::allocator::RegionPlacement::Streaming;
 }
 
 inline ConcurrentArrayCache::RemoteFetchPlacement
@@ -125,7 +125,7 @@ ConcurrentArrayCache::prepare_remote_fetch_placement(FarObjectEntry &entry,
                                                      size_t size,
                                                      DereferenceScope &scope,
                                                      bool allow_backup) {
-  using ::FarLib::allocator::RegionPlacement;
+  using ::starfish::allocator::RegionPlacement;
 
   RemoteFetchPlacement placement{
       .requested_placement = region_fetch_placement(entry),
@@ -152,15 +152,15 @@ ConcurrentArrayCache::prepare_remote_fetch_placement(FarObjectEntry &entry,
   return placement;
 }
 
-inline ::FarLib::allocator::RegionPlacement
+inline ::starfish::allocator::RegionPlacement
 ConcurrentArrayCache::finalize_remote_fetch_placement(
     FarObjectEntry &entry, size_t size, void *local_ptr,
     RemoteFetchPlacement &placement) {
-  using ::FarLib::allocator::BlockHead;
-  using ::FarLib::allocator::RegionPlacement;
+  using ::starfish::allocator::BlockHead;
+  using ::starfish::allocator::RegionPlacement;
 
   auto *local_block = static_cast<BlockHead *>(local_ptr) - 1;
-  auto *actual_region = ::FarLib::allocator::block_to_region(local_block);
+  auto *actual_region = ::starfish::allocator::block_to_region(local_block);
   const RegionPlacement actual_placement = actual_region->load_placement();
   if (region_resident_placement_enabled()) {
     if (actual_placement == RegionPlacement::Resident &&
@@ -194,8 +194,8 @@ inline uint32_t ConcurrentArrayCache::register_resident_placement_group(
   }
   const uint32_t allocation_bin = resident_allocation_bin(size);
   const uint64_t region_group_capacity =
-      ((::FarLib::allocator::RegionSize -
-        sizeof(::FarLib::allocator::RegionHead)) /
+      ((::starfish::allocator::RegionSize -
+        sizeof(::starfish::allocator::RegionHead)) /
        footprint_bytes) *
       footprint_bytes;
   const uint64_t group_capacity = region_group_binding_enabled()
@@ -244,10 +244,10 @@ inline void ConcurrentArrayCache::release_resident_placement_allocation(
 
 inline void ConcurrentArrayCache::handle_region_placement_transition_backup(
     FarObjectEntry &entry, size_t bytes,
-    ::FarLib::allocator::RegionPlacement from,
-    ::FarLib::allocator::RegionPlacement to,
+    ::starfish::allocator::RegionPlacement from,
+    ::starfish::allocator::RegionPlacement to,
     std::vector<uint64_t> *deferred_remote_frees) {
-  using ::FarLib::allocator::RegionPlacement;
+  using ::starfish::allocator::RegionPlacement;
 
   // GlobalHeap invokes this callback while the entry is invalid-locked.
   // Keep the behavior-group's actual R occupancy synchronized with the
@@ -291,4 +291,4 @@ inline void ConcurrentArrayCache::handle_region_placement_transition_backup(
   }
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

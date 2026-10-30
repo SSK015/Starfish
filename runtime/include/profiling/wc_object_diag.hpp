@@ -6,7 +6,7 @@
 // Compatibility surface for shared applications that still call the retired
 // WC object/window hooks.  The runtime no longer records object diagnostics;
 // these operations are deliberately allocation-free and stateless.
-namespace FarLib::wc_object_diag {
+namespace starfish::wc_object_diag {
 
 struct Sample {};
 
@@ -22,4 +22,4 @@ inline void window(const char *, uint64_t,
                    std::chrono::steady_clock::time_point) noexcept {}
 inline void dump() noexcept {}
 
-}  // namespace FarLib::wc_object_diag
+}  // namespace starfish::wc_object_diag

@@ -5,7 +5,7 @@
 
 #include "async/spinlock.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <typename Key, typename Val, typename Hash = std::hash<Key>>
 class ConcurrentHashMap {
@@ -291,4 +291,4 @@ inline bool ConcurrentHashMap<Key, Val, Hash>::remove(const Key &key) {
   return false;
 }
 
-}  // namespace FarLib
+}  // namespace starfish

@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace FarLib::profile {
+namespace starfish::profile {
 
 // A telemetry-only counter whose writers are spread over cache-line-isolated
 // shards selected once per OS thread.  This deliberately does not return the
@@ -65,4 +65,4 @@ class ShardedDiagnosticCounter final {
   std::array<Shard, kShardCount> shards_{};
 };
 
-}  // namespace FarLib::profile
+}  // namespace starfish::profile

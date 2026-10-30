@@ -12,8 +12,8 @@
 #include "transport/rdma/config.hpp"
 #include "lib/control.hpp"
 
-namespace allocator = FarLib::allocator;
-namespace heat = FarLib::simple_region_heat;
+namespace allocator = starfish::allocator;
+namespace heat = starfish::simple_region_heat;
 
 namespace {
 
@@ -31,7 +31,7 @@ bool supply_band_matches(const allocator::RegionHead *region) {
 }
 
 void retire(allocator::BlockHead *block) {
-  block->obj_meta_data.store(FarLib::cache::far_obj_t::null(),
+  block->obj_meta_data.store(starfish::cache::far_obj_t::null(),
                              std::memory_order_release);
   allocator::block_to_region(block)->pending_reclaims.fetch_add(
       1, std::memory_order_relaxed);
@@ -66,7 +66,8 @@ int main() {
     assert(heat::class_for_placement(true, dirty) == dirty + 3);
   }
 
-  auto &config = const_cast<FarLib::rdma::Configure &>(FarLib::get_config());
+  auto &config =
+      const_cast<starfish::rdma::Configure &>(starfish::get_config());
   config.enable_region_resident_placement = true;
   config.region_placement_bind_groups = false;
   config.exclusive_cache = true;
@@ -94,7 +95,7 @@ int main() {
            (dirty < 3 ? allocator::RegionPlacement::Resident
                       : allocator::RegionPlacement::Streaming));
     assert(supply_band_matches(mutable_region));
-    auto object = FarLib::cache::far_obj_t{
+    auto object = starfish::cache::far_obj_t{
         .size = 8, .obj_id = static_cast<obj_id_t>(0x100 + dirty)};
     auto *block = mutable_region->allocate(object);
     assert(block != nullptr);

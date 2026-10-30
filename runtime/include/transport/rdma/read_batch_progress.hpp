@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace FarLib::rdma::read_batch {
+namespace starfish::rdma::read_batch {
 
 enum class ProgressReason {
   None,
@@ -82,4 +82,4 @@ class CreditAgePolicy {
   std::uint64_t blocked_generation_ = 0;
 };
 
-}  // namespace FarLib::rdma::read_batch
+}  // namespace starfish::rdma::read_batch

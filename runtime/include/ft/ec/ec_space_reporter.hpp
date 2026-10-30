@@ -11,7 +11,7 @@
 
 #include "ft/ec/small_object_stripe.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // Diagnostics only. Writers update stripe-local counters under their existing
 // stripe mutex; this observer never adds a lock/RMW to the object hot path.
@@ -46,9 +46,9 @@ class EcSpaceReporter {
     const auto begin = std::chrono::steady_clock::now();
     const auto s = manager_.space_usage();
     const auto end = std::chrono::steady_clock::now();
-    const auto &heap = ::FarLib::allocator::remote::remote_global_heap;
+    const auto &heap = ::starfish::allocator::remote::remote_global_heap;
     const uint64_t committed = heap.get_ec_shard_region_count() *
-                               ::FarLib::allocator::remote::RegionSize;
+                               ::starfish::allocator::remote::RegionSize;
     const double amp = amplification(s);
     if (include_in_work) {
       ++work_samples_;
@@ -174,4 +174,4 @@ class EcSpaceReporter {
   }
 };
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

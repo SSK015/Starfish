@@ -11,7 +11,7 @@
 #include "lib/debug.hpp"
 #include "lib/linked_list.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace async {
 
 template <size_t ContextSize = 256, bool Ordered = false, bool UseTimer = false,
@@ -307,4 +307,4 @@ class GenericStreamRunner {
 
 }  // namespace async
 
-}  // namespace FarLib
+}  // namespace starfish

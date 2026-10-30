@@ -1,18 +1,19 @@
 #pragma once
 #include "mm/cache/concurrent_cache.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline EntryState ConcurrentArrayCache::try_mark(
-    ::FarLib::allocator::BlockHead *block,
+    ::starfish::allocator::BlockHead *block,
     profile::DualFrequencyHistogramSnapshot *frequency_histogram,
     bool update_ema_this_pass) {
   if (six_dirty_routing_enabled() &&
-      ::FarLib::allocator::block_to_region(block)
+      ::starfish::allocator::block_to_region(block)
               ->pending_allocation_publications.load(
                   std::memory_order_acquire) != 0)
     return LOCAL;
-  if (::FarLib::allocator::block_to_region(block)->profile_pending_resident()) {
+  if (::starfish::allocator::block_to_region(block)
+          ->profile_pending_resident()) {
     resident_region_pending_mark_bypasses.fetch_add(1,
                                                     std::memory_order_relaxed);
     return LOCAL;
@@ -35,7 +36,7 @@ retry:
   }
   auto entry = &get_entry_of(obj);
   auto old_state = entry->load_state();
-  if (::FarLib::get_config().exclusive_cache && old_state.invalid)
+  if (::starfish::get_config().exclusive_cache && old_state.invalid)
       [[unlikely]] {
     auto spin_start = get_cycles();
     profile::count_excl_move_lock_spin();
@@ -52,13 +53,14 @@ retry:
     return old_state.state;
   }
   const auto region_placement =
-      ::FarLib::allocator::block_to_region(block)->load_placement();
+      ::starfish::allocator::block_to_region(block)->load_placement();
   const bool region_authoritative =
       region_resident_placement_enabled() &&
-      region_placement != ::FarLib::allocator::RegionPlacement::Unclassified &&
-      region_placement != ::FarLib::allocator::RegionPlacement::Mixed;
+      region_placement !=
+          ::starfish::allocator::RegionPlacement::Unclassified &&
+      region_placement != ::starfish::allocator::RegionPlacement::Mixed;
   if (region_authoritative) {
-    if (region_placement == ::FarLib::allocator::RegionPlacement::Resident) {
+    if (region_placement == ::starfish::allocator::RegionPlacement::Resident) {
       return old_state.state;
     }
   } else {
@@ -112,11 +114,11 @@ inline bool ec_split_direct_write_mr_eligible(void *local_addr,
   if (control == nullptr) return false;
   return ec_split::address_range_within(
       local_addr, object_bytes, control->get_buffer(),
-      ::FarLib::get_config().client_buffer_size);
+      ::starfish::get_config().client_buffer_size);
 }
 
 inline EntryState ConcurrentArrayCache::try_evict(
-    ::FarLib::allocator::BlockHead *block, EvictBufferSet &buffer_set) {
+    ::starfish::allocator::BlockHead *block, EvictBufferSet &buffer_set) {
   profile::count_evac_try_evict();
   struct TryEvictCycleGuard {
     bool enabled;
@@ -154,7 +156,8 @@ retry:
   if (old_state.invalid) [[unlikely]] {
     return BUSY;
   }
-  if (::FarLib::allocator::block_to_region(block)->profile_pending_resident()) {
+  if (::starfish::allocator::block_to_region(block)
+          ->profile_pending_resident()) {
     if (old_state.state == MARKED) {
       auto local_state = old_state;
       local_state.state = LOCAL;
@@ -182,8 +185,8 @@ retry:
   auto new_state = old_state;
   switch (new_state.state) {
     case MARKED: {
-      if (::FarLib::get_config().exclusive_cache) {
-        const auto &ft_config = ::FarLib::get_config();
+      if (::starfish::get_config().exclusive_cache) {
+        const auto &ft_config = ::starfish::get_config();
         // Acquire move-lock (invalid bit) to serialize remote_addr mutation and
         // to prevent "interrupt eviction" once remote allocation begins.
         auto lock_state = old_state;
@@ -207,7 +210,7 @@ retry:
             ft_config.ft_rmw_read_failure_fallback && ec_batch_candidate &&
             (remote_allocator.small_object_stripe_manager()
                  .data_address_needs_replacement(remote_addr) ||
-             (::FarLib::allocator::normal_read_recovery_active(block) &&
+             (::starfish::allocator::normal_read_recovery_active(block) &&
               remote_allocator.small_object_stripe_manager()
                   .recovery_replacement_enabled()));
 
@@ -295,12 +298,12 @@ retry:
           profile::count_excl_remote_alloc_cycles(get_cycles() - alloc_start);
           profile::count_excl_remote_alloc(obj.size);
           entry->set_remote_addr(remote_addr);
-          if (::FarLib::simple_region_heat::grouping_enabled())
-            entry->set_simple_heat_hot(::FarLib::simple_region_heat::is_hot(
-                ::FarLib::simple_region_heat::fetch_class_hint(
+          if (::starfish::simple_region_heat::grouping_enabled())
+            entry->set_simple_heat_hot(::starfish::simple_region_heat::is_hot(
+                ::starfish::simple_region_heat::fetch_class_hint(
                     behavior_group,
-                    ::FarLib::simple_region_heat::remote_grouping_enabled()
-                        ? ::FarLib::allocator::remote::remote_global_heap
+                    ::starfish::simple_region_heat::remote_grouping_enabled()
+                        ? ::starfish::allocator::remote::remote_global_heap
                               .simple_class_for(remote_addr)
                         : behavior_group)));
         }
@@ -308,14 +311,14 @@ retry:
         // Publish the routing hint before a postable group can complete
         // and release this entry's write reference.
         if (ec_batch_candidate &&
-            ::FarLib::simple_region_heat::grouping_enabled()) {
+            ::starfish::simple_region_heat::grouping_enabled()) {
           entry->set_simple_heat_hot(
-              ::FarLib::simple_region_heat::is_hot(behavior_group));
+              ::starfish::simple_region_heat::is_hot(behavior_group));
         }
         const bool direct_source =
             ec_batch_candidate && buffer_set.direct_builder &&
             !ec_batch_uses_split(obj.size) && obj.size <= 4096 &&
-            ::FarLib::allocator::try_borrow_ec_write_source(
+            ::starfish::allocator::try_borrow_ec_write_source(
                 block, ft_config.ft_rmw_read_failure_fallback);
         const bool split_direct_eligible =
             ec_batch_candidate && ec_batch_uses_split(obj.size) &&
@@ -323,7 +326,7 @@ retry:
                                               obj.size);
         const bool split_direct_source =
             split_direct_eligible &&
-            ::FarLib::allocator::try_borrow_ec_write_source(block, true);
+            ::starfish::allocator::try_borrow_ec_write_source(block, true);
         if (split_direct_eligible && !split_direct_source) {
           auto unlocked = lock_state;
           unlocked.invalid = 0;
@@ -351,9 +354,9 @@ retry:
           entry->set_six_pending_evict(old_state.dirty);
         if (!entry->cas_state_strong(lock_state, evict_state)) [[unlikely]] {
           if (direct_source)
-            ::FarLib::allocator::release_ec_write_source(block);
+            ::starfish::allocator::release_ec_write_source(block);
           if (split_direct_source)
-            ::FarLib::allocator::release_ec_write_source(block);
+            ::starfish::allocator::release_ec_write_source(block);
           goto retry;
         }
         if (split_direct_source)
@@ -446,7 +449,7 @@ retry:
         return EVICTING;
       }
 
-      const auto &inclusive_ft_config = ::FarLib::get_config();
+      const auto &inclusive_ft_config = ::starfish::get_config();
       const auto behavior_group =
           remote_behavior_group(*entry, reinterpret_cast<uintptr_t>(block));
       const bool recomputable = entry->has_recompute_recipe();
@@ -469,7 +472,7 @@ retry:
                                               obj.size);
         const bool split_direct_source =
             split_direct_eligible &&
-            ::FarLib::allocator::try_borrow_ec_write_source(block, true);
+            ::starfish::allocator::try_borrow_ec_write_source(block, true);
         if (split_direct_eligible && !split_direct_source) return BUSY;
         if (old_state.dirty)
           profile::count_evac_try_evict_marked_dirty();
@@ -484,7 +487,7 @@ retry:
           transition_state.invalid = 1;
           if (!entry->cas_state_weak(old_state, transition_state)) {
             if (split_direct_source)
-              ::FarLib::allocator::release_ec_write_source(block);
+              ::starfish::allocator::release_ec_write_source(block);
             goto retry;
           }
           if (entry->has_remote_backup_reservation()) {
@@ -502,21 +505,21 @@ retry:
         new_state.inc_ref_cnt();  // dec on rdma work completed
         entry->set_client_idx(rdma::thread_info.thread_id);
         if (inclusive_ft_config.is_ec_batch_mode() && !recomputable &&
-            ::FarLib::simple_region_heat::grouping_enabled()) {
+            ::starfish::simple_region_heat::grouping_enabled()) {
           entry->set_simple_heat_hot(
-              ::FarLib::simple_region_heat::is_hot(behavior_group));
+              ::starfish::simple_region_heat::is_hot(behavior_group));
         }
         if (six_dirty_routing_enabled())
           entry->set_six_pending_evict(old_state.dirty);
         if (!entry->cas_state_weak(transition_state, new_state)) [[unlikely]] {
           if (split_direct_source)
-            ::FarLib::allocator::release_ec_write_source(block);
+            ::starfish::allocator::release_ec_write_source(block);
           goto retry;
         }
         if (split_direct_source)
           ec_split_direct_write_borrowed_.fetch_add(1,
                                                     std::memory_order_relaxed);
-        const auto &ft_config = ::FarLib::get_config();
+        const auto &ft_config = ::starfish::get_config();
         // EC (ft_method=ec_batch): a dirty object is re-homed into a fresh
         // group slot instead of being rewritten in place, so the RS(4,2)
         // parity of the group it used to live in can never go stale.  The
@@ -647,4 +650,4 @@ retry:
   }
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

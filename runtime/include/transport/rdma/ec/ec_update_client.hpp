@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-namespace FarLib::rdma::ec_update {
+namespace starfish::rdma::ec_update {
 
 // SEND/RECV use the evacuator's existing data QP/CQ, not an application CQ or
 // the shared control CQ. The logical worker owns request construction; any CQ
@@ -166,4 +166,4 @@ class ClientTransport {
     return true;
   }
 };
-}  // namespace FarLib::rdma::ec_update
+}  // namespace starfish::rdma::ec_update

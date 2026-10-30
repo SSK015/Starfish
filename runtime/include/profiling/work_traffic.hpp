@@ -12,7 +12,7 @@
 #include <vector>
 #include <unistd.h>
 
-namespace FarLib::profile::work_traffic {
+namespace starfish::profile::work_traffic {
 
 // Independent of legacy profile resets. Count at the existing call sites:
 // ordinary buffered WRITEs remain enqueue-accounted by design. RMW WRITEs
@@ -175,4 +175,4 @@ inline void print(const Record &record) {
     offset += static_cast<size_t>(written);
   }
 }
-}  // namespace FarLib::profile::work_traffic
+}  // namespace starfish::profile::work_traffic

@@ -4,7 +4,7 @@
 #include "mm/cache/cache.hpp"
 #include "async/fork_join.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace uthread {
 template <typename Fn>
 inline void spawn(Fn &&fn) {
@@ -142,4 +142,4 @@ void parallel_for_with_scope(size_t max_thread_count, size_t n, Fn &&fn,
 
 }  // namespace uthread
 
-}  // namespace FarLib
+}  // namespace starfish

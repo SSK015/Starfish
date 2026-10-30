@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 // Prototype: one cache-line-isolated counter pair per native thread. A scope
 // token retains the entry shard across fibre migration. No libfibre ABI change.
 class ShardedScopeCounters {

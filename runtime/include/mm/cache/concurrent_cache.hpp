@@ -67,12 +67,12 @@
 
 // Compile the complete client and its static libraries with the same value.
 // This experiment changes cache-object layout only, not backup admission.
-#ifndef FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
-#define FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION 0
+#ifndef STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
+#define STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION 0
 #endif
-#if FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION != 0 && \
-    FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION != 1
-#error "FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION must be 0 or 1"
+#if STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION != 0 && \
+    STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION != 1
+#error "STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION must be 0 or 1"
 #endif
 
 // Always log critical errors to FD 2 for atomicity/visibility
@@ -82,7 +82,7 @@ inline void exclusive_error_log(const std::string &msg) {
 }
 #define EXCLUSIVE_ERROR(msg) exclusive_error_log(msg)
 
-namespace FarLib {
+namespace starfish {
 namespace cache {
 inline constexpr int kSpinYieldThreshold = 10000;
 
@@ -103,21 +103,22 @@ inline bool env_flag_or_default(const char *name, bool default_value) {
 }
 
 inline bool optimized_full_prime_mark_enabled() {
-  static const bool enabled = env_flag_or_default(
-      "FARLIB_OPT_FULL_PRIME_MARK", ::FarLib::get_config().optimized_evacuator);
+  static const bool enabled =
+      env_flag_or_default("FARLIB_OPT_FULL_PRIME_MARK",
+                          ::starfish::get_config().optimized_evacuator);
   return enabled;
 }
 
 inline bool optimized_serialize_mark_evict_enabled() {
   static const bool enabled =
       env_flag_or_default("FARLIB_OPT_SERIALIZE_MARK_EVICT",
-                          ::FarLib::get_config().optimized_evacuator);
+                          ::starfish::get_config().optimized_evacuator);
   return enabled;
 }
 
 inline bool optimized_ready_queue_enabled() {
   static const bool enabled = env_flag_or_default(
-      "FARLIB_OPT_READY_QUEUE", ::FarLib::get_config().optimized_evacuator);
+      "FARLIB_OPT_READY_QUEUE", ::starfish::get_config().optimized_evacuator);
   return enabled;
 }
 
@@ -130,7 +131,7 @@ inline bool optimized_legacy_exclusive_pipeline_enabled() {
 inline bool optimized_ready_full_workers_enabled() {
   static const bool enabled =
       env_flag_or_default("FARLIB_OPT_READY_FULL_WORKERS",
-                          ::FarLib::get_config().optimized_evacuator);
+                          ::starfish::get_config().optimized_evacuator);
   return enabled;
 }
 
@@ -142,7 +143,7 @@ inline size_t optimized_ready_mark_task_limit() {
 inline bool resident_profile_stop_after_first_commit() {
   return env_flag_or_default(
       "FARLIB_RESIDENT_PROFILE_STOP_AFTER_FIRST_COMMIT",
-      ::FarLib::get_config().resident_profile_stop_after_first_commit);
+      ::starfish::get_config().resident_profile_stop_after_first_commit);
 }
 
 inline bool resident_profile_phase_triggered_enabled() {
@@ -195,10 +196,10 @@ class ConcurrentArrayCache {
   template <typename T>
   friend class UniqueFarPtr;
 
-  ::FarLib::allocator::PendingLocalAllocation allocate_local(
+  ::starfish::allocator::PendingLocalAllocation allocate_local(
       size_t size, far_obj_t obj, DereferenceScope &scope,
-      ::FarLib::allocator::RegionPlacement requested_placement =
-          ::FarLib::allocator::RegionPlacement::Unclassified,
+      ::starfish::allocator::RegionPlacement requested_placement =
+          ::starfish::allocator::RegionPlacement::Unclassified,
       uint32_t requested_group_id = 0,
       uint32_t requested_behavior_group_id = 0) {
     scope_diag::Guard sd_alloc_guard(fibre_self(), scope_diag::ALLOC);
@@ -206,16 +207,16 @@ class ConcurrentArrayCache {
       update_scope(scope);
     }
     const size_t alloc_block_size =
-        size + sizeof(::FarLib::allocator::BlockHead);
+        size + sizeof(::starfish::allocator::BlockHead);
     const size_t alloc_wsize =
-        ::FarLib::allocator::wsize_from_size(alloc_block_size);
-    const size_t alloc_bin = ::FarLib::allocator::bin_from_wsize(alloc_wsize);
-    ::FarLib::allocator::BlockHead *block =
-        ::FarLib::allocator::thread_local_allocate(
+        ::starfish::allocator::wsize_from_size(alloc_block_size);
+    const size_t alloc_bin = ::starfish::allocator::bin_from_wsize(alloc_wsize);
+    ::starfish::allocator::BlockHead *block =
+        ::starfish::allocator::thread_local_allocate(
             size, obj, &scope, requested_placement, requested_group_id,
             requested_behavior_group_id,
-            ::FarLib::allocator::six_group::enabled() ||
-                ::FarLib::simple_region_budget::six_enabled());
+            ::starfish::allocator::six_group::enabled() ||
+                ::starfish::simple_region_budget::six_enabled());
     if (block == nullptr) [[unlikely]] {
       // can not allocate, evict
 #ifdef ASSERT_ALL_LOCAL
@@ -241,11 +242,11 @@ class ConcurrentArrayCache {
       scope.begin_eviction();
       do {
         on_demand_invoke_eviction(alloc_bin);
-        block = ::FarLib::allocator::thread_local_allocate(
+        block = ::starfish::allocator::thread_local_allocate(
             size, obj, nullptr, requested_placement, requested_group_id,
             requested_behavior_group_id,
-            ::FarLib::allocator::six_group::enabled() ||
-                ::FarLib::simple_region_budget::six_enabled());
+            ::starfish::allocator::six_group::enabled() ||
+                ::starfish::simple_region_budget::six_enabled());
         retry_count++;
         log_cache_progress(
             block == nullptr ? "alloc_retry_fail" : "alloc_retry_succ",
@@ -261,7 +262,7 @@ class ConcurrentArrayCache {
       profile::end_allocation_wait_event(allocation_wait_diag_event,
                                          stw_end_cycles);
       profile::count_stw_mutator_cycles(stw_end_cycles - stw_start_cycles);
-      auto *allocated_region = ::FarLib::allocator::block_to_region(block);
+      auto *allocated_region = ::starfish::allocator::block_to_region(block);
       if (inclusive_reclaim_diag::enabled() &&
           inclusive_reclaim_diag::sample_region(allocated_region)) {
         wait_trace::emit(
@@ -279,9 +280,9 @@ class ConcurrentArrayCache {
     }
     assert(obj == block->obj_meta_data);
     alloc_reclaim_rate_diag::record_allocation(
-        ::FarLib::allocator::get_bin_size(alloc_bin));
-    return {block, ::FarLib::allocator::six_group::enabled() ||
-                       ::FarLib::simple_region_budget::six_enabled()};
+        ::starfish::allocator::get_bin_size(alloc_bin));
+    return {block, ::starfish::allocator::six_group::enabled() ||
+                       ::starfish::simple_region_budget::six_enabled()};
   }
 
  private:
@@ -322,7 +323,7 @@ class ConcurrentArrayCache {
   };
 
   static constexpr size_t kBackupBehaviorGroupCount =
-      ::FarLib::allocator::RegionBinCount;
+      ::starfish::allocator::RegionBinCount;
   static constexpr size_t kMaxLogicalObjectCount = 4096;
   // 256K groups cover 64 GiB at the default 256 KiB group size.
   static constexpr size_t kMaxResidentPlacementGroupCount = 256 * 1024;
@@ -338,19 +339,19 @@ class ConcurrentArrayCache {
   std::mutex resident_placement_group_mutex;
   std::atomic<uint32_t> next_resident_placement_group_id{1};
   std::atomic<uint32_t> next_logical_owner_id{1};
-  alignas(FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
+  alignas(STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
               ? 64
               : alignof(std::atomic<uint64_t>))
       std::atomic<uint64_t> retained_backup_bytes{0};
-  alignas(FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
+  alignas(STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
               ? 64
               : alignof(std::atomic<uint64_t>))
       std::atomic<uint64_t> peak_retained_backup_bytes{0};
-  alignas(FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
+  alignas(STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
               ? 64
               : alignof(uint64_t)) uint64_t retained_backup_budget_bytes{0};
   // Keep the next mutable field off the read-mostly budget's cache line.
-  alignas(FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
+  alignas(STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
               ? 64
               : alignof(std::atomic<uint64_t>))
       std::atomic<uint64_t> resident_local_bytes{0};
@@ -501,9 +502,9 @@ class ConcurrentArrayCache {
   std::atomic<uint64_t> region_fetch_resident_to_streaming_fallback_count{0};
   std::atomic<uint64_t> region_fetch_resident_to_streaming_fallback_bytes{0};
   std::atomic<uint64_t> region_fetch_window_resident_fallback_count
-      [::FarLib::allocator::RegionBinCount]{};
+      [::starfish::allocator::RegionBinCount]{};
   std::atomic<uint64_t> region_fetch_window_resident_fallback_bytes
-      [::FarLib::allocator::RegionBinCount]{};
+      [::starfish::allocator::RegionBinCount]{};
   std::atomic<uint64_t> region_fetch_reserve_refill_checks{0};
   std::atomic<uint64_t> region_fetch_reserve_refill_attempts{0};
   std::atomic<uint64_t> region_fetch_reserve_refill_successes{0};
@@ -519,7 +520,7 @@ class ConcurrentArrayCache {
   std::atomic<uint32_t> hybrid_profile_mark_pass_counter{0};
   uint64_t inclusive_evict_scan_generation{1};
   uint64_t inclusive_gc_scan_generation{1};
-  static constexpr size_t kAnyAllocBin = ::FarLib::allocator::RegionBinCount;
+  static constexpr size_t kAnyAllocBin = ::starfish::allocator::RegionBinCount;
   uthread::Mutex eviction_mutex;
   uthread::Condition eviction_cond;
   uthread::Condition mutator_cond;
@@ -573,7 +574,8 @@ class ConcurrentArrayCache {
 
   bool alloc_bin_ready(size_t alloc_bin) {
     return alloc_bin >= kAnyAllocBin ||
-           ::FarLib::allocator::global_heap.can_allocate_region_now(alloc_bin);
+           ::starfish::allocator::global_heap.can_allocate_region_now(
+               alloc_bin);
   }
 
   bool mutator_waiters_need_progress() {
@@ -583,7 +585,7 @@ class ConcurrentArrayCache {
   bool mutators_can_resume() { return true; }
 
   bool use_legacy_baseline_ondemand() const {
-    return !::FarLib::get_config().optimized_evacuator;
+    return !::starfish::get_config().optimized_evacuator;
   }
 
   void log_cache_progress(const char *name, size_t bin = kAnyAllocBin,
@@ -595,15 +597,15 @@ class ConcurrentArrayCache {
   static size_t full_population_frequency_scan_period_ms();
 
   static size_t local_allocation_footprint(size_t size) {
-    const size_t block_size = size + sizeof(::FarLib::allocator::BlockHead);
-    const size_t wsize = ::FarLib::allocator::wsize_from_size(block_size);
-    const size_t bin = ::FarLib::allocator::bin_from_wsize(wsize);
-    return ::FarLib::allocator::get_bin_size(bin);
+    const size_t block_size = size + sizeof(::starfish::allocator::BlockHead);
+    const size_t wsize = ::starfish::allocator::wsize_from_size(block_size);
+    const size_t bin = ::starfish::allocator::bin_from_wsize(wsize);
+    return ::starfish::allocator::get_bin_size(bin);
   }
   static uint32_t resident_allocation_bin(size_t size) {
-    const size_t block_size = size + sizeof(::FarLib::allocator::BlockHead);
-    const size_t wsize = ::FarLib::allocator::wsize_from_size(block_size);
-    return static_cast<uint32_t>(::FarLib::allocator::bin_from_wsize(wsize));
+    const size_t block_size = size + sizeof(::starfish::allocator::BlockHead);
+    const size_t wsize = ::starfish::allocator::wsize_from_size(block_size);
+    return static_cast<uint32_t>(::starfish::allocator::bin_from_wsize(wsize));
   }
   bool automatic_resident_group_planner_enabled() const {
     return resident_profile_planner_enabled_flag &&
@@ -613,31 +615,31 @@ class ConcurrentArrayCache {
     return !resident_profile_require_work_phase_flag || profile::is_working();
   }
   bool region_resident_placement_enabled() const {
-    return ::FarLib::allocator::global_heap.region_placement_is_enabled();
+    return ::starfish::allocator::global_heap.region_placement_is_enabled();
   }
   bool region_hotness_placement_enabled() const {
     return region_resident_placement_enabled() &&
-           ::FarLib::get_config().enable_region_hotness_placement &&
-           !::FarLib::get_config().region_placement_bind_groups;
+           ::starfish::get_config().enable_region_hotness_placement &&
+           !::starfish::get_config().region_placement_bind_groups;
   }
   bool region_fetch_hotness_placement_enabled() const {
     return region_hotness_placement_enabled() &&
-           ::FarLib::get_config().enable_region_fetch_hotness_placement;
+           ::starfish::get_config().enable_region_fetch_hotness_placement;
   }
   bool region_group_binding_enabled() const {
     return region_resident_placement_enabled() &&
-           ::FarLib::get_config().region_placement_bind_groups;
+           ::starfish::get_config().region_placement_bind_groups;
   }
-  ::FarLib::allocator::RegionPlacement record_region_fetch_request(
-      ::FarLib::allocator::RegionPlacement placement);
+  ::starfish::allocator::RegionPlacement record_region_fetch_request(
+      ::starfish::allocator::RegionPlacement placement);
   void record_region_fetch_actual(
-      ::FarLib::allocator::RegionPlacement requested_placement,
-      ::FarLib::allocator::RegionPlacement actual_placement, size_t size,
-      ::FarLib::allocator::RegionHead *actual_region);
-  ::FarLib::allocator::RegionPlacement region_fetch_placement(
+      ::starfish::allocator::RegionPlacement requested_placement,
+      ::starfish::allocator::RegionPlacement actual_placement, size_t size,
+      ::starfish::allocator::RegionHead *actual_region);
+  ::starfish::allocator::RegionPlacement region_fetch_placement(
       const FarObjectEntry &entry);
   struct RemoteFetchPlacement {
-    ::FarLib::allocator::RegionPlacement requested_placement;
+    ::starfish::allocator::RegionPlacement requested_placement;
     uint32_t allocation_group_id;
     bool backup_policy_admitted;
     bool backup_reserved;
@@ -646,7 +648,7 @@ class ConcurrentArrayCache {
                                                       size_t size,
                                                       DereferenceScope &scope,
                                                       bool allow_backup);
-  ::FarLib::allocator::RegionPlacement finalize_remote_fetch_placement(
+  ::starfish::allocator::RegionPlacement finalize_remote_fetch_placement(
       FarObjectEntry &entry, size_t size, void *local_ptr,
       RemoteFetchPlacement &placement);
   uint32_t register_resident_placement_group(uint32_t logical_owner_id,
@@ -656,7 +658,7 @@ class ConcurrentArrayCache {
                                              uint64_t footprint_bytes);
 
   bool selective_backup_enabled() const {
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     return config.exclusive_cache && config.enable_selective_backup &&
            retained_backup_budget_bytes != 0;
   }
@@ -667,8 +669,8 @@ class ConcurrentArrayCache {
 
   void handle_region_placement_transition_backup(
       FarObjectEntry &entry, size_t bytes,
-      ::FarLib::allocator::RegionPlacement from,
-      ::FarLib::allocator::RegionPlacement to,
+      ::starfish::allocator::RegionPlacement from,
+      ::starfish::allocator::RegionPlacement to,
       std::vector<uint64_t> *deferred_remote_frees = nullptr);
 
   bool segmented_backup_enabled() const {
@@ -689,9 +691,9 @@ class ConcurrentArrayCache {
   }
 
   static size_t backup_behavior_group_for_size(size_t size) {
-    const size_t block_size = size + sizeof(::FarLib::allocator::BlockHead);
-    const size_t wsize = ::FarLib::allocator::wsize_from_size(block_size);
-    const size_t group = ::FarLib::allocator::bin_from_wsize(wsize);
+    const size_t block_size = size + sizeof(::starfish::allocator::BlockHead);
+    const size_t wsize = ::starfish::allocator::wsize_from_size(block_size);
+    const size_t group = ::starfish::allocator::bin_from_wsize(wsize);
     ASSERT(group < kBackupBehaviorGroupCount);
     return group;
   }
@@ -783,7 +785,7 @@ class ConcurrentArrayCache {
 
   void record_resident_group_fetch(
       const FarObjectEntry &entry, size_t size,
-      ::FarLib::allocator::RegionPlacement actual_placement) {
+      ::starfish::allocator::RegionPlacement actual_placement) {
     if (!automatic_resident_group_planner_enabled() ||
         !resident_profile_work_phase_active()) {
       return;
@@ -845,7 +847,7 @@ class ConcurrentArrayCache {
 
   void record_logical_object_fetch(
       const FarObjectEntry &entry, size_t size,
-      ::FarLib::allocator::RegionPlacement actual_placement) {
+      ::starfish::allocator::RegionPlacement actual_placement) {
     record_resident_group_fetch(entry, size, actual_placement);
     const uint32_t owner_id = entry.logical_owner_id();
     if (!logical_object_profile_enabled() || owner_id == 0) {
@@ -1124,29 +1126,30 @@ class ConcurrentArrayCache {
   // pointer about to be returned to the application. Never inspect an
   // entry's moving remote/local address at fetch submission or CQ polling.
   void record_simple_local_access(const void *local_ptr) const {
-    if (!::FarLib::simple_region_heat::enabled() ||
+    if (!::starfish::simple_region_heat::enabled() ||
         resident_profile_prefetch_active)
       return;
-    auto &heat = ::FarLib::simple_region_heat::monitor();
+    auto &heat = ::starfish::simple_region_heat::monitor();
     if (heat.select()) heat.add(reinterpret_cast<uintptr_t>(local_ptr));
   }
 
  private:
   void record_resident_profile_reference(const FarObjectEntry &entry,
                                          profile::ReferenceKind kind) {
-    if (::FarLib::simple_dirty_observer::objects_enabled() &&
+    if (::starfish::simple_dirty_observer::objects_enabled() &&
         !resident_profile_prefetch_active) {
       const auto slot = entry.object_trace_slot();
       if (slot)
-        ::FarLib::simple_dirty_observer::monitor().access(
+        ::starfish::simple_dirty_observer::monitor().access(
             slot, kind == profile::ReferenceKind::Write);
     }
-    if (::FarLib::allocator::six_group::enabled() &&
+    if (::starfish::allocator::six_group::enabled() &&
         !resident_profile_prefetch_active) {
-      trace_object_event(entry, kind == profile::ReferenceKind::Write
-                                    ? ::FarLib::object_group_trace::Kind::Write
-                                    : ::FarLib::object_group_trace::Kind::Read);
-      ::FarLib::allocator::six_group::note_demand(
+      trace_object_event(entry,
+                         kind == profile::ReferenceKind::Write
+                             ? ::starfish::object_group_trace::Kind::Write
+                             : ::starfish::object_group_trace::Kind::Read);
+      ::starfish::allocator::six_group::note_demand(
           entry.six_record(), kind == profile::ReferenceKind::Write);
     }
     if (!resident_profile_active.load(std::memory_order_relaxed) ||
@@ -1180,20 +1183,20 @@ class ConcurrentArrayCache {
       const auto state = entry.load_state(std::memory_order_acquire);
       void *local_ptr = entry.local_addr();
       const auto heap_begin = reinterpret_cast<uintptr_t>(
-          ::FarLib::allocator::global_heap.get_heap());
+          ::starfish::allocator::global_heap.get_heap());
       const auto heap_end =
-          heap_begin + ::FarLib::allocator::global_heap.get_heap_size();
+          heap_begin + ::starfish::allocator::global_heap.get_heap_size();
       const auto local_addr = reinterpret_cast<uintptr_t>(local_ptr);
       if (!state.invalid && state.state != FREE && state.state != REMOTE &&
           state.state != BUSY && local_ptr != nullptr &&
-          local_addr >= heap_begin + sizeof(::FarLib::allocator::BlockHead) &&
+          local_addr >= heap_begin + sizeof(::starfish::allocator::BlockHead) &&
           local_addr < heap_end) {
         auto *block =
-            static_cast<::FarLib::allocator::BlockHead *>(local_ptr) - 1;
+            static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
         const auto obj = block->obj_meta_data.load(std::memory_order_acquire);
         if (!obj.is_null() && obj.get_entry_ptr() == &entry &&
             entry.local_addr() == local_ptr) {
-          auto *region = ::FarLib::allocator::block_to_region(block);
+          auto *region = ::starfish::allocator::block_to_region(block);
           auto &counter = kind == profile::ReferenceKind::Write
                               ? region->profile_window_write_references
                               : region->profile_window_read_references;
@@ -1261,7 +1264,7 @@ class ConcurrentArrayCache {
            .target_bytes = 0});
     }
     const uint64_t migration_hysteresis_pct =
-        ::FarLib::get_config().resident_profile_migration_hysteresis_pct;
+        ::starfish::get_config().resident_profile_migration_hysteresis_pct;
 
     const auto density_greater = [](const Candidate &left,
                                     const Candidate &right) {
@@ -1657,9 +1660,9 @@ class ConcurrentArrayCache {
     if (!region_group_binding_enabled() || group_limit <= 1) {
       return;
     }
-    std::vector<::FarLib::allocator::RegionPlacementGroupSnapshot> snapshots(
+    std::vector<::starfish::allocator::RegionPlacementGroupSnapshot> snapshots(
         group_limit);
-    ::FarLib::allocator::global_heap.get_region_placement_group_snapshots(
+    ::starfish::allocator::global_heap.get_region_placement_group_snapshots(
         snapshots);
     const uint64_t plan_id =
         resident_profile_active_plan_id.load(std::memory_order_acquire);
@@ -1668,52 +1671,52 @@ class ConcurrentArrayCache {
       const size_t target_regions = static_cast<size_t>(
           resident_placement_groups[group_id].resident_target_bytes.load(
               std::memory_order_acquire) /
-          ::FarLib::allocator::RegionSize);
+          ::starfish::allocator::RegionSize);
       const size_t current_regions = snapshots[group_id].resident_regions;
       if (current_regions <= target_regions) {
         continue;
       }
       const size_t changed =
-          ::FarLib::allocator::global_heap.reclassify_region_placement_group(
-              group_id, ::FarLib::allocator::RegionPlacement::Resident,
-              ::FarLib::allocator::RegionPlacement::Streaming,
+          ::starfish::allocator::global_heap.reclassify_region_placement_group(
+              group_id, ::starfish::allocator::RegionPlacement::Resident,
+              ::starfish::allocator::RegionPlacement::Streaming,
               current_regions - target_regions);
       if (changed != 0) {
-        const uint64_t bytes = changed * ::FarLib::allocator::RegionSize;
+        const uint64_t bytes = changed * ::starfish::allocator::RegionSize;
         resident_profile_demoted_bytes.fetch_add(bytes,
                                                  std::memory_order_relaxed);
       }
     }
 
-    ::FarLib::allocator::global_heap.get_region_placement_group_snapshots(
+    ::starfish::allocator::global_heap.get_region_placement_group_snapshots(
         snapshots);
     for (uint32_t group_id = 1; group_id < group_limit; ++group_id) {
       const size_t target_regions = static_cast<size_t>(
           resident_placement_groups[group_id].resident_target_bytes.load(
               std::memory_order_acquire) /
-          ::FarLib::allocator::RegionSize);
+          ::starfish::allocator::RegionSize);
       const size_t current_regions = snapshots[group_id].resident_regions;
       if (current_regions >= target_regions) {
         continue;
       }
       const size_t changed =
-          ::FarLib::allocator::global_heap.reclassify_region_placement_group(
-              group_id, ::FarLib::allocator::RegionPlacement::Streaming,
-              ::FarLib::allocator::RegionPlacement::Resident,
+          ::starfish::allocator::global_heap.reclassify_region_placement_group(
+              group_id, ::starfish::allocator::RegionPlacement::Streaming,
+              ::starfish::allocator::RegionPlacement::Resident,
               target_regions - current_regions);
       if (changed != 0) {
-        const uint64_t bytes = changed * ::FarLib::allocator::RegionSize;
+        const uint64_t bytes = changed * ::starfish::allocator::RegionSize;
         resident_profile_promoted_bytes.fetch_add(bytes,
                                                   std::memory_order_relaxed);
       }
     }
 
-    ::FarLib::allocator::global_heap.get_region_placement_group_snapshots(
+    ::starfish::allocator::global_heap.get_region_placement_group_snapshots(
         snapshots);
     for (uint32_t group_id = 1; group_id < group_limit; ++group_id) {
       resident_placement_groups[group_id].resident_current_bytes.store(
           snapshots[group_id].resident_regions *
-              ::FarLib::allocator::RegionSize,
+              ::starfish::allocator::RegionSize,
           std::memory_order_release);
     }
     if (plan_id != 0) {
@@ -1724,7 +1727,7 @@ class ConcurrentArrayCache {
             resident_placement_groups[group_id].resident_target_bytes.load(
                 std::memory_order_acquire);
         const uint64_t current = snapshots[group_id].resident_regions *
-                                 ::FarLib::allocator::RegionSize;
+                                 ::starfish::allocator::RegionSize;
         if (target > current) {
           remaining_promotion += target - current;
         } else {
@@ -1759,7 +1762,7 @@ class ConcurrentArrayCache {
         uint64_t upper_target = 0;
         for (uint32_t group_id = 1; group_id < group_limit; ++group_id) {
           const uint64_t current = snapshots[group_id].resident_regions *
-                                   ::FarLib::allocator::RegionSize;
+                                   ::starfish::allocator::RegionSize;
           const uint64_t target =
               resident_placement_groups[group_id].resident_target_bytes.load(
                   std::memory_order_relaxed);
@@ -1780,15 +1783,16 @@ class ConcurrentArrayCache {
       }
     }
     resident_local_bytes.store(
-        ::FarLib::allocator::global_heap.get_resident_reserved_regions() *
-            ::FarLib::allocator::RegionSize,
+        ::starfish::allocator::global_heap.get_resident_reserved_regions() *
+            ::starfish::allocator::RegionSize,
         std::memory_order_release);
   }
 
   void publish_region_fetch_hotness_predictions(uint64_t check_id);
 
   bool refill_resident_fetch_capacity(
-      const std::vector<::FarLib::allocator::RegionHotnessSnapshot> &snapshots,
+      const std::vector<::starfish::allocator::RegionHotnessSnapshot>
+          &snapshots,
       uint64_t check_id);
 
   void publish_resident_region_hotness_plan(bool complete_phase = false);
@@ -1825,11 +1829,11 @@ class ConcurrentArrayCache {
     if (grouped_region_placement && had_plan) {
       apply_region_resident_targets(group_limit);
     }
-    std::vector<::FarLib::allocator::RegionPlacementGroupSnapshot>
+    std::vector<::starfish::allocator::RegionPlacementGroupSnapshot>
         region_group_snapshots;
     if (grouped_region_placement) {
       region_group_snapshots.resize(group_limit);
-      ::FarLib::allocator::global_heap.get_region_placement_group_snapshots(
+      ::starfish::allocator::global_heap.get_region_placement_group_snapshots(
           region_group_snapshots);
     }
 
@@ -1874,14 +1878,14 @@ class ConcurrentArrayCache {
           profile.live_footprint_bytes.load(std::memory_order_relaxed);
       uint64_t allocated =
           grouped_region_placement
-              ? ((live_footprint + ::FarLib::allocator::RegionSize - 1) /
-                 ::FarLib::allocator::RegionSize) *
-                    ::FarLib::allocator::RegionSize
+              ? ((live_footprint + ::starfish::allocator::RegionSize - 1) /
+                 ::starfish::allocator::RegionSize) *
+                    ::starfish::allocator::RegionSize
               : live_footprint;
       const uint64_t current =
           grouped_region_placement
               ? region_group_snapshots[group_id].resident_regions *
-                    ::FarLib::allocator::RegionSize
+                    ::starfish::allocator::RegionSize
               : profile.resident_current_bytes.load(std::memory_order_relaxed);
       if (grouped_region_placement && current > allocated) {
         allocated = current;
@@ -1916,10 +1920,10 @@ class ConcurrentArrayCache {
            .committed_target_bytes =
                resident_profile_committed_targets[group_id],
            .candidate_target_bytes = 0,
-           .footprint_quantum =
-               grouped_region_placement
-                   ? ::FarLib::allocator::RegionSize
-                   : ::FarLib::allocator::get_bin_size(profile.allocation_bin),
+           .footprint_quantum = grouped_region_placement
+                                    ? ::starfish::allocator::RegionSize
+                                    : ::starfish::allocator::get_bin_size(
+                                          profile.allocation_bin),
            .promotion_opportunities = opportunities});
     }
     const uint64_t collection_us = static_cast<uint64_t>(
@@ -1945,11 +1949,11 @@ class ConcurrentArrayCache {
     };
     const uint64_t planner_resident_budget_bytes =
         region_resident_placement_enabled()
-            ? ::FarLib::allocator::global_heap.get_resident_region_budget() *
-                  ::FarLib::allocator::RegionSize
+            ? ::starfish::allocator::global_heap.get_resident_region_budget() *
+                  ::starfish::allocator::RegionSize
             : resident_local_budget_bytes;
     const bool skip_exhausted_donor_scan =
-        ::FarLib::get_config().exclusive_cache &&
+        ::starfish::get_config().exclusive_cache &&
         env_flag_or_default("FARLIB_PLANNER_BUDGET_EARLY_EXIT", false);
     const auto compute_candidate_targets = [this, &density_greater,
                                             planner_resident_budget_bytes,
@@ -2003,7 +2007,7 @@ class ConcurrentArrayCache {
       }
 
       const uint64_t migration_hysteresis_pct =
-          ::FarLib::get_config().resident_profile_migration_hysteresis_pct;
+          ::starfish::get_config().resident_profile_migration_hysteresis_pct;
       const auto worth_migrating = [migration_hysteresis_pct](
                                        const Candidate &receiver,
                                        const Candidate &donor) {
@@ -2327,7 +2331,7 @@ class ConcurrentArrayCache {
     }
 
     if (region_group_binding_enabled()) {
-      ::FarLib::allocator::global_heap.get_region_placement_group_snapshots(
+      ::starfish::allocator::global_heap.get_region_placement_group_snapshots(
           region_group_snapshots);
     }
     for (auto &candidate : candidates) {
@@ -2336,12 +2340,12 @@ class ConcurrentArrayCache {
         const uint64_t live_footprint =
             profile.live_footprint_bytes.load(std::memory_order_acquire);
         candidate.allocated_bytes =
-            ((live_footprint + ::FarLib::allocator::RegionSize - 1) /
-             ::FarLib::allocator::RegionSize) *
-            ::FarLib::allocator::RegionSize;
+            ((live_footprint + ::starfish::allocator::RegionSize - 1) /
+             ::starfish::allocator::RegionSize) *
+            ::starfish::allocator::RegionSize;
         candidate.current_bytes =
             region_group_snapshots[candidate.group_id].resident_regions *
-            ::FarLib::allocator::RegionSize;
+            ::starfish::allocator::RegionSize;
         candidate.allocated_bytes =
             std::max(candidate.allocated_bytes, candidate.current_bytes);
       } else {
@@ -2703,7 +2707,7 @@ class ConcurrentArrayCache {
   }
 
   void run_resident_profile_planner() {
-    ::FarLib::allocator::disable_region_list_fibre_yield_for_current_thread();
+    ::starfish::allocator::disable_region_list_fibre_yield_for_current_thread();
     while (working.load(std::memory_order_acquire)) {
       while (working.load(std::memory_order_acquire) &&
              !resident_profile_work_phase_active()) {
@@ -2983,7 +2987,7 @@ class ConcurrentArrayCache {
     }
     resident_profile_record_migration_started(plan_id, bytes, false);
 
-    if (!::FarLib::get_config().exclusive_cache) {
+    if (!::starfish::get_config().exclusive_cache) {
       const auto state = entry.load_state();
       if (state.state != LOCAL || !entry.is_resident_local()) {
         current_counter->fetch_add(bytes, std::memory_order_relaxed);
@@ -3101,7 +3105,7 @@ class ConcurrentArrayCache {
       return false;
     }
 
-    if (!::FarLib::get_config().exclusive_cache) {
+    if (!::starfish::get_config().exclusive_cache) {
       const auto state = entry.load_state();
       if (state.state != LOCAL || entry.is_resident_local()) {
         current_counter->fetch_sub(bytes, std::memory_order_relaxed);
@@ -3256,7 +3260,7 @@ class ConcurrentArrayCache {
   // this call; the existing per-entry move lock gives an all-or-nothing
   // result. Marking is monotonic until reset/reallocation; no unmark API.
   bool mark_recomputable(far_obj_t obj) {
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     if (obj.is_null() || !config.exclusive_cache ||
         (config.ft_enabled() && !config.is_ec_batch_mode()))
       return false;
@@ -3275,7 +3279,7 @@ class ConcurrentArrayCache {
   // from a CQ completion handler (see recompute_recipe_path.ipp).
   bool register_recompute_recipe(far_obj_t obj, const recompute::Inputs &inputs,
                                  recompute::EntryFn callback, uint64_t arg) {
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     if (obj.is_null() || !config.exclusive_cache ||
         !config.is_ec_batch_mode()) {
       return false;
@@ -3356,10 +3360,11 @@ class ConcurrentArrayCache {
   // requested class again if its native placement fallback changes R/S.
   static uint32_t local_behavior_group(
       const FarObjectEntry &entry,
-      ::FarLib::allocator::RegionPlacement requested_placement) {
-    if (::FarLib::simple_region_heat::local_resident_enabled())
-      return ::FarLib::simple_region_heat::class_for_placement(
-          requested_placement == ::FarLib::allocator::RegionPlacement::Resident,
+      ::starfish::allocator::RegionPlacement requested_placement) {
+    if (::starfish::simple_region_heat::local_resident_enabled())
+      return ::starfish::simple_region_heat::class_for_placement(
+          requested_placement ==
+              ::starfish::allocator::RegionPlacement::Resident,
           entry.simple_dirty_class());
     return current_behavior_group(entry);
   }
@@ -3368,24 +3373,25 @@ class ConcurrentArrayCache {
   // hint from a local supply class: its Hot bit now means Resident.
   static uint32_t remote_behavior_group(const FarObjectEntry &entry,
                                         uintptr_t source_local_address) {
-    if (::FarLib::simple_region_budget::six_enabled())
-      return (::FarLib::simple_region_heat::is_hot(
-                  ::FarLib::simple_region_heat::class_for(source_local_address))
+    if (::starfish::simple_region_budget::six_enabled())
+      return (::starfish::simple_region_heat::is_hot(
+                  ::starfish::simple_region_heat::class_for(
+                      source_local_address))
                   ? 3u
                   : 0u) +
              entry.simple_dirty_class();
-    if (::FarLib::simple_region_heat::grouping_enabled())
-      return ::FarLib::simple_region_heat::class_for(source_local_address);
+    if (::starfish::simple_region_heat::grouping_enabled())
+      return ::starfish::simple_region_heat::class_for(source_local_address);
     return current_behavior_group(entry);
   }
 
   // Caller holds the sampled object's trace lock across binding lookup and
   // append.  Region locks alone cannot order a move between two Regions.
   static void trace_object_event_locked(
-      const FarObjectEntry &entry, ::FarLib::object_group_trace::Kind kind);
+      const FarObjectEntry &entry, ::starfish::object_group_trace::Kind kind);
 
   static void trace_object_event(const FarObjectEntry &entry,
-                                 ::FarLib::object_group_trace::Kind kind);
+                                 ::starfish::object_group_trace::Kind kind);
 
   static void trace_object_allocation(FarObjectEntry &entry, size_t size);
 
@@ -3448,11 +3454,11 @@ class ConcurrentArrayCache {
         << " observer_writers="
         << (bypass_backup_usage ? bypass_backup_usage->writers() : 0)
         << " resident_region_bytes="
-        << ::FarLib::allocator::global_heap.get_resident_reserved_regions() *
-               ::FarLib::allocator::RegionSize
+        << ::starfish::allocator::global_heap.get_resident_reserved_regions() *
+               ::starfish::allocator::RegionSize
         << " streaming_region_bytes="
-        << ::FarLib::allocator::global_heap.get_streaming_reserved_regions() *
-               ::FarLib::allocator::RegionSize
+        << ::starfish::allocator::global_heap.get_streaming_reserved_regions() *
+               ::starfish::allocator::RegionSize
         << " budget_full_rejects="
         << profiled_backup_budget_full_reject_count.load()
         << " interrupted_keep_count="
@@ -3603,8 +3609,8 @@ class ConcurrentArrayCache {
     void init(size_t count) {
       server_count = count;
       buffers.reset(new EvictBuffer[server_count]);
-      if (::FarLib::get_config().ft_enabled() &&
-          !::FarLib::get_config().is_ec_batch_mode()) {
+      if (::starfish::get_config().ft_enabled() &&
+          !::starfish::get_config().is_ec_batch_mode()) {
         sponge_buffers.reset(new SpongeEvictBuffer[server_count]);
       }
     }
@@ -3613,7 +3619,7 @@ class ConcurrentArrayCache {
       if (server_count <= 1) {
         return buffers[0];
       }
-      auto &config = ::FarLib::get_config();
+      auto &config = ::starfish::get_config();
       auto [endpoint, _] = config.map_remote_addr(remote_addr);
       return buffers[endpoint];
     }
@@ -3627,7 +3633,7 @@ class ConcurrentArrayCache {
           cache->post_sponge_commit_requests(sponge_buffers[i], client_idx, i);
         }
       }
-      if (::FarLib::get_config().is_ec_batch_mode()) {
+      if (::starfish::get_config().is_ec_batch_mode()) {
         // EC (ft_method=ec_batch): the end of an eviction batch is the
         // flush point of the group path - seal the partly filled group
         // and post every sealed group, so no object of this batch is
@@ -3724,12 +3730,13 @@ class ConcurrentArrayCache {
     uint64_t remote_addr = entry.remote_addr();
     assert(remote_addr != FarObjectEntry::RemoteAddrInvalid48);
     void *local_addr = entry.local_addr();
-    auto block = static_cast<::FarLib::allocator::BlockHead *>(local_addr) - 1;
+    auto block =
+        static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
     assert(block->obj_meta_data == obj);
     uint64_t wr_id = reinterpret_cast<uint64_t>(local_addr);
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     if constexpr (IsReadRequest) {
       if (config.is_ec_batch_mode() && !entry.is_recomputable() &&
           ec_batch_uses_split(obj.size)) {
@@ -3763,7 +3770,7 @@ class ConcurrentArrayCache {
           // ordinary-READ gate and leave the FETCHING epoch for
           // the wait-side recipe assist; never issue another READ
           // to a known-dead RC QP.
-          ::FarLib::allocator::begin_normal_read_recovery(block);
+          ::starfish::allocator::begin_normal_read_recovery(block);
           return;
         }
         const auto recovery =
@@ -3776,7 +3783,7 @@ class ConcurrentArrayCache {
         // tries to acquire its token.  Do not fall back to posting a
         // new READ to the dead endpoint when the degraded round is
         // temporarily unavailable; the fetch wait will retry it.
-        if (::FarLib::allocator::normal_read_recovery_active(block)) {
+        if (::starfish::allocator::normal_read_recovery_active(block)) {
           return;
         }
       }
@@ -3788,15 +3795,15 @@ class ConcurrentArrayCache {
       // helper serializes the first-pin transition so no legitimate
       // completion is rejected as stale.
       const uint16_t generation =
-          ::FarLib::allocator::acquire_normal_read_pin(block);
+          ::starfish::allocator::acquire_normal_read_pin(block);
       // A recovery round may have closed the gate after the endpoint
       // liveness check above.  Leave the entry FETCHING so its wait
       // path can retry recovery; never post a normal READ in this case.
       if (generation == 0) {
         return;
       }
-      wr_id =
-          ::FarLib::allocator::encode_normal_read_wr_id(local_addr, generation);
+      wr_id = ::starfish::allocator::encode_normal_read_wr_id(local_addr,
+                                                              generation);
     }
     const bool use_read_batch = IsReadRequest && sync_batch_eligible &&
                                 client->sync_read_batching_enabled();
@@ -3878,7 +3885,7 @@ class ConcurrentArrayCache {
     const size_t posted_count = buffer.count;
     auto client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
 
     ibv_sge write_sge[EvictBatchSize];
     ibv_send_wr write_wr[EvictBatchSize];
@@ -3944,7 +3951,7 @@ class ConcurrentArrayCache {
   // Endpoint-aware version using EvictBufferSet
   void add_write_request(EvictBufferSet &buffer_set, void *local_addr,
                          uint64_t remote_addr, uint64_t size) {
-    auto &config = ::FarLib::get_config();
+    auto &config = ::starfish::get_config();
     size_t endpoint_idx = 0;
     if (config.server_count > 1) {
       endpoint_idx = config.map_remote_addr(remote_addr).first;
@@ -4018,10 +4025,10 @@ class ConcurrentArrayCache {
   }
 
   EntryState try_mark(
-      ::FarLib::allocator::BlockHead *block,
+      ::starfish::allocator::BlockHead *block,
       profile::DualFrequencyHistogramSnapshot *frequency_histogram = nullptr,
       bool update_ema_this_pass = true);
-  EntryState try_evict(::FarLib::allocator::BlockHead *block,
+  EntryState try_evict(::starfish::allocator::BlockHead *block,
                        EvictBufferSet &buffer_set);
 
   size_t get_mark_worker_count() const;
@@ -4034,7 +4041,7 @@ class ConcurrentArrayCache {
     size_t worker_count;
     FrequencyMarkPassContext frequency_mark_pass;
     bool flip_after_mark;
-    std::vector<::FarLib::allocator::EvictTask> *ready_tasks_out;
+    std::vector<::starfish::allocator::EvictTask> *ready_tasks_out;
     std::atomic_size_t *ready_task_budget;
     std::atomic_size_t *legacy_region_budget = nullptr;
     bool legacy_region_budget_per_worker = false;
@@ -4057,8 +4064,8 @@ class ConcurrentArrayCache {
     uint32_t gc_timestamp;
     size_t worker_count;
     std::atomic_int64_t *posted_wrs_total;
-    const std::vector<::FarLib::allocator::EvictTask> *ready_tasks_in;
-    std::vector<::FarLib::allocator::EvictTask> *deferred_tasks_out;
+    const std::vector<::starfish::allocator::EvictTask> *ready_tasks_in;
+    std::vector<::starfish::allocator::EvictTask> *deferred_tasks_out;
     ResumeScanRound *resume_scan = nullptr;
     std::atomic_bool *evict_stop_after_mark = nullptr;
     std::atomic_size_t *remaining_evict_post_workers = nullptr;
@@ -4078,7 +4085,7 @@ class ConcurrentArrayCache {
                           std::atomic_size_t *ready_task_budget = nullptr);
   void mark_phase(
       uint32_t timestamp, const FrequencyMarkPassContext &frequency_mark_pass,
-      std::vector<::FarLib::allocator::EvictTask> *ready_tasks = nullptr,
+      std::vector<::starfish::allocator::EvictTask> *ready_tasks = nullptr,
       std::atomic_size_t *ready_task_budget = nullptr,
       size_t diag_worker_slot = inclusive_reclaim_diag::kNoWorker,
       std::atomic_size_t *legacy_region_budget = nullptr,
@@ -4088,15 +4095,15 @@ class ConcurrentArrayCache {
       uint32_t timestamp, std::atomic_int64_t &posted_wrs_total,
       bool ignore_safe_epoch = false,
       size_t diag_worker_slot = inclusive_reclaim_diag::kNoWorker,
-      ::FarLib::allocator::EvacuationEligibility eligibility =
-          ::FarLib::allocator::EvacuationEligibility::All,
+      ::starfish::allocator::EvacuationEligibility eligibility =
+          ::starfish::allocator::EvacuationEligibility::All,
       StreamingEvictMasterArgs::ResumeScanRound *resume_scan = nullptr,
       std::atomic_bool *evict_stop_after_mark = nullptr,
       profile::evict_breakdown::Worker *breakdown = nullptr);
   void evict_ready_worker_logic(
-      const std::vector<::FarLib::allocator::EvictTask> &ready_tasks,
+      const std::vector<::starfish::allocator::EvictTask> &ready_tasks,
       std::atomic_size_t &next_task_idx, uint32_t current_safe_epoch,
-      std::vector<::FarLib::allocator::EvictTask> &deferred_tasks,
+      std::vector<::starfish::allocator::EvictTask> &deferred_tasks,
       std::atomic_int64_t &posted_wrs_total,
       profile::evict_breakdown::Worker *breakdown = nullptr,
       EvictBufferSet *reusable_buffers = nullptr);
@@ -4105,18 +4112,18 @@ class ConcurrentArrayCache {
   void evacuate_phase(uint32_t timestamp);
   void gc_phase(
       uint32_t timestamp,
-      ::FarLib::allocator::EvacuationEligibility eligibility =
-          ::FarLib::allocator::EvacuationEligibility::All,
+      ::starfish::allocator::EvacuationEligibility eligibility =
+          ::starfish::allocator::EvacuationEligibility::All,
       StreamingEvictMasterArgs::ResumeScanRound *resume_scan = nullptr);
   void flip_scope_state(uint32_t epoch_to_release = 0);
   void on_demand_invoke_eviction(size_t alloc_bin = kAnyAllocBin);
 
   void deallocate_local(void *ptr, FarObjectEntry &entry) {
-    auto block = static_cast<::FarLib::allocator::BlockHead *>(ptr) - 1;
+    auto block = static_cast<::starfish::allocator::BlockHead *>(ptr) - 1;
     // assert(block->get_object_ptr() == entry.local_addr());
     // assert(block->obj_meta_data.load().get_entry_ptr() == &entry);
     block->obj_meta_data = far_obj_t::null();
-    ::FarLib::allocator::block_to_region(block)->pending_reclaims.fetch_add(
+    ::starfish::allocator::block_to_region(block)->pending_reclaims.fetch_add(
         1, std::memory_order_release);
   }
 
@@ -4138,7 +4145,7 @@ class ConcurrentArrayCache {
     int invalid_spin = 0;
   retry_load:
     auto old_state = entry.load_state();
-    if (::FarLib::get_config().exclusive_cache && old_state.invalid)
+    if (::starfish::get_config().exclusive_cache && old_state.invalid)
         [[unlikely]] {
       auto spin_start = get_cycles();
       profile::count_excl_move_lock_spin();
@@ -4153,7 +4160,7 @@ class ConcurrentArrayCache {
     }
     if (old_state.ref_cnt != 0) {
       const bool quiesced_local_without_rdma =
-          !::FarLib::get_config().is_ec_batch_mode() &&
+          !::starfish::get_config().is_ec_batch_mode() &&
           !working.load(std::memory_order_acquire) && !old_state.invalid &&
           (old_state.state == LOCAL || old_state.state == MARKED ||
            old_state.state == PINNED) &&
@@ -4171,10 +4178,10 @@ class ConcurrentArrayCache {
       int ec_spin = 0;
       uint64_t ec_stuck_spin = 0;
       const auto ec_dealloc_started =
-          ::FarLib::get_config().is_ec_batch_mode()
+          ::starfish::get_config().is_ec_batch_mode()
               ? std::chrono::steady_clock::now()
               : std::chrono::steady_clock::time_point{};
-      if (::FarLib::get_config().is_ec_batch_mode()) [[unlikely]] {
+      if (::starfish::get_config().is_ec_batch_mode()) [[unlikely]] {
         // A partially filled group owns a real write reference too.
         // Submit it before waiting; application destruction may run
         // before the evacuator's next ordinary batch flush.
@@ -4193,7 +4200,7 @@ class ConcurrentArrayCache {
       while (entry.load_state().ref_cnt != 0) {
         spin++;
         this->check_cq_idx_with_client_idx(0, entry.get_client_idx());
-        if (::FarLib::get_config().is_ec_batch_mode()) [[unlikely]] {
+        if (::starfish::get_config().is_ec_batch_mode()) [[unlikely]] {
           // ft_method=ec_batch: an object's write reference belongs to
           // its group, and the six CQEs of a group are reaped by
           // whichever thread polls the (client, QP, endpoint) CQ they
@@ -4308,7 +4315,7 @@ class ConcurrentArrayCache {
         {
           uint64_t remote_addr = entry.remote_addr();
           bool had_retained_backup = entry.has_remote_backup_reservation();
-          if (!::FarLib::get_config().exclusive_cache ||
+          if (!::starfish::get_config().exclusive_cache ||
               remote_addr != FarObjectEntry::RemoteAddrInvalid48) {
             remote_allocator.deallocate(remote_addr);
           }
@@ -4366,30 +4373,30 @@ class ConcurrentArrayCache {
   void print_design1_diagnostics() const;
 
  private:
-  std::unique_ptr<::FarLib::benchmark_memory::Sampler>
+  std::unique_ptr<::starfish::benchmark_memory::Sampler>
       benchmark_memory_sampler_;
-  std::unique_ptr<::FarLib::runtime_metadata::Reporter>
+  std::unique_ptr<::starfish::runtime_metadata::Reporter>
       runtime_metadata_reporter_;
 
-  ::FarLib::runtime_metadata::Snapshot runtime_metadata_usage() {
-    auto snapshot = ::FarLib::allocator::global_heap.metadata_usage();
+  ::starfish::runtime_metadata::Snapshot runtime_metadata_usage() {
+    auto snapshot = ::starfish::allocator::global_heap.metadata_usage();
     snapshot.add(
-        ::FarLib::allocator::remote::remote_global_heap.metadata_usage());
+        ::starfish::allocator::remote::remote_global_heap.metadata_usage());
     snapshot.add(
         remote_allocator.small_object_stripe_manager().metadata_usage());
-    snapshot.add(::FarLib::simple_region_heat::metadata_usage());
+    snapshot.add(::starfish::simple_region_heat::metadata_usage());
     return snapshot;
   }
 
   void start_runtime_metadata_reporting() {
-    if (!::FarLib::runtime_metadata::enabled_from_environment()) return;
-    if (::FarLib::get_config().ft_background_rebuild) {
+    if (!::starfish::runtime_metadata::enabled_from_environment()) return;
+    if (::starfish::get_config().ft_background_rebuild) {
       ERROR(
           "runtime_metadata covers steady-state allocator metadata; "
           "disable background recovery for Figure 12 measurement");
     }
     runtime_metadata_reporter_ =
-        std::make_unique<::FarLib::runtime_metadata::Reporter>(
+        std::make_unique<::starfish::runtime_metadata::Reporter>(
             "starfish", this, +[](void *context) {
               return static_cast<ConcurrentArrayCache *>(context)
                   ->runtime_metadata_usage();
@@ -4397,12 +4404,12 @@ class ConcurrentArrayCache {
   }
 
   void start_benchmark_memory_sampling() {
-    if (!::FarLib::benchmark_memory::enabled_from_environment()) return;
+    if (!::starfish::benchmark_memory::enabled_from_environment()) return;
     benchmark_memory_sampler_ =
-        std::make_unique<::FarLib::benchmark_memory::Sampler>(
-            ::FarLib::get_config().server_count, "allocator_occupied_bytes",
+        std::make_unique<::starfish::benchmark_memory::Sampler>(
+            ::starfish::get_config().server_count, "allocator_occupied_bytes",
             "remote_global_heap", [this] {
-              auto result = ::FarLib::allocator::remote::remote_global_heap
+              auto result = ::starfish::allocator::remote::remote_global_heap
                                 .get_endpoint_used_bytes_observer();
               const auto ec = remote_allocator.small_object_stripe_manager()
                                   .snapshot_group_endpoint_bytes_observer();
@@ -4412,18 +4419,18 @@ class ConcurrentArrayCache {
               for (size_t i = 0; i < result.size(); ++i) result[i] += ec[i];
               return result;
             });
-    ::FarLib::profile::benchmark_memory_observer_context =
+    ::starfish::profile::benchmark_memory_observer_context =
         benchmark_memory_sampler_.get();
-    ::FarLib::profile::benchmark_memory_begin_observer =
-        &::FarLib::benchmark_memory::Sampler::begin_work_callback;
-    ::FarLib::profile::benchmark_memory_end_observer =
-        &::FarLib::benchmark_memory::Sampler::end_work_callback;
-    ::FarLib::benchmark_memory::explicit_work_origin_context =
+    ::starfish::profile::benchmark_memory_begin_observer =
+        &::starfish::benchmark_memory::Sampler::begin_work_callback;
+    ::starfish::profile::benchmark_memory_end_observer =
+        &::starfish::benchmark_memory::Sampler::end_work_callback;
+    ::starfish::benchmark_memory::explicit_work_origin_context =
         benchmark_memory_sampler_.get();
-    ::FarLib::benchmark_memory::explicit_work_begin_observer =
-        &::FarLib::benchmark_memory::Sampler::begin_work_at_callback;
-    ::FarLib::benchmark_memory::explicit_work_end_observer =
-        &::FarLib::benchmark_memory::Sampler::end_work_at_callback;
+    ::starfish::benchmark_memory::explicit_work_begin_observer =
+        &::starfish::benchmark_memory::Sampler::begin_work_at_callback;
+    ::starfish::benchmark_memory::explicit_work_end_observer =
+        &::starfish::benchmark_memory::Sampler::end_work_at_callback;
     benchmark_memory_sampler_->arm();
   }
 
@@ -4440,17 +4447,17 @@ class ConcurrentArrayCache {
     // EC recovery scratch is registered lazily in separate grow-on-demand
     // chunks. It does not impose a fixed depth or carve out application MR.
     local_buf_size = init_ec_read_recovery(local_buf, local_buf_size);
-    if (::FarLib::get_config().behavior_group &&
+    if (::starfish::get_config().behavior_group &&
         (!ec_staging_pool_.valid() || !ec_split_buffers_.valid() ||
          !ec_read_scratch_pool_.valid() ||
          ec_read_scratch_pool_.slot_size() <
              ec_batch::kEcBatchStagingMaxSlotSize))
       ERROR("behavior_group: complete write/recovery buffers are required");
     init_ec_direct_writes();
-    if (::FarLib::get_config().ft_incremental_update) {
+    if (::starfish::get_config().ft_incremental_update) {
       if (!ec_direct_bank_ || !ec_persistent_buffers_)
         ERROR("ec_update: requires permanent worker-private direct banks");
-      if (::FarLib::get_config().ft_incremental_one_sided) {
+      if (::starfish::get_config().ft_incremental_one_sided) {
         auto *control = rdma::ClientControl::get_default();
         if (control == nullptr || control->ec_rmw_transport() == nullptr)
           ERROR("ec_rmw: missing one-sided transport");
@@ -4469,7 +4476,7 @@ class ConcurrentArrayCache {
     const auto peak_offset = member_offset(&peak_retained_backup_bytes);
     const auto budget_offset = member_offset(&retained_backup_budget_bytes);
     const auto resident_offset = member_offset(&resident_local_bytes);
-    if constexpr (FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION) {
+    if constexpr (STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION) {
       if (reinterpret_cast<uintptr_t>(this) % 64 != 0 ||
           retained_offset % 64 != 0 || peak_offset % 64 != 0 ||
           budget_offset % 64 != 0 || resident_offset % 64 != 0 ||
@@ -4480,23 +4487,23 @@ class ConcurrentArrayCache {
       }
     }
     std::cerr << "backup_accounting_layout isolated="
-              << FARLIB_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
+              << STARFISH_BACKUP_ACCOUNTING_CACHELINE_ISOLATION
               << " cache_size=" << sizeof(*this)
               << " cache_alignment=" << alignof(ConcurrentArrayCache)
               << " retained_offset=" << retained_offset
               << " peak_offset=" << peak_offset
               << " budget_offset=" << budget_offset
               << " resident_offset=" << resident_offset << '\n';
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     // The legacy registry indexes ordinary remote Regions, not EC stripes.
     // The supported EC grouping path is Design2 semantic-six builders.
     if (config.is_ec_batch_mode() &&
-        (::FarLib::allocator::six_group::enabled() ||
-         ::FarLib::simple_dirty_observer::enabled())) {
+        (::starfish::allocator::six_group::enabled() ||
+         ::starfish::simple_dirty_observer::enabled())) {
       ERROR(
           "EC supports semantic-six grouping, not legacy registry/dirty-observer geometry");
     }
-    if (::FarLib::allocator::six_group::enabled() && !config.exclusive_cache)
+    if (::starfish::allocator::six_group::enabled() && !config.exclusive_cache)
       ERROR("fixed-six aligned runtime currently requires exclusive_cache");
     backup_profile_window_events =
         std::max<size_t>(1, config.remote_backup_profile_window_events);
@@ -4588,7 +4595,7 @@ class ConcurrentArrayCache {
         ASSERT(resident_local_budget_bytes != 0);
       }
     }
-    if (::FarLib::ec_benchmark_phase::enabled()) {
+    if (::starfish::ec_benchmark_phase::enabled()) {
       auto &stripes = remote_allocator.small_object_stripe_manager();
       stripes.configure_backup_growth(retained_backup_budget_bytes);
       std::cout << "INFO: ec_backup_growth budget_data_bytes="
@@ -4637,11 +4644,11 @@ class ConcurrentArrayCache {
             "backup credits require enabled backup and cannot combine with counter bypass");
       }
       batched_backup_budget = std::make_unique<BatchedBackupBudget>(
-          retained_backup_budget_bytes, ::FarLib::allocator::RegionSize);
+          retained_backup_budget_bytes, ::starfish::allocator::RegionSize);
       std::cout
           << "backup_credits enabled=1 capacity_check=strict"
           << " acquire=fibre_fetch_or_native_completion release=os_thread_local"
-          << " quantum_bytes=" << ::FarLib::allocator::RegionSize
+          << " quantum_bytes=" << ::starfish::allocator::RegionSize
           << " reclaim_idle_on_failure=" << segmented_backup_enabled()
           << " peak=issued_upper_bound reservation_flags=unchanged"
           << std::endl;
@@ -4657,70 +4664,70 @@ class ConcurrentArrayCache {
       resident_profile_active.store(!resident_profile_manual_trigger_flag,
                                     std::memory_order_release);
     }
-    ::FarLib::allocator::global_heap.register_heap(local_buf, local_buf_size);
-    if (::FarLib::simple_dirty_observer::enabled()) {
+    ::starfish::allocator::global_heap.register_heap(local_buf, local_buf_size);
+    if (::starfish::simple_dirty_observer::enabled()) {
       // The two-byte trace handle has one owner. Do not combine this
       // observer with the legacy fixed-six object's registry/tracer.
-      if (!::FarLib::simple_region_budget::six_enabled() ||
-          !::FarLib::simple_region_heat::enabled() ||
-          ::FarLib::allocator::six_group::enabled() ||
+      if (!::starfish::simple_region_budget::six_enabled() ||
+          !::starfish::simple_region_heat::enabled() ||
+          ::starfish::allocator::six_group::enabled() ||
           !config.exclusive_cache || config.enable_selective_backup)
         throw std::invalid_argument(
             "dirty observer requires simple-six exclusive, backup OFF");
 #ifdef REMOTE_REGION_ALLOCATOR
-      ::FarLib::simple_dirty_observer::monitor().configure(
+      ::starfish::simple_dirty_observer::monitor().configure(
           reinterpret_cast<uintptr_t>(local_buf), local_buf_size,
-          ::FarLib::allocator::RegionSize, remote_buf_size,
-          ::FarLib::allocator::remote::RegionSize);
-      ::FarLib::simple_dirty_observer::monitor().set_class_reader(
+          ::starfish::allocator::RegionSize, remote_buf_size,
+          ::starfish::allocator::remote::RegionSize);
+      ::starfish::simple_dirty_observer::monitor().set_class_reader(
           [base = reinterpret_cast<uintptr_t>(local_buf)](bool remote,
                                                           size_t region) {
             return remote
-                       ? ::FarLib::allocator::remote::remote_global_heap
+                       ? ::starfish::allocator::remote::remote_global_heap
                              .simple_class_for(
                                  region *
-                                 ::FarLib::allocator::remote::RegionSize)
-                       : ::FarLib::simple_region_heat::allocation_class_for(
-                             base + region * ::FarLib::allocator::RegionSize);
+                                 ::starfish::allocator::remote::RegionSize)
+                       : ::starfish::simple_region_heat::allocation_class_for(
+                             base + region * ::starfish::allocator::RegionSize);
           });
 #else
       throw std::invalid_argument(
           "dirty observer requires Region remote allocator");
 #endif
     }
-    if (::FarLib::simple_region_heat::enabled()) {
-      ::FarLib::simple_region_heat::monitor().configure(
+    if (::starfish::simple_region_heat::enabled()) {
+      ::starfish::simple_region_heat::monitor().configure(
           reinterpret_cast<uintptr_t>(local_buf), local_buf_size,
-          ::FarLib::allocator::RegionSize);
-      if (::FarLib::simple_region_heat::grouping_enabled() ||
-          ::FarLib::allocator::six_group::list_only_six::grouped())
-        ::FarLib::simple_region_heat::monitor().set_reclassify([] {
-          return ::FarLib::allocator::global_heap.reclassify_simple_heat();
+          ::starfish::allocator::RegionSize);
+      if (::starfish::simple_region_heat::grouping_enabled() ||
+          ::starfish::allocator::six_group::list_only_six::grouped())
+        ::starfish::simple_region_heat::monitor().set_reclassify([] {
+          return ::starfish::allocator::global_heap.reclassify_simple_heat();
         });
-      if (::FarLib::simple_region_budget::enabled())
-        ::FarLib::simple_region_heat::monitor().set_budget_tick(
+      if (::starfish::simple_region_budget::enabled())
+        ::starfish::simple_region_heat::monitor().set_budget_tick(
             [](uint64_t window) {
-              ::FarLib::allocator::global_heap.tick_simple_budget(window);
+              ::starfish::allocator::global_heap.tick_simple_budget(window);
 #ifdef REMOTE_REGION_ALLOCATOR
-              ::FarLib::allocator::remote::remote_global_heap
+              ::starfish::allocator::remote::remote_global_heap
                   .tick_simple_budget(window);
 #endif
             });
     }
-    if (::FarLib::allocator::six_group::enabled()) {
+    if (::starfish::allocator::six_group::enabled()) {
       const bool work_only =
           env_flag_or_default("FARLIB_SIX_REQUIRE_WORK_PHASE", true);
-      ::FarLib::allocator::six_group::registry().start(
+      ::starfish::allocator::six_group::registry().start(
           local_buf_size,
           work_only ? +[] { return profile::is_working(); } : nullptr,
-          &::FarLib::allocator::
+          &::starfish::allocator::
               disable_region_list_fibre_yield_for_current_thread);
     }
     void (*evict_fn)(ConcurrentArrayCache *) = [](ConcurrentArrayCache *cache) {
       cache->evacuate_work();
     };
-    ASSERT(::FarLib::get_config().evacuate_thread_cnt > 0);
-    evacuate_thread_cnt = ::FarLib::get_config().evacuate_thread_cnt;
+    ASSERT(::starfish::get_config().evacuate_thread_cnt > 0);
+    evacuate_thread_cnt = ::starfish::get_config().evacuate_thread_cnt;
     if (uthread::separate_background_cluster_enabled()) {
       const size_t background_workers = evacuate_thread_cnt;
       const char *cpu_base_text = std::getenv("FARLIB_BACKGROUND_CPU_BASE");
@@ -4735,7 +4742,7 @@ class ConcurrentArrayCache {
           background_workers > CPU_SETSIZE - cpu_base) {
         ERROR("invalid FARLIB_BACKGROUND_CPU_BASE");
       }
-      std::vector<pthread_t> app_tids(::FarLib::get_config().max_thread_cnt);
+      std::vector<pthread_t> app_tids(::starfish::get_config().max_thread_cnt);
       const size_t app_actual =
           uthread::get_current_worker_sys_ids(app_tids.data(), app_tids.size());
       ASSERT(app_actual == app_tids.size());
@@ -4776,7 +4783,7 @@ class ConcurrentArrayCache {
           ERROR("background cluster affinity verification failed");
         }
         rdma::register_thread_id(background_tids[i],
-                                 ::FarLib::get_config().max_thread_cnt + i);
+                                 ::starfish::get_config().max_thread_cnt + i);
       }
       master_evacuation_thread =
           uthread::create_on<true>(*background_cluster_, evict_fn, this,
@@ -4786,7 +4793,7 @@ class ConcurrentArrayCache {
           evict_fn, this, std::string("evacuation master"));
     }
     start_background_rebuild();
-    ::FarLib::allocator::global_heap.set_on_memory_low(
+    ::starfish::allocator::global_heap.set_on_memory_low(
         [this] { uthread::notify_all(&eviction_cond, &eviction_mutex); });
     if (full_population_frequency_stats_enabled()) {
       full_population_frequency_tracker.start(*this);
@@ -4805,26 +4812,26 @@ class ConcurrentArrayCache {
     // Print the saved final Work-boundary snapshot, never post-cleanup zero.
     runtime_metadata_reporter_.reset();
     if (benchmark_memory_sampler_) {
-      if (::FarLib::profile::benchmark_memory_observer_context ==
+      if (::starfish::profile::benchmark_memory_observer_context ==
           benchmark_memory_sampler_.get()) {
-        ::FarLib::profile::benchmark_memory_begin_observer = nullptr;
-        ::FarLib::profile::benchmark_memory_end_observer = nullptr;
-        ::FarLib::profile::benchmark_memory_observer_context = nullptr;
+        ::starfish::profile::benchmark_memory_begin_observer = nullptr;
+        ::starfish::profile::benchmark_memory_end_observer = nullptr;
+        ::starfish::profile::benchmark_memory_observer_context = nullptr;
       }
-      if (::FarLib::benchmark_memory::explicit_work_origin_context ==
+      if (::starfish::benchmark_memory::explicit_work_origin_context ==
           benchmark_memory_sampler_.get()) {
-        ::FarLib::benchmark_memory::explicit_work_begin_observer = nullptr;
-        ::FarLib::benchmark_memory::explicit_work_end_observer = nullptr;
-        ::FarLib::benchmark_memory::explicit_work_origin_context = nullptr;
+        ::starfish::benchmark_memory::explicit_work_begin_observer = nullptr;
+        ::starfish::benchmark_memory::explicit_work_end_observer = nullptr;
+        ::starfish::benchmark_memory::explicit_work_origin_context = nullptr;
       }
       benchmark_memory_sampler_->shutdown();
     }
-    ::FarLib::simple_region_heat::end_work();
+    ::starfish::simple_region_heat::end_work();
     ec_batch_diag_report("cache_dtor_begin");
     ec_read_recovery_diag_report("cache_dtor_begin");
     quiesce_background_evacuation();
     if (ec_split::mg_optimizations_enabled &&
-        ::FarLib::get_config().is_ec_batch_mode()) {
+        ::starfish::get_config().is_ec_batch_mode()) {
       const auto groups =
           ec_split_group_batch_groups_.load(std::memory_order_relaxed);
       const auto consumed =
@@ -4899,18 +4906,19 @@ class ConcurrentArrayCache {
                 << " inflight_highwater=" << highwater << std::endl;
     }
     ec_persistent_buffers_.reset();
-    if (::FarLib::allocator::six_group::enabled()) {
-      ::FarLib::allocator::six_group::registry().stop();
-      ::FarLib::allocator::six_group::registry().dump();
+    if (::starfish::allocator::six_group::enabled()) {
+      ::starfish::allocator::six_group::registry().stop();
+      ::starfish::allocator::six_group::registry().dump();
     }
-    ::FarLib::object_group_trace::dump();
-    ::FarLib::allocator::release_all_thread_heap_regions_for_shutdown();
-    ::FarLib::allocator::global_heap.finish_async_full_returns_for_shutdown();
-    ::FarLib::allocator::global_heap.reclaim_all_deallocated_regions();
-    ::FarLib::allocator::global_heap.verify_no_detached_regions_for_shutdown();
-    ::FarLib::allocator::global_heap.print_used_memory();
+    ::starfish::object_group_trace::dump();
+    ::starfish::allocator::release_all_thread_heap_regions_for_shutdown();
+    ::starfish::allocator::global_heap.finish_async_full_returns_for_shutdown();
+    ::starfish::allocator::global_heap.reclaim_all_deallocated_regions();
+    ::starfish::allocator::global_heap
+        .verify_no_detached_regions_for_shutdown();
+    ::starfish::allocator::global_heap.print_used_memory();
     print_design1_diagnostics();
-    ::FarLib::allocator::global_heap.destroy();
+    ::starfish::allocator::global_heap.destroy();
     std::cout << "entry_frequency records_remaining="
               << detail::EntryFrequencyStore::live_records()
               << " allocation_failures="
@@ -5009,22 +5017,23 @@ class ConcurrentArrayCache {
   // background workers before comparing the two independently locked ledgers.
   // Resident bytes here are reserved physical capacity, not live payload.
   SimpleResidentStateSnapshot simple_resident_state_snapshot() const {
-    auto &heap = ::FarLib::allocator::global_heap;
+    auto &heap = ::starfish::allocator::global_heap;
     SimpleResidentStateSnapshot s{};
     s.local_resident_mapping =
-        ::FarLib::simple_region_heat::local_resident_enabled();
+        ::starfish::simple_region_heat::local_resident_enabled();
     s.backup_used_bytes = backup_usage_snapshot();
     s.backup_peak_bytes = backup_peak_snapshot();
     s.backup_budget_bytes = retained_backup_budget_bytes;
     s.resident_regions = heap.get_resident_reserved_regions();
     s.resident_budget_regions = heap.get_resident_region_budget();
-    s.resident_bytes = s.resident_regions * ::FarLib::allocator::RegionSize;
+    s.resident_bytes = s.resident_regions * ::starfish::allocator::RegionSize;
     s.resident_budget_bytes = resident_local_budget_bytes;
     s.streaming_regions = heap.get_streaming_reserved_regions();
     if (s.local_resident_mapping) {
-      for (size_t bin = 0; bin < ::FarLib::simple_region_budget::kBins; ++bin) {
+      for (size_t bin = 0; bin < ::starfish::simple_region_budget::kBins;
+           ++bin) {
         const auto counts =
-            ::FarLib::simple_region_budget::local().snapshot(bin).actual;
+            ::starfish::simple_region_budget::local().snapshot(bin).actual;
         for (size_t c = 0; c < 3; ++c) s.local_cold_regions += counts[c];
         for (size_t c = 3; c < 6; ++c) s.local_hot_regions += counts[c];
       }
@@ -5282,8 +5291,8 @@ class ConcurrentArrayCache {
     const uint32_t resident_group_id = register_resident_placement_group(
         logical_owner_id, size, resident_footprint);
     bool resident = false;
-    ::FarLib::allocator::RegionPlacement requested_placement =
-        ::FarLib::allocator::RegionPlacement::Unclassified;
+    ::starfish::allocator::RegionPlacement requested_placement =
+        ::starfish::allocator::RegionPlacement::Unclassified;
     if (region_resident_placement_enabled()) {
       if (region_hotness_placement_enabled()) {
         // Cold start fills R in allocation order while leaving an
@@ -5293,27 +5302,28 @@ class ConcurrentArrayCache {
         // mechanism for already-local data.
         if (!profile::is_working()) {
           const size_t hard_budget =
-              ::FarLib::allocator::global_heap.get_resident_region_budget();
+              ::starfish::allocator::global_heap.get_resident_region_budget();
           const size_t headroom =
               region_fetch_hotness_placement_enabled()
                   ? hard_budget *
                         std::min<size_t>(
-                            100, ::FarLib::get_config()
+                            100, ::starfish::get_config()
                                      .region_fetch_resident_headroom_pct) /
                         100
                   : 0;
           const size_t initial_budget =
               hard_budget > headroom ? hard_budget - headroom : 0;
           requested_placement =
-              ::FarLib::allocator::global_heap.get_resident_reserved_regions() <
-                      initial_budget
-                  ? ::FarLib::allocator::RegionPlacement::Resident
-                  : ::FarLib::allocator::RegionPlacement::Streaming;
+              ::starfish::allocator::global_heap
+                          .get_resident_reserved_regions() < initial_budget
+                  ? ::starfish::allocator::RegionPlacement::Resident
+                  : ::starfish::allocator::RegionPlacement::Streaming;
         } else {
-          requested_placement = ::FarLib::allocator::RegionPlacement::Streaming;
+          requested_placement =
+              ::starfish::allocator::RegionPlacement::Streaming;
         }
       } else if (resident_group_id == 0) {
-        requested_placement = ::FarLib::allocator::RegionPlacement::Resident;
+        requested_placement = ::starfish::allocator::RegionPlacement::Resident;
       } else {
         const auto &group = resident_placement_groups[resident_group_id];
         const uint64_t target =
@@ -5323,8 +5333,8 @@ class ConcurrentArrayCache {
         requested_placement =
             !resident_profile_plan_ready.load(std::memory_order_acquire) ||
                     current < target
-                ? ::FarLib::allocator::RegionPlacement::Resident
-                : ::FarLib::allocator::RegionPlacement::Streaming;
+                ? ::starfish::allocator::RegionPlacement::Resident
+                : ::starfish::allocator::RegionPlacement::Streaming;
       }
     } else {
       resident = try_reserve_resident_local(resident_footprint);
@@ -5332,63 +5342,64 @@ class ConcurrentArrayCache {
     const uint32_t allocation_group_id =
         region_group_binding_enabled() ? resident_group_id : 0;
     uint32_t behavior_group = 0;
-    if (::FarLib::simple_region_budget::six_enabled()) {
+    if (::starfish::simple_region_budget::six_enabled()) {
       behavior_group = initial_simple_behavior_group(
-          ::FarLib::simple_region_heat::local_resident_enabled() &&
+          ::starfish::simple_region_heat::local_resident_enabled() &&
           requested_placement ==
-              ::FarLib::allocator::RegionPlacement::Resident);
-    } else if (::FarLib::allocator::six_group::enabled()) {
-      const auto bin = ::FarLib::allocator::bin_from_wsize(
-          ::FarLib::allocator::wsize_from_size(
-              size + sizeof(::FarLib::allocator::BlockHead)));
-      behavior_group = ::FarLib::allocator::six_group::registry().initial_group(
-          logical_owner_id, bin);
+              ::starfish::allocator::RegionPlacement::Resident);
+    } else if (::starfish::allocator::six_group::enabled()) {
+      const auto bin = ::starfish::allocator::bin_from_wsize(
+          ::starfish::allocator::wsize_from_size(
+              size + sizeof(::starfish::allocator::BlockHead)));
+      behavior_group =
+          ::starfish::allocator::six_group::registry().initial_group(
+              logical_owner_id, bin);
     }
     auto allocation = allocate_local(size, obj, scope, requested_placement,
                                      allocation_group_id, behavior_group);
     void *local_ptr = allocation.get();
-    if (::FarLib::simple_region_heat::remote_grouping_enabled() ||
-        ::FarLib::simple_region_heat::local_resident_enabled()) {
+    if (::starfish::simple_region_heat::remote_grouping_enabled() ||
+        ::starfish::simple_region_heat::local_resident_enabled()) {
       // The first remote copy is created before the object has an
       // entry-level heat hint.  Inherit only the physical local
       // Region's hot/cold dimension: allocator fallback must not
       // replace the new object's Low dirtiness prior with Medium.
       behavior_group =
-          initial_simple_behavior_group(::FarLib::simple_region_heat::is_hot(
-              ::FarLib::simple_region_heat::class_for(
+          initial_simple_behavior_group(::starfish::simple_region_heat::is_hot(
+              ::starfish::simple_region_heat::class_for(
                   reinterpret_cast<uintptr_t>(local_ptr))));
     }
     if (region_resident_placement_enabled()) {
       auto *block =
-          static_cast<::FarLib::allocator::BlockHead *>(local_ptr) - 1;
+          static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
       resident =
-          ::FarLib::allocator::block_to_region(block)->load_placement() ==
-          ::FarLib::allocator::RegionPlacement::Resident;
+          ::starfish::allocator::block_to_region(block)->load_placement() ==
+          ::starfish::allocator::RegionPlacement::Resident;
     }
     uint64_t remote_ptr;
-    if (::FarLib::get_config().exclusive_cache) {
+    if (::starfish::get_config().exclusive_cache) {
       remote_ptr = FarObjectEntry::RemoteAddrInvalid48;
     } else {
       remote_ptr = allocate_remote(size, behavior_group);
     }
     entry->reset<Lite>(local_ptr, remote_ptr, size, dirty, resident,
                        logical_owner_id, resident_group_id);
-    if (::FarLib::simple_region_heat::grouping_enabled()) {
+    if (::starfish::simple_region_heat::grouping_enabled()) {
       const auto remote_class =
-          ::FarLib::simple_region_heat::remote_grouping_enabled() &&
+          ::starfish::simple_region_heat::remote_grouping_enabled() &&
                   remote_ptr != FarObjectEntry::RemoteAddrInvalid48
-              ? ::FarLib::allocator::remote::remote_global_heap
+              ? ::starfish::allocator::remote::remote_global_heap
                     .simple_class_for(remote_ptr)
               : behavior_group;
-      entry->set_simple_heat_hot(::FarLib::simple_region_heat::is_hot(
-          ::FarLib::simple_region_heat::fetch_class_hint(behavior_group,
-                                                         remote_class)));
+      entry->set_simple_heat_hot(::starfish::simple_region_heat::is_hot(
+          ::starfish::simple_region_heat::fetch_class_hint(behavior_group,
+                                                           remote_class)));
     }
     six_bind_local(*entry, local_ptr, size);
     trace_object_allocation(*entry, size);
-    if (::FarLib::simple_dirty_observer::objects_enabled())
+    if (::starfish::simple_dirty_observer::objects_enabled())
       entry->set_object_trace_slot(
-          ::FarLib::simple_dirty_observer::monitor().register_object(
+          ::starfish::simple_dirty_observer::monitor().register_object(
               size, reinterpret_cast<uintptr_t>(local_ptr),
               entry->simple_dirty_score_q(), entry->simple_dirty_score_known(),
               entry->simple_heat_hot()));
@@ -5590,7 +5601,7 @@ class ConcurrentArrayCache {
     // into the fixed-size small-object staging buffers.
     static_assert(rdma::Configure::behavior_group_max_whole_object_bytes ==
                   ec_batch::kEcBatchStagingMaxSlotSize);
-    return ::FarLib::get_config().ec_object_uses_split(size);
+    return ::starfish::get_config().ec_object_uses_split(size);
   }
   bool stage_ec_split_object(EvictBufferSet &, void *local_addr, size_t size,
                              FarObjectEntry *entry, uint32_t behavior_group = 0,
@@ -5631,7 +5642,7 @@ class ConcurrentArrayCache {
   // backup so the next eviction writes a fully protected replacement group.
   bool reuse_ec_recovery_endpoint_is_dead(uint64_t remote_addr,
                                           size_t object_size) {
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     if (!config.is_ec_batch_mode() || config.server_count <= 1 ||
         remote_addr == FarObjectEntry::RemoteAddrInvalid48) {
       return false;
@@ -5658,7 +5669,7 @@ class ConcurrentArrayCache {
   bool ec_recovery_group_view(FarObjectEntry *entry, uint32_t byte_count,
                               EcRecoveryGroupView *view_out);
   bool ec_recovery_drain_normal_reads_once(
-      ::FarLib::allocator::BlockHead *block);
+      ::starfish::allocator::BlockHead *block);
   void handle_ec_read_segment_complete(uint64_t wr_id);
   bool ec_recovery_assist_wait(FarObjectEntry *entry, size_t qp_idx,
                                size_t client_idx);
@@ -5757,7 +5768,7 @@ class ConcurrentArrayCache {
   }
 
  public:
-  bool memory_low() { return ::FarLib::allocator::global_heap.memory_low(); }
+  bool memory_low() { return ::starfish::allocator::global_heap.memory_low(); }
 
   // Compatibility for shared benchmark sources. The temporary READ
   // timeline observer has been retired; there is no observer to join.
@@ -5900,8 +5911,8 @@ class ConcurrentArrayCache {
   ec_read_recovery::EcRecoveryScratchPool ec_read_scratch_pool_;
   ec_split::BufferPools ec_split_buffers_;
   ec_read_recovery::EcReadContextPool ec_read_tokens_{
-      static_cast<size_t>(::FarLib::get_config().max_thread_cnt) +
-      static_cast<size_t>(::FarLib::get_config().evacuate_thread_cnt) + 2};
+      static_cast<size_t>(::starfish::get_config().max_thread_cnt) +
+      static_cast<size_t>(::starfish::get_config().evacuate_thread_cnt) + 2};
   // Diagnostics only: relaxed counters of the degraded read path.  No
   // decision reads them and every print is gated on ft_method=ec_batch.
   std::atomic<uint64_t> ec_recovery_dead_endpoints_{0};
@@ -5956,7 +5967,7 @@ class ConcurrentArrayCache {
 
 }  // namespace cache
 
-}  // namespace FarLib
+}  // namespace starfish
 
 #include "mm/placement/diagnostics.ipp"
 #include "mm/placement/fetch_placement.ipp"

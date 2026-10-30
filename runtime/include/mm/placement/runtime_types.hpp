@@ -3,7 +3,7 @@
 #include <atomic>
 #include <cstdint>
 
-namespace FarLib::cache::design1 {
+namespace starfish::cache::design1 {
 
 // Per-group counters are updated by mutators and consumed by the planner.
 // Window counters are reset at publication; lifetime totals are monotonic.
@@ -70,4 +70,4 @@ struct ActiveResidentPlacementGroup {
   uint64_t filled_bytes{0};
 };
 
-}  // namespace FarLib::cache::design1
+}  // namespace starfish::cache::design1

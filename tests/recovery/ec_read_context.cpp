@@ -16,16 +16,16 @@
 
 namespace {
 
-using FarLib::cache::ec_batch::EcStagingGroupSlot;
-using FarLib::cache::ec_read_recovery::EcReadContext;
-using FarLib::cache::ec_read_recovery::EcReadContextEvent;
-using FarLib::cache::ec_read_recovery::EcReadContextPool;
-using FarLib::cache::ec_read_recovery::EcReadStorageMode;
-using FarLib::cache::ec_read_recovery::EcReadTokenEventKind;
-using FarLib::cache::ec_read_recovery::ec_read_wr_id_segment;
-using FarLib::cache::ec_read_recovery::ec_read_wr_id_token;
-using FarLib::cache::ec_read_recovery::encode_ec_read_wr_id;
-using FarLib::cache::ec_read_recovery::kEcReadSegmentCount;
+using starfish::cache::ec_batch::EcStagingGroupSlot;
+using starfish::cache::ec_read_recovery::EcReadContext;
+using starfish::cache::ec_read_recovery::EcReadContextEvent;
+using starfish::cache::ec_read_recovery::EcReadContextPool;
+using starfish::cache::ec_read_recovery::EcReadStorageMode;
+using starfish::cache::ec_read_recovery::EcReadTokenEventKind;
+using starfish::cache::ec_read_recovery::ec_read_wr_id_segment;
+using starfish::cache::ec_read_recovery::ec_read_wr_id_token;
+using starfish::cache::ec_read_recovery::encode_ec_read_wr_id;
+using starfish::cache::ec_read_recovery::kEcReadSegmentCount;
 
 constexpr uint8_t kAllSegments =
     static_cast<uint8_t>((1u << kEcReadSegmentCount) - 1u);

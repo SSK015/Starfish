@@ -19,8 +19,8 @@ static std::atomic<bool> fail_next_allocation{false};
 }
 
 int main() {
-  using FarLib::cache::FarObjectEntry;
-  using Store = FarLib::cache::detail::EntryFrequencyStore;
+  using starfish::cache::FarObjectEntry;
+  using Store = starfish::cache::detail::EntryFrequencyStore;
   Store::set_enabled(true);
   {
     FarObjectEntry source, target;

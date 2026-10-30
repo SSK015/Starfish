@@ -7,7 +7,7 @@
 #include "ft/ec/small_object_stripe.hpp"
 #include "transport/rdma/ec/ec_rmw_client.hpp"
 
-namespace FarLib::cache::ec_rmw_runtime {
+namespace starfish::cache::ec_rmw_runtime {
 
 // A transaction owns the SlotReuse reservation (when one has been acquired),
 // the borrowed local source, and the three requests in one RMW codeword.  The
@@ -211,4 +211,4 @@ struct Worker {
   }
 };
 
-}  // namespace FarLib::cache::ec_rmw_runtime
+}  // namespace starfish::cache::ec_rmw_runtime

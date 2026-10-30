@@ -14,7 +14,7 @@
 #include "ft/ec/small_object_stripe.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib::rdma {
+namespace starfish::rdma {
 
 constexpr uint16_t kSpongeRpcMagic = 0x5B9E;
 constexpr uint16_t kSpongeRpcVersion = 1;
@@ -1169,4 +1169,4 @@ inline bool sponge_apply_parity_record_locally(
                                              parity_slot);
 }
 
-}  // namespace FarLib::rdma
+}  // namespace starfish::rdma

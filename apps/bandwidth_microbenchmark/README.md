@@ -10,19 +10,19 @@ Build both sizes from this repository's root; CMake builds bundled libfibre:
 ```bash
 cmake -S . -B build-apps \
   -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13 \
-  -DFARLIB_BUILD_APPLICATIONS=ON \
-  -DFARLIB_BUILD_BANDWIDTH_MICROBENCHMARK=ON
+  -DSTARFISH_BUILD_APPLICATIONS=ON \
+  -DSTARFISH_BUILD_BANDWIDTH_MICROBENCHMARK=ON
 cmake --build build-apps --target bandwidth_microbenchmark bandwidth_microbenchmark_512 -j
 ```
 
 Executables are written to
 `build-apps/benchmark/microbenchmarks/bandwidth_microbenchmark` and
 `bandwidth_microbenchmark_512`. Direct CMake users can enable
-`FARLIB_BUILD_BANDWIDTH_MICROBENCHMARK=ON`; it is off by default.
+`STARFISH_BUILD_BANDWIDTH_MICROBENCHMARK=ON`; it is off by default.
 
 Historical `object_size` / `object_size_512` build targets and executable
 symlinks remain compatibility aliases to the same binaries.
-`FARLIB_BUILD_OBJECT_SIZE` is a deprecated CMake option alias.
+`STARFISH_BUILD_OBJECT_SIZE` is a deprecated CMake option alias.
 These optional targets are supported only by the Starfish runtime.
 
 Building does not run the workload. Reuse a reviewed configuration and record

@@ -49,7 +49,7 @@
 #include <utility>
 #include <vector>
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 // One ec_batch group is 4 data + 2 parity segments, one slot size for all six.
 inline constexpr size_t kEcBatchDataSlots = 4;
@@ -92,13 +92,13 @@ struct EcStagingGroupSlot {
   }
 };
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch
 
 // Keep the provider interface independent from the fixed-pool implementation;
 // it only needs the completed slot type above.
 #include "ft/ec/worker_temp_buffers.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 class EcStagingPool {
  public:
@@ -169,7 +169,7 @@ class EcStagingPool {
   // lease uses it after this call.  Binding is an initialization-time
   // operation and must precede concurrent acquire/release calls.
   bool bind_shared_buffers(
-      ::FarLib::cache::WorkerTempBufferProvider *provider,
+      ::starfish::cache::WorkerTempBufferProvider *provider,
       OwnerIdCallback owner_id_callback = OwnerIdCallback{}) {
     if (provider == nullptr || !provider->valid()) return false;
     if (slot_size_ != 0 && provider->slot_size() != slot_size_) {
@@ -185,7 +185,7 @@ class EcStagingPool {
   }
 
   bool shared_buffers_bound() const { return shared_provider_ != nullptr; }
-  ::FarLib::cache::WorkerTempBufferProvider *shared_provider() const {
+  ::starfish::cache::WorkerTempBufferProvider *shared_provider() const {
     return shared_provider_;
   }
 
@@ -378,8 +378,8 @@ class EcStagingPool {
   std::string error_;
   std::vector<uint32_t> free_stack_;  // indices of free group slots
   mutable std::mutex mutex_;
-  ::FarLib::cache::WorkerTempBufferProvider *shared_provider_ = nullptr;
+  ::starfish::cache::WorkerTempBufferProvider *shared_provider_ = nullptr;
   OwnerIdCallback owner_id_callback_;
 };
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch

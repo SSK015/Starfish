@@ -9,7 +9,7 @@
 #include <cstddef>
 
 #include "lib/debug.hpp"
-namespace FarLib {
+namespace starfish {
 
 namespace tcp {
 
@@ -45,4 +45,4 @@ inline ssize_t send_all(int fd, const void *buf, size_t n, int flags) {
 
 }  // namespace tcp
 
-}  // namespace FarLib
+}  // namespace starfish

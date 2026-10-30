@@ -8,7 +8,7 @@
 #include "lib/cpu_cycles.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace FarView {
 
@@ -200,4 +200,4 @@ class MapView : public View<TargetType, Mut,
   }
 };
 }  // namespace FarView
-}  // namespace FarLib
+}  // namespace starfish

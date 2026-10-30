@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace FarLib::benchmark {
+namespace starfish::benchmark {
 
 // Immutable, seeded mapping from a Zipf rank to a logical object id.
 class RankPermutation {
@@ -107,4 +107,4 @@ class RankPermutation {
   std::vector<std::uint32_t> table_;
 };
 
-}  // namespace FarLib::benchmark
+}  // namespace starfish::benchmark

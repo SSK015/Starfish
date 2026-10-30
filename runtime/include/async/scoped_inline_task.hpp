@@ -11,7 +11,7 @@
 #include "lib/cpu_cycles.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace async {
 /*
     Co-design with dereference scope:
@@ -248,10 +248,10 @@ void for_range(DereferenceScope &scope, size_t start, size_t end,
 }
 
 }  // namespace async
-}  // namespace FarLib
+}  // namespace starfish
 
 #define SCOPED_INLINE_ASYNC_FOR(CONTEXT, TYPE, I, INIT, COND, STEP, SCOPE) \
-    FarLib::async::ScopedInlineLoopRunner<CONTEXT>::run(          \
+    starfish::async::ScopedInlineLoopRunner<CONTEXT>::run(          \
         SCOPE, (TYPE)(INIT), [&](TYPE I) { return COND; },  \
                        [&](TYPE &I) { STEP; },              \
                        [&](TYPE I) {

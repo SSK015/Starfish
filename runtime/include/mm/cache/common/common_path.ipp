@@ -2,13 +2,13 @@
 #include "mm/cache/concurrent_cache.hpp"
 #include "profiling/scope_diag.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline size_t ConcurrentArrayCache::check_cq() {
   // ft_method=sponge only: ec_batch never commits through the sponge path,
   // so it must not poll the control CQ from a data-CQ poller (24 pollers on
   // one control CQ livelocked libmlx5's pthread_spin_lock).
-  if (::FarLib::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
+  if (::starfish::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
   static std::atomic_flag ttas_lock = ATOMIC_FLAG_INIT;
   if (ttas_lock.test_and_set()) {
     return 0;
@@ -46,7 +46,7 @@ inline size_t ConcurrentArrayCache::check_cq_idx(size_t qp_idx) {
   // ft_method=sponge only: ec_batch never commits through the sponge path,
   // so it must not poll the control CQ from a data-CQ poller (24 pollers on
   // one control CQ livelocked libmlx5's pthread_spin_lock).
-  if (::FarLib::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
+  if (::starfish::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
   auto client = rdma::Client::get_default();
   const bool read_batch = client->sync_read_batching_enabled();
 
@@ -86,7 +86,7 @@ inline size_t ConcurrentArrayCache::check_cq_idx_with_client_idx(
   // ft_method=sponge only: ec_batch never commits through the sponge path,
   // so it must not poll the control CQ from a data-CQ poller (24 pollers on
   // one control CQ livelocked libmlx5's pthread_spin_lock).
-  if (::FarLib::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
+  if (::starfish::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
   auto client = rdma::get_client(thread_id);
   const bool read_batch = client->sync_read_batching_enabled();
   auto fid = fibre_self();
@@ -128,7 +128,7 @@ ConcurrentArrayCache::poll_cq_idx_with_client_idx_endpoint_no_flush(
   // ft_method=sponge only: ec_batch never commits through the sponge path,
   // so it must not poll the control CQ from a data-CQ poller (24 pollers on
   // one control CQ livelocked libmlx5's pthread_spin_lock).
-  if (::FarLib::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
+  if (::starfish::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
   auto client = rdma::get_client(thread_id);
   const bool read_batch = client->sync_read_batching_enabled();
   auto fid = fibre_self();
@@ -157,7 +157,7 @@ inline void ConcurrentArrayCache::full_checker() {
   // ft_method=sponge only: ec_batch never commits through the sponge path,
   // so it must not poll the control CQ from a data-CQ poller (24 pollers on
   // one control CQ livelocked libmlx5's pthread_spin_lock).
-  if (::FarLib::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
+  if (::starfish::get_config().is_sponge_mode()) check_sponge_ack_cq_ft();
   for (size_t i = 0; i < rdma::get_client_count(); i++) {
     auto client = rdma::get_client(i);
     const bool read_batch = client->sync_read_batching_enabled();
@@ -186,7 +186,7 @@ inline void ConcurrentArrayCache::pin(far_obj_t obj) {
   auto &entry = get_entry_of(obj);
 retry:
   auto old_state = entry.load_state();
-  if (::FarLib::get_config().exclusive_cache && old_state.invalid)
+  if (::starfish::get_config().exclusive_cache && old_state.invalid)
       [[unlikely]] {
     auto spin_start = get_cycles();
     profile::count_excl_move_lock_spin();
@@ -208,7 +208,7 @@ inline void ConcurrentArrayCache::unpin(far_obj_t obj) {
   auto &entry = get_entry_of(obj);
 retry:
   auto old_state = entry.load_state();
-  if (::FarLib::get_config().exclusive_cache && old_state.invalid)
+  if (::starfish::get_config().exclusive_cache && old_state.invalid)
       [[unlikely]] {
     auto spin_start = get_cycles();
     profile::count_excl_move_lock_spin();
@@ -242,7 +242,7 @@ inline void ConcurrentArrayCache::mark_dirty(far_obj_t obj) {
     // Keep this state snapshot from BEFORE the borrow check: a later
     // eviction/rescue adds a write ref and therefore makes this CAS fail.
     wait_ec_write_source(entry);
-    if (::FarLib::get_config().exclusive_cache && old_state.invalid)
+    if (::starfish::get_config().exclusive_cache && old_state.invalid)
         [[unlikely]] {
       auto spin_start = get_cycles();
       profile::count_excl_move_lock_spin();
@@ -266,7 +266,7 @@ inline void ConcurrentArrayCache::release_cache(FarObjectEntry *entry,
   for (;;) {
     auto old_state = entry->load_state();
     if (dirty) wait_ec_write_source(*entry);
-    if (::FarLib::get_config().exclusive_cache && old_state.invalid)
+    if (::starfish::get_config().exclusive_cache && old_state.invalid)
         [[unlikely]] {
       auto spin_start = get_cycles();
       profile::count_excl_move_lock_spin();
@@ -359,4 +359,4 @@ inline void ConcurrentArrayCache::update_scope(DereferenceScope &scope) {
   }
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

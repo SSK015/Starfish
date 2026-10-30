@@ -1,6 +1,6 @@
 #pragma once
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline void ConcurrentArrayCache::print_design1_diagnostics() const {
   if (batched_backup_budget) {
@@ -48,14 +48,15 @@ inline void ConcurrentArrayCache::print_design1_diagnostics() const {
   std::cout << "resident object-metadata fetch policy: "
             << design1::to_string(region_fetch_placement_policy) << std::endl;
   std::cout << "resident fetch headroom pct: "
-            << ::FarLib::get_config().region_fetch_resident_headroom_pct
+            << ::starfish::get_config().region_fetch_resident_headroom_pct
             << std::endl;
   std::cout << "resident fetch max window multiplier: "
-            << ::FarLib::get_config().region_fetch_plan_max_window_multiplier
+            << ::starfish::get_config().region_fetch_plan_max_window_multiplier
             << std::endl;
-  std::cout << "resident fetch min reclassification efficiency pct: "
-            << ::FarLib::get_config().region_fetch_min_reclassify_efficiency_pct
-            << std::endl;
+  std::cout
+      << "resident fetch min reclassification efficiency pct: "
+      << ::starfish::get_config().region_fetch_min_reclassify_efficiency_pct
+      << std::endl;
   std::cout << "resident planner requires work phase: "
             << resident_profile_require_work_phase_flag << std::endl;
   std::cout << "resident planner bounded freeze after first commit: "
@@ -319,4 +320,4 @@ inline void ConcurrentArrayCache::print_design1_diagnostics() const {
   }
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

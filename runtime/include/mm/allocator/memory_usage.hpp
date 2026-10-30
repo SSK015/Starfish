@@ -9,7 +9,7 @@
 constexpr size_t MB = 1024 * 1024;
 constexpr size_t GB = 1024 * 1024 * 1024;
 
-namespace FarLib {
+namespace starfish {
 namespace allocator {
 
 inline void print_combined_memory_usage() {
@@ -23,7 +23,7 @@ inline void print_combined_memory_usage() {
   std::cout << "remote.exact_allocated_bytes (in GB): "
             << static_cast<double>(remote_exact) / GB << std::endl;
 #ifdef REMOTE_REGION_ALLOCATOR
-  size_t server_count = FarLib::get_config().server_count;
+  size_t server_count = starfish::get_config().server_count;
   for (size_t i = 0; i < server_count; i++) {
     uint64_t s_used = remote::remote_global_heap.get_server_used_bytes(i);
     std::cout << "remote.server[" << i
@@ -38,4 +38,4 @@ inline void print_combined_memory_usage() {
 }
 
 }  // namespace allocator
-}  // namespace FarLib
+}  // namespace starfish

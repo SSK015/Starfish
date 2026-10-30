@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace FarLib::rdma {
+namespace starfish::rdma {
 
 enum class StopCompletionKind : uint8_t {
   kIgnore = 0,
@@ -27,4 +27,4 @@ inline StopCompletionKind classify_stop_completion(
   return StopCompletionKind::kError;
 }
 
-}  // namespace FarLib::rdma
+}  // namespace starfish::rdma

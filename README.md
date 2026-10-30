@@ -163,7 +163,12 @@ variable alone does not select an external checkout. See
 LLaMA and BFS are included whenever application builds are enabled. The other
 application options are enabled automatically by the script for the selected
 targets. An external application source tree can still be selected with
-`-DFARLIB_APPS_DIR=/absolute/path/to/apps` after `--`.
+`-DSTARFISH_APPS_DIR=/absolute/path/to/apps` after `--`.
+
+Build options use `STARFISH_*` names. Legacy `FARLIB_*` CMake inputs
+are accepted with a deprecation warning; conflicting old and new values are
+rejected. Runtime environment-variable names are unchanged.
+
 
 Input graphs, text datasets, model weights, and generated correctness fixtures
 are not bundled. Wordcount's fixture generator remains in
@@ -171,7 +176,7 @@ are not bundled. Wordcount's fixture generator remains in
 For workload inputs, site configuration, and full paper experiments, use the
 original AE repository. Building these targets does not run experiments.
 
-Existing runtime tests are available with `-DFARLIB_BUILD_TESTS=ON`; some tests
+Existing runtime tests are available with `-DSTARFISH_BUILD_TESTS=ON`; some tests
 require RDMA hardware, separate physical servers, and a valid site configuration.
 
 ## Hardware and deployment

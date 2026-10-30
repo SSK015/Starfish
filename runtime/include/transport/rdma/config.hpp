@@ -19,7 +19,7 @@
 
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 // Basic parameters, not configurable
 constexpr size_t PAGE_SIZE = 4096;
@@ -99,7 +99,7 @@ struct Configure {
 
   // Canonical EC shard size.  This must stay equal to the library's region
   // size; cache/alloc/small_object_stripe.hpp static_asserts that it matches
-  // ::FarLib::allocator::RegionSize, so the two cannot drift apart.
+  // ::starfish::allocator::RegionSize, so the two cannot drift apart.
   static constexpr size_t ft_ec_shard_size_bytes = 256 * 1024;
   static constexpr size_t behavior_group_max_whole_object_bytes = 4096;
 
@@ -658,4 +658,4 @@ struct Configure {
 };
 
 }  // namespace rdma
-}  // namespace FarLib
+}  // namespace starfish

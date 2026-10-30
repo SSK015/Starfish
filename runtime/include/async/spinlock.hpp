@@ -8,7 +8,7 @@
 #include "lib/cpu_cycles.hpp"
 #include "async/uthreads.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace detail {
 
@@ -180,4 +180,4 @@ class Spinlock {
   std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
 };
 
-}  // namespace FarLib
+}  // namespace starfish

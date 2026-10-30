@@ -3,8 +3,8 @@
 #include <cstdio>
 
 int main() {
-  using FarLib::cache::FarObjectEntry;
-  using Store = FarLib::cache::detail::EntryFrequencyStore;
+  using starfish::cache::FarObjectEntry;
+  using Store = starfish::cache::detail::EntryFrequencyStore;
   static_assert(sizeof(FarObjectEntry) == 48);
   Store::set_enabled(false);
   {

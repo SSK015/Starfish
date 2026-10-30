@@ -13,12 +13,12 @@
 
 namespace {
 
-using FarLib::allocator::BlockHead;
-using FarLib::allocator::acquire_normal_read_pin;
-using FarLib::allocator::ec_write_source_borrowed;
-using FarLib::allocator::normal_read_recovery_active;
-using FarLib::allocator::release_ec_write_source;
-using FarLib::allocator::try_borrow_ec_write_source;
+using starfish::allocator::BlockHead;
+using starfish::allocator::acquire_normal_read_pin;
+using starfish::allocator::ec_write_source_borrowed;
+using starfish::allocator::normal_read_recovery_active;
+using starfish::allocator::release_ec_write_source;
+using starfish::allocator::try_borrow_ec_write_source;
 
 struct Checks {
   int count = 0;

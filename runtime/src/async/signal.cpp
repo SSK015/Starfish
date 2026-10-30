@@ -2,7 +2,7 @@
 
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace signal {
 
@@ -40,4 +40,4 @@ SignalManager::~SignalManager() {}
 
 }  // namespace signal
 
-}  // namespace FarLib
+}  // namespace starfish

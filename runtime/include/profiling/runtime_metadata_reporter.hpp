@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <string_view>
 
-namespace FarLib::runtime_metadata {
+namespace starfish::runtime_metadata {
 
 using MeasurementAuxReader = uint64_t (*)(void *);
 
@@ -119,4 +119,4 @@ class Reporter {
   uint64_t snapshot_us_ = 0;
 };
 
-}  // namespace FarLib::runtime_metadata
+}  // namespace starfish::runtime_metadata

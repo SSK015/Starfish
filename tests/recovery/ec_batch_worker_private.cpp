@@ -22,22 +22,22 @@
 #include "ft/ec/small_object_stripe.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure g_ec_worker_private_config;
 const rdma::Configure &get_config() { return g_ec_worker_private_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 
 namespace {
 
-using FarLib::cache::SmallObjectStripeManager;
-using FarLib::cache::ec_batch::EcBatchStatus;
-using FarLib::cache::ec_batch::EcBatchTokenTable;
-using FarLib::cache::ec_batch::EcGroupBuilder;
-using FarLib::cache::ec_batch::EcStagingPool;
+using starfish::cache::SmallObjectStripeManager;
+using starfish::cache::ec_batch::EcBatchStatus;
+using starfish::cache::ec_batch::EcBatchTokenTable;
+using starfish::cache::ec_batch::EcGroupBuilder;
+using starfish::cache::ec_batch::EcStagingPool;
 
 struct Checks {
   int count = 0;
@@ -68,23 +68,23 @@ struct Checks {
 };
 
 bool configure_fixture() {
-  auto &config = FarLib::g_ec_worker_private_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_ec_worker_private_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   config.server_buffer_size = 4ull * 1024 * 1024;
   config.client_buffer_size = 4ull * 1024 * 1024;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
@@ -116,10 +116,10 @@ int run() {
   checks.check(configure_fixture(),
                "ec_batch worker-private fixture configured");
 
-  const auto &config = FarLib::g_ec_worker_private_config;
+  const auto &config = starfish::g_ec_worker_private_config;
   SmallObjectStripeManager manager;
   manager.init(config.remote_total,
-               FarLib::rdma::Configure::ft_ec_shard_size_bytes);
+               starfish::rdma::Configure::ft_ec_shard_size_bytes);
   checks.check(manager.enabled(), "stripe manager initialized");
 
   constexpr size_t kSlotSize = 4096;
@@ -150,7 +150,7 @@ int run() {
   std::array<uint64_t, 4> addresses0{};
   std::array<uint64_t, 4> addresses1{};
   constexpr uint64_t invalid_addr =
-      FarLib::allocator::remote::InvalidRemoteAddr;
+      starfish::allocator::remote::InvalidRemoteAddr;
   addresses0.fill(invalid_addr);
   addresses1.fill(invalid_addr);
   for (size_t i = 0; i < 4; ++i) {
@@ -294,7 +294,7 @@ int run() {
   auto token_storage = std::make_unique<EcBatchTokenTable>();
   auto &tokens = *token_storage;
   uint64_t token_id = 0;
-  FarLib::cache::ec_batch::EcBatchToken *token = nullptr;
+  starfish::cache::ec_batch::EcBatchToken *token = nullptr;
   checks.check(
       tokens.acquire(record0, &token_id, &token, 7) && token != nullptr,
       "owner 7 acquires a token");
@@ -319,7 +319,7 @@ int run() {
   // duplicate is deliberately injected by worker 0; only the CAS that
   // consumes the last distinct segment may return the live token.
   uint64_t concurrent_id = 0;
-  FarLib::cache::ec_batch::EcBatchToken *concurrent_token = nullptr;
+  starfish::cache::ec_batch::EcBatchToken *concurrent_token = nullptr;
   checks.check(tokens.acquire(record0, &concurrent_id, &concurrent_token, 7) &&
                    concurrent_token != nullptr,
                "owner 7 acquires the concurrent-completion token");
@@ -328,7 +328,7 @@ int run() {
   std::atomic<size_t> final_winners{0};
   std::atomic<size_t> wrong_winners{0};
   std::atomic<size_t> duplicate_ignored{0};
-  std::array<std::thread, FarLib::cache::ec_batch::kEcBatchSegmentsPerGroup>
+  std::array<std::thread, starfish::cache::ec_batch::kEcBatchSegmentsPerGroup>
       completers;
   for (size_t i = 0; i < completers.size(); ++i) {
     completers[i] = std::thread([&, i] {
@@ -367,7 +367,7 @@ int run() {
   // Reuse the same owner/slot and inject a CQE from the old generation.
   // It must not alter the newly acquired token's completion state.
   uint64_t reused_id = 0;
-  FarLib::cache::ec_batch::EcBatchToken *reused_token = nullptr;
+  starfish::cache::ec_batch::EcBatchToken *reused_token = nullptr;
   checks.check(tokens.acquire(record1, &reused_id, &reused_token, 7) &&
                    reused_token != nullptr,
                "owner 7 reuses the released token slot");
@@ -390,19 +390,19 @@ int run() {
 
   uint64_t abandoned_ids[2]{};
   for (size_t i = 0; i < 2; ++i) {
-    FarLib::cache::ec_batch::EcBatchToken *entry = nullptr;
+    starfish::cache::ec_batch::EcBatchToken *entry = nullptr;
     checks.check(tokens.acquire(record1, &abandoned_ids[i], &entry, 9 + i),
                  "owner-partitioned token acquired");
   }
   size_t abandoned_tokens = 0;
-  checks.equal(
-      tokens.abandon_all_in_use(
-          [&](uint64_t id, const FarLib::cache::ec_batch::EcBatchToken &entry) {
-            ++abandoned_tokens;
-            checks.check(id != 0 && entry.record.group.id.valid(),
-                         "abandon callback receives a live record");
-          }),
-      size_t{2}, "token teardown abandons every live token");
+  checks.equal(tokens.abandon_all_in_use(
+                   [&](uint64_t id,
+                       const starfish::cache::ec_batch::EcBatchToken &entry) {
+                     ++abandoned_tokens;
+                     checks.check(id != 0 && entry.record.group.id.valid(),
+                                  "abandon callback receives a live record");
+                   }),
+               size_t{2}, "token teardown abandons every live token");
   checks.equal(abandoned_tokens, size_t{2},
                "token teardown callback runs once per token");
   checks.equal(tokens.in_use(), size_t{0},

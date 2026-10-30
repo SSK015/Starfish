@@ -13,7 +13,7 @@
 
 #include "ft/ec/small_object_stripe.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 // Persistent owner-local storage for a direct EC write round.  The bank owns
 // only parity and a read-only zero page; the four data pointers in Record are
@@ -578,4 +578,4 @@ class EcDirectWriteBank final {
   bool initialized_ = false;
 };
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch

@@ -5,9 +5,9 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 inline void ConcurrentArrayCache::start_background_rebuild() {
-  if (!::FarLib::get_config().ft_background_rebuild) return;
+  if (!::starfish::get_config().ft_background_rebuild) return;
   if (!background_cluster_)
     ERROR("ec_background_rebuild requires the separate background cluster");
   for (auto &thread : background_rebuild_threads_)
@@ -30,7 +30,7 @@ inline void ConcurrentArrayCache::stop_background_rebuild() {
 }
 inline bool ConcurrentArrayCache::handle_background_rebuild_complete(
     const ibv_wc &wc) {
-  if (!::FarLib::get_config().ft_background_rebuild ||
+  if (!::starfish::get_config().ft_background_rebuild ||
       !ec_background::is_wr_id(wc.wr_id))
     return false;
   const auto slot = ec_background::slot_from_wr_id(wc.wr_id);
@@ -43,7 +43,7 @@ inline bool ConcurrentArrayCache::handle_background_rebuild_complete(
   return true;
 }
 inline void ConcurrentArrayCache::background_rebuild_work() {
-  if (::FarLib::get_config().ft_background_rebuild_failures == 2) {
+  if (::starfish::get_config().ft_background_rebuild_failures == 2) {
     background_rebuild_work_dual();
     return;
   }
@@ -59,7 +59,7 @@ inline void ConcurrentArrayCache::background_rebuild_work() {
                std::memory_order_acquire) >= 0;
   });
   if (background_rebuild_stop_.load(std::memory_order_acquire)) return;
-  const auto &cfg = ::FarLib::get_config();
+  const auto &cfg = ::starfish::get_config();
   const size_t failed_endpoint = background_rebuild_failed_endpoint_.load();
   const size_t standby = static_cast<size_t>(cfg.ft_standby_endpoint);
   auto &manager = remote_allocator.small_object_stripe_manager();
@@ -126,7 +126,7 @@ inline void ConcurrentArrayCache::background_rebuild_work() {
     std::array<void *, parts_per_job> parts{};
     std::array<uint8_t, 4> selected{};
     uint64_t stripe_id = 0;
-    uint64_t target = ::FarLib::allocator::remote::InvalidRemoteAddr;
+    uint64_t target = ::starfish::allocator::remote::InvalidRemoteAddr;
     Stage stage = Stage::Empty;
     uint8_t posted_reads = 0;
   };
@@ -364,10 +364,10 @@ inline void ConcurrentArrayCache::background_rebuild_work() {
         }
       }
       if (job.stage == Stage::WritePost) {
-        if (job.target == ::FarLib::allocator::remote::InvalidRemoteAddr)
-          job.target = ::FarLib::allocator::remote::remote_global_heap
+        if (job.target == ::starfish::allocator::remote::InvalidRemoteAddr)
+          job.target = ::starfish::allocator::remote::remote_global_heap
                            .allocate_whole_region_on_endpoint(standby);
-        if (job.target == ::FarLib::allocator::remote::InvalidRemoteAddr) {
+        if (job.target == ::starfish::allocator::remote::InvalidRemoteAddr) {
           shared.failed.store(true);
           break;
         }
@@ -384,7 +384,7 @@ inline void ConcurrentArrayCache::background_rebuild_work() {
           shared.failed.store(true);
           break;
         }
-        job.target = ::FarLib::allocator::remote::InvalidRemoteAddr;
+        job.target = ::starfish::allocator::remote::InvalidRemoteAddr;
         job.stage = Stage::Empty;
         --active_jobs;
         ++local_completed;
@@ -420,8 +420,8 @@ inline void ConcurrentArrayCache::background_rebuild_work() {
   }
   while (poll_all()) uthread::yield();
   for (auto &job : jobs)
-    if (job.target != ::FarLib::allocator::remote::InvalidRemoteAddr)
-      ::FarLib::allocator::remote::remote_global_heap.release_whole_region(
+    if (job.target != ::starfish::allocator::remote::InvalidRemoteAddr)
+      ::starfish::allocator::remote::remote_global_heap.release_whole_region(
           job.target);
   if (ibv_dereg_mr(mr) != 0)
     ERROR("ec_background_rebuild: MR deregistration failed");
@@ -488,4 +488,4 @@ inline void ConcurrentArrayCache::background_rebuild_work() {
       << " cq_polls=" << shared.cq_polls.load() << " in_flight=0";
   std::cout << (out.str() + "\n") << std::flush;
 }
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

@@ -9,7 +9,7 @@
 #include "async/uthreads.hpp"
 #include "profiling/stats.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace uthread {
 
 inline void fork_join_work_list(size_t work_count,
@@ -100,4 +100,4 @@ inline void fork_join(size_t thread_count, auto &&fn,
   profile::resume_work(suspended);
 }
 }  // namespace uthread
-}  // namespace FarLib
+}  // namespace starfish

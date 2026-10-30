@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cstdlib>
 
-using namespace FarLib::rdma;
+using namespace starfish::rdma;
 
 int main(int argc, const char *const argv[]) {
   if (argc != 2) {

@@ -1,7 +1,7 @@
 #pragma once
 #include "mm/allocator/region_based_allocator.hpp"
 
-namespace FarLib::allocator {
+namespace starfish::allocator {
 
 inline void publish_local_six_group(six_group::Record *record,
                                     six_group::GroupId) {
@@ -76,7 +76,7 @@ inline void RegionHead::init(size_t bin, uint64_t new_placement_epoch,
       std::memory_order_relaxed);
   profile_pending_plan_id.store(0, std::memory_order_relaxed);
   profile_pending_plan_rank.store(0, std::memory_order_relaxed);
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
   dbg_enqueued_list.store(nullptr, std::memory_order::relaxed);
   dbg_last_push_tag = nullptr;
 #endif
@@ -484,4 +484,4 @@ inline void RegionHead::evict(Fn &&fn) {
   free_list = new_free_list;
 }
 
-}  // namespace FarLib::allocator
+}  // namespace starfish::allocator

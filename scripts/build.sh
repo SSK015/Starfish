@@ -88,10 +88,10 @@ if [[ "$DRY_RUN" != 1 ]]; then
   python3 -B "$ROOT/scripts/build_resources.py" --verify
 fi
 
-APP_OPTIONS=(-DFARLIB_BUILD_APPLICATIONS=OFF -DFARLIB_BUILD_TESTS=OFF
-  -DFARLIB_BUILD_MG=OFF -DFARLIB_BUILD_WORDCOUNT=OFF -DFARLIB_BUILD_WORDCOUNT_RECOVERY=OFF
-  -DFARLIB_BUILD_NQ=OFF -DFARLIB_BUILD_KVS=OFF
-  -DFARLIB_BUILD_OBJECT_SIZE=OFF -DFARLIB_BUILD_BANDWIDTH_MICROBENCHMARK=OFF)
+APP_OPTIONS=(-DSTARFISH_BUILD_APPLICATIONS=OFF -DSTARFISH_BUILD_TESTS=OFF
+  -DSTARFISH_BUILD_MG=OFF -DSTARFISH_BUILD_WORDCOUNT=OFF -DSTARFISH_BUILD_WORDCOUNT_RECOVERY=OFF
+  -DSTARFISH_BUILD_NQ=OFF -DSTARFISH_BUILD_KVS=OFF
+  -DSTARFISH_BUILD_OBJECT_SIZE=OFF -DSTARFISH_BUILD_BANDWIDTH_MICROBENCHMARK=OFF)
 APPLICATIONS=OFF
 for target in "${TARGETS[@]}"; do
   case "$target" in
@@ -99,18 +99,50 @@ for target in "${TARGETS[@]}"; do
     *) APPLICATIONS=ON ;;
   esac
   case "$target" in
-    mg) APP_OPTIONS+=(-DFARLIB_BUILD_MG=ON) ;;
-    kvs_throughput) APP_OPTIONS+=(-DFARLIB_BUILD_KVS=ON) ;;
-    nhop_graph) APP_OPTIONS+=(-DFARLIB_BUILD_NQ=ON) ;;
+    mg) APP_OPTIONS+=(-DSTARFISH_BUILD_MG=ON) ;;
+    kvs_throughput) APP_OPTIONS+=(-DSTARFISH_BUILD_KVS=ON) ;;
+    nhop_graph) APP_OPTIONS+=(-DSTARFISH_BUILD_NQ=ON) ;;
     wordcount_far|wordcount_native|word_length_stats)
-      APP_OPTIONS+=(-DFARLIB_BUILD_WORDCOUNT=ON) ;;
+      APP_OPTIONS+=(-DSTARFISH_BUILD_WORDCOUNT=ON) ;;
     wordcount_recovery)
-      APP_OPTIONS+=(-DFARLIB_BUILD_WORDCOUNT=ON -DFARLIB_BUILD_WORDCOUNT_RECOVERY=ON) ;;
+      APP_OPTIONS+=(-DSTARFISH_BUILD_WORDCOUNT=ON -DSTARFISH_BUILD_WORDCOUNT_RECOVERY=ON) ;;
     bandwidth_microbenchmark|bandwidth_microbenchmark_512|object_size|object_size_512)
-      APP_OPTIONS+=(-DFARLIB_BUILD_BANDWIDTH_MICROBENCHMARK=ON) ;;
+      APP_OPTIONS+=(-DSTARFISH_BUILD_BANDWIDTH_MICROBENCHMARK=ON) ;;
   esac
 done
-APP_OPTIONS+=(-DFARLIB_BUILD_APPLICATIONS="$APPLICATIONS")
+APP_OPTIONS+=(-DSTARFISH_BUILD_APPLICATIONS="$APPLICATIONS")
+
+# A legacy user argument must override our generated default, just as a
+# canonical argument does. Keep explicit old/new pairs for CMake to validate.
+has_legacy_override() {
+  local canonical=$1 legacy argument definition next_definition=0
+  legacy="FARLIB_${canonical#STARFISH_}"
+  for argument in "${CMAKE_ARGS[@]}"; do
+    if [[ "$argument" = -D ]]; then
+      next_definition=1
+      continue
+    elif [[ "$argument" = -D* ]]; then
+      definition=${argument#-D}
+    elif ((next_definition)); then
+      definition=$argument
+    else
+      continue
+    fi
+    next_definition=0
+    [[ "$definition" = *=* ]] || continue
+    [[ "${definition%%[=:]*}" != "$legacy" ]] || return 0
+  done
+  return 1
+}
+filtered_app_options=()
+for option in "${APP_OPTIONS[@]}"; do
+  option_name=${option#-D}
+  option_name=${option_name%%=*}
+  if ! has_legacy_override "$option_name"; then
+    filtered_app_options+=("$option")
+  fi
+done
+APP_OPTIONS=("${filtered_app_options[@]}")
 
 GENERATOR=()
 COMPILERS=()

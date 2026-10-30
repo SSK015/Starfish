@@ -14,7 +14,7 @@
 #include <memory>
 #include <vector>
 
-namespace FarLib::rdma::ec_update {
+namespace starfish::rdma::ec_update {
 
 // Server-side RDMA adapter for Participant.  The adapter deliberately uses
 // the data QPs already exchanged by Server::connect(): no peer QP or TCP
@@ -260,4 +260,4 @@ class ServerTransport {
 
 using ServerAdapter = ServerTransport;
 
-}  // namespace FarLib::rdma::ec_update
+}  // namespace starfish::rdma::ec_update

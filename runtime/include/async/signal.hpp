@@ -9,7 +9,7 @@
 #include <functional>
 #endif
 
-namespace FarLib {
+namespace starfish {
 
 namespace signal {
 
@@ -52,4 +52,4 @@ inline void enable_signal() {}
 
 }  // namespace signal
 
-}  // namespace FarLib
+}  // namespace starfish

@@ -5,7 +5,7 @@
 #include "mm/cache/cache.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace async {
 
 /*
@@ -52,4 +52,4 @@ class GenericOrderedContext : public GenericContext {
 };
 
 }  // namespace async
-}  // namespace FarLib
+}  // namespace starfish

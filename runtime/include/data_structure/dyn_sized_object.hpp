@@ -9,7 +9,7 @@
 
 #include "mm/cache/cache.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <size_t ChunkSize = 4096 - allocator::BlockHeadSize>
 class DynObjUniqueRef {
@@ -280,4 +280,4 @@ void DynObjUniqueRef<ChunkSize>::reallocate_chunked(size_t new_size,
   r->n_chunks = n_chunks;
 }
 
-}  // namespace FarLib
+}  // namespace starfish

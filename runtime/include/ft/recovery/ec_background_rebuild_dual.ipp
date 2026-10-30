@@ -4,7 +4,7 @@
 #include <sstream>
 #include <sys/syscall.h>
 #include <unistd.h>
-namespace FarLib::cache {
+namespace starfish::cache {
 inline void ConcurrentArrayCache::background_rebuild_work_dual() {
   using namespace ec_background;
   using Manager = SmallObjectStripeManager;
@@ -17,7 +17,7 @@ inline void ConcurrentArrayCache::background_rebuild_work_dual() {
            ec_recovery_dead_endpoints_.load(std::memory_order_acquire) >= 2;
   });
   if (background_rebuild_stop_.load(std::memory_order_acquire)) return;
-  const auto &cfg = ::FarLib::get_config();
+  const auto &cfg = ::starfish::get_config();
   if (ec_endpoint_dead_count_ > 64 ||
       ec_recovery_dead_endpoints_.load(std::memory_order_acquire) != 2)
     ERROR("ec_background_rebuild: expected exactly two failed endpoints");
@@ -102,7 +102,7 @@ inline void ConcurrentArrayCache::background_rebuild_work_dual() {
     std::array<uint8_t, 2> missing{};
     std::array<size_t, 2> target_endpoints{};
     uint8_t missing_count = 0, posted_writes = 0;
-    Job() { targets.fill(::FarLib::allocator::remote::InvalidRemoteAddr); }
+    Job() { targets.fill(::starfish::allocator::remote::InvalidRemoteAddr); }
     Stage stage = Stage::Empty;
     uint8_t posted_reads = 0;
   };
@@ -379,11 +379,11 @@ inline void ConcurrentArrayCache::background_rebuild_work_dual() {
           const size_t m = job.posted_writes;
           const auto shard = job.missing[m];
           auto &target = job.targets[shard];
-          if (target == ::FarLib::allocator::remote::InvalidRemoteAddr)
+          if (target == ::starfish::allocator::remote::InvalidRemoteAddr)
             target =
-                ::FarLib::allocator::remote::remote_global_heap
+                ::starfish::allocator::remote::remote_global_heap
                     .allocate_whole_region_on_endpoint(job.target_endpoints[m]);
-          if (target == ::FarLib::allocator::remote::InvalidRemoteAddr) {
+          if (target == ::starfish::allocator::remote::InvalidRemoteAddr) {
             shared.failed.store(true);
             break;
           }
@@ -418,7 +418,7 @@ inline void ConcurrentArrayCache::background_rebuild_work_dual() {
           (job.target_endpoints[m] == standby ? shared.spare_shards
                                               : shared.regular_shards)
               .fetch_add(1);
-          job.targets[shard] = ::FarLib::allocator::remote::InvalidRemoteAddr;
+          job.targets[shard] = ::starfish::allocator::remote::InvalidRemoteAddr;
         }
         job.stage = Stage::Empty;
         --active_jobs;
@@ -456,8 +456,8 @@ inline void ConcurrentArrayCache::background_rebuild_work_dual() {
   while (poll_all()) uthread::yield();
   for (auto &job : jobs)
     for (const auto target : job.targets)
-      if (target != ::FarLib::allocator::remote::InvalidRemoteAddr)
-        ::FarLib::allocator::remote::remote_global_heap.release_whole_region(
+      if (target != ::starfish::allocator::remote::InvalidRemoteAddr)
+        ::starfish::allocator::remote::remote_global_heap.release_whole_region(
             target);
   if (ibv_dereg_mr(mr) != 0)
     ERROR("ec_background_rebuild: MR deregistration failed");
@@ -540,4 +540,4 @@ inline void ConcurrentArrayCache::background_rebuild_work_dual() {
     std::cout << (out.str() + "\n") << std::flush;
   }
 }
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

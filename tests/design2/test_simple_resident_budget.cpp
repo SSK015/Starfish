@@ -19,17 +19,17 @@
 
 namespace {
 
-using FarLib::simple_region_budget::Controller;
-using FarLib::simple_region_budget::Counts;
-using FarLib::simple_region_budget::Mode;
-using FarLib::simple_region_budget::Snapshot;
-using FarLib::simple_region_budget::Supply;
+using starfish::simple_region_budget::Controller;
+using starfish::simple_region_budget::Counts;
+using starfish::simple_region_budget::Mode;
+using starfish::simple_region_budget::Snapshot;
+using starfish::simple_region_budget::Supply;
 
 constexpr std::size_t kBin = 7;
 constexpr std::size_t kRegionBytes = 4096;
 
 std::uint64_t total(const Counts &counts) {
-  return FarLib::simple_region_budget::sum(counts);
+  return starfish::simple_region_budget::sum(counts);
 }
 
 std::uint64_t band_total(const Counts &counts, std::size_t band) {
@@ -38,15 +38,15 @@ std::uint64_t band_total(const Counts &counts, std::size_t band) {
 }
 
 void seed(Controller &controller, const Counts &counts) {
-  for (std::size_t klass = 0; klass < FarLib::simple_region_budget::classes();
+  for (std::size_t klass = 0; klass < starfish::simple_region_budget::classes();
        ++klass)
     for (std::uint64_t n = 0; n < counts[klass]; ++n)
-      controller.claim(kBin, FarLib::simple_region_budget::label(klass));
+      controller.claim(kBin, starfish::simple_region_budget::label(klass));
 }
 
 Supply supply_for(std::uint8_t klass, std::uint64_t regions) {
   Supply supply{};
-  supply[kBin][FarLib::simple_region_budget::index(klass)] =
+  supply[kBin][starfish::simple_region_budget::index(klass)] =
       regions * kRegionBytes;
   return supply;
 }
@@ -58,23 +58,23 @@ void request(Controller &controller, std::uint8_t klass, std::uint64_t attempts,
 }
 
 bool test_api_and_local_fallback() {
-  CHECK(FarLib::simple_region_heat::local_resident_enabled());
+  CHECK(starfish::simple_region_heat::local_resident_enabled());
   for (std::uint8_t klass = 0; klass < 6; ++klass) {
-    CHECK(FarLib::simple_region_heat::class_for_placement(false, klass) ==
+    CHECK(starfish::simple_region_heat::class_for_placement(false, klass) ==
           klass % 3);
-    CHECK(FarLib::simple_region_heat::class_for_placement(true, klass) ==
+    CHECK(starfish::simple_region_heat::class_for_placement(true, klass) ==
           3 + klass % 3);
   }
 
-  const auto streaming = FarLib::simple_region_heat::local_fallback_order(2);
+  const auto streaming = starfish::simple_region_heat::local_fallback_order(2);
   CHECK(streaming[0] == 2 && streaming[1] == 0 && streaming[2] == 1);
   CHECK(streaming[3] >= 3 && streaming[3] < 6);
-  const auto resident = FarLib::simple_region_heat::local_fallback_order(4);
+  const auto resident = starfish::simple_region_heat::local_fallback_order(4);
   CHECK(resident[0] == 4 && resident[1] == 3 && resident[2] == 5);
 
   // fallback_order is the measured-heat/remote order and remains the old
   // six-way requested/opposite sequence even in local Resident mode.
-  const auto measured = FarLib::simple_region_heat::fallback_order(2);
+  const auto measured = starfish::simple_region_heat::fallback_order(2);
   CHECK(measured[0] == 2 && measured[1] == 5);
   return true;
 }
@@ -111,8 +111,8 @@ bool test_local_band_budget_isolation() {
   for (std::size_t donor = 0; donor < 6; ++donor)
     for (std::uint64_t n = 0; n < pending[kBin][donor]; ++n)
       CHECK(controller.reassign_public(
-                kBin, FarLib::simple_region_budget::label(donor)) !=
-            FarLib::simple_region_budget::label(donor));
+                kBin, starfish::simple_region_budget::label(donor)) !=
+            starfish::simple_region_budget::label(donor));
   const auto settled = controller.snapshot(kBin);
   CHECK(settled.actual == settled.target);
   CHECK(band_total(settled.actual, 0) == 36);
@@ -215,20 +215,20 @@ bool test_remote_controller_remains_six_way() {
 }
 
 bool test_heat_and_supply_labels_are_separate() {
-  FarLib::simple_region_budget::local().configure(kRegionBytes);
+  starfish::simple_region_budget::local().configure(kRegionBytes);
   std::array<std::uint8_t, kRegionBytes * 2> storage{};
-  FarLib::simple_region_heat::Classes labels;
+  starfish::simple_region_heat::Classes labels;
   const auto base = reinterpret_cast<std::uintptr_t>(storage.data());
   labels.configure(base, storage.size(), kRegionBytes);
-  labels.set(base, FarLib::simple_region_heat::kCold);
+  labels.set(base, starfish::simple_region_heat::kCold);
   CHECK(labels.sync_supply_placement(base, kBin, true) == 4);
-  CHECK(labels.get(base) == FarLib::simple_region_heat::kCold);
+  CHECK(labels.get(base) == starfish::simple_region_heat::kCold);
   CHECK(labels.allocation_class(base) == 4);
   CHECK(labels.release_supply(base));
-  CHECK(labels.allocation_class(base) == FarLib::simple_region_heat::kCold);
-  labels.set(base, FarLib::simple_region_heat::kHot);
+  CHECK(labels.allocation_class(base) == starfish::simple_region_heat::kCold);
+  labels.set(base, starfish::simple_region_heat::kHot);
   CHECK(labels.sync_supply_placement(base, kBin, false) == 1);
-  CHECK(labels.get(base) == FarLib::simple_region_heat::kHot);
+  CHECK(labels.get(base) == starfish::simple_region_heat::kHot);
   CHECK(labels.allocation_class(base) == 1);
   CHECK(labels.release_supply(base));
   return true;

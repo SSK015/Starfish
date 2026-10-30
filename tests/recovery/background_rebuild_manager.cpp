@@ -1,33 +1,33 @@
-#define FARLIB_REBUILD_TEST_HOOK 1
+#define STARFISH_REBUILD_TEST_HOOK 1
 #include "ft/ec/small_object_stripe.hpp"
 #include <cassert>
 #include <iostream>
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure config;
 const rdma::Configure &get_config() { return config; }
 }
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
 }
 
 int main(int argc, char **) {
-  using M = FarLib::cache::SmallObjectStripeManager;
+  using M = starfish::cache::SmallObjectStripeManager;
   using S = M::BackgroundRebuildStatus;
-  auto &cfg = FarLib::config;
+  auto &cfg = starfish::config;
   cfg.server_count = 8;
   cfg.server_buffer_size = 4ull << 20;
   cfg.remote_total = cfg.server_count * cfg.server_buffer_size;
-  cfg.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  cfg.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  cfg.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  cfg.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   cfg.ft_method = "ec_batch";
   cfg.exclusive_cache = true;
   cfg.ft_standby_endpoint = 7;
   cfg.ft_background_rebuild = true;
-  auto &heap = FarLib::allocator::remote::remote_global_heap;
+  auto &heap = starfish::allocator::remote::remote_global_heap;
   heap.register_remote(cfg.remote_total);
   M m;
-  m.init(cfg.remote_total, FarLib::cache::SmallObjectStripeShardSize);
+  m.init(cfg.remote_total, starfish::cache::SmallObjectStripeShardSize);
   if (argc > 1) {
     M::background_test_after_create = +[](M *manager, uint64_t id) {
       M::background_test_after_create = nullptr;
@@ -104,7 +104,7 @@ int main(int argc, char **) {
   assert(m.release_group_object(a.segments[1].addr) !=
          M::kGroupReleaseRejected);
   const auto target = heap.allocate_whole_region_on_endpoint(7);
-  assert(target != FarLib::allocator::remote::InvalidRemoteAddr);
+  assert(target != starfish::allocator::remote::InvalidRemoteAddr);
   auto bad = v;
   bad.original_base[0]++;
   assert(!m.publish_background_rebuild(bad, target));

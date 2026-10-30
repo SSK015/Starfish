@@ -52,7 +52,7 @@
 #include "ft/ec/small_object_stripe.hpp"
 #include "ft/ec/small_object_stripe_codec.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 // The group shape, the staging shape and the codec shape must be the same
 // 4 data + 2 parity / six-segment geometry.
@@ -660,8 +660,8 @@ class EcGroupBuilderT {
 
 // The production instantiation: the allocator's own slot-group API.
 using EcGroupBuilder =
-    EcGroupBuilderT<::FarLib::cache::SmallObjectStripeManager>;
+    EcGroupBuilderT<::starfish::cache::SmallObjectStripeManager>;
 using EcGroupSendRecord = typename EcGroupBuilderT<
-    ::FarLib::cache::SmallObjectStripeManager>::SealedGroup;
+    ::starfish::cache::SmallObjectStripeManager>::SealedGroup;
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch

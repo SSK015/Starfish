@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace FarLib::runtime_metadata {
+namespace starfish::runtime_metadata {
 
 // Retained compute-side metadata storage, not data/parity payload or RSS.
 // Inline descriptors use sizeof; owned arrays/containers use their allocated
@@ -40,4 +40,4 @@ struct Snapshot {
   }
 };
 
-}  // namespace FarLib::runtime_metadata
+}  // namespace starfish::runtime_metadata

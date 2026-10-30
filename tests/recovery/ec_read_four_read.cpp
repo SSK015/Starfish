@@ -22,18 +22,18 @@
 
 namespace {
 
-using FarLib::cache::ec_batch::EcStagingGroupSlot;
-using FarLib::cache::ec_read_recovery::EcReadContext;
-using FarLib::cache::ec_read_recovery::EcReadContextEvent;
-using FarLib::cache::ec_read_recovery::EcReadContextPool;
-using FarLib::cache::ec_read_recovery::EcReadTokenEventKind;
-using FarLib::cache::ec_read_recovery::ec_read_selected_mask;
-using FarLib::cache::ec_read_recovery::kEcReadSegmentCount;
-using FarLib::cache::ec_read_recovery::make_ec_read_plan;
-using FarLib::cache::kStripeCodecDataShards;
-using FarLib::cache::kStripeCodecShardCount;
-using FarLib::cache::small_object_stripe_encode_shards;
-using FarLib::cache::small_object_stripe_rebuild_one;
+using starfish::cache::ec_batch::EcStagingGroupSlot;
+using starfish::cache::ec_read_recovery::EcReadContext;
+using starfish::cache::ec_read_recovery::EcReadContextEvent;
+using starfish::cache::ec_read_recovery::EcReadContextPool;
+using starfish::cache::ec_read_recovery::EcReadTokenEventKind;
+using starfish::cache::ec_read_recovery::ec_read_selected_mask;
+using starfish::cache::ec_read_recovery::kEcReadSegmentCount;
+using starfish::cache::ec_read_recovery::make_ec_read_plan;
+using starfish::cache::kStripeCodecDataShards;
+using starfish::cache::kStripeCodecShardCount;
+using starfish::cache::small_object_stripe_encode_shards;
+using starfish::cache::small_object_stripe_rebuild_one;
 
 constexpr size_t kByteCount = 257;
 constexpr uint8_t kAllSegments =

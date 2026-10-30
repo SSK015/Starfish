@@ -5,7 +5,7 @@
 
 #include <chrono>
 
-namespace FarLib::allocator {
+namespace starfish::allocator {
 
 inline bool optimized_skip_mark_pending_enabled() {
   static const bool enabled =
@@ -108,7 +108,7 @@ inline void GlobalHeap::register_heap(void *buffer, size_t size) {
         "simple resident routing requires FARLIB_SIMPLE_HOTCOLD=1");
   }
   if (simple_region_heat::grouping_enabled()) {
-    const auto &config = FarLib::get_config();
+    const auto &config = starfish::get_config();
     const bool legacy_invalid =
         !simple_region_heat::enabled() || !list_only_six::enabled() ||
         config.enable_region_resident_placement || !config.exclusive_cache ||
@@ -150,27 +150,27 @@ inline void GlobalHeap::register_heap(void *buffer, size_t size) {
   heap = buffer;
   free_size = heap_size;
   region_placement_enabled =
-      FarLib::get_config().enable_region_resident_placement;
+      starfish::get_config().enable_region_resident_placement;
   ASSERT(!region_placement_enabled ||
-         !FarLib::get_config().region_placement_bind_groups);
+         !starfish::get_config().region_placement_bind_groups);
   resident_region_budget =
       region_placement_enabled
-          ? std::min<size_t>(heap_size,
-                             FarLib::get_config().local_resident_budget_bytes) /
+          ? std::min<size_t>(
+                heap_size, starfish::get_config().local_resident_budget_bytes) /
                 RegionSize
           : 0;
   resident_reserved_regions.store(0, std::memory_order_relaxed);
   streaming_reserved_regions.store(0, std::memory_order_relaxed);
   resident_counted_free_size.store(0, std::memory_order_relaxed);
-  size_t low_pct = FarLib::get_config().evacuate_low_watermark_pct;
+  size_t low_pct = starfish::get_config().evacuate_low_watermark_pct;
   if (low_pct > 95) low_pct = 95;
   if (low_pct < 1) low_pct = 1;
-  size_t high_pct = FarLib::get_config().evacuate_high_watermark_pct;
+  size_t high_pct = starfish::get_config().evacuate_high_watermark_pct;
   if (high_pct > 99) high_pct = 99;
   if (high_pct <= low_pct) {
     high_pct = std::min<size_t>(99, low_pct + 10);
   }
-  size_t release_pct = FarLib::get_config().evacuate_release_watermark_pct;
+  size_t release_pct = starfish::get_config().evacuate_release_watermark_pct;
   if (release_pct > 99) release_pct = 99;
   if (release_pct < 1) release_pct = 1;
   // Watermark percentages are defined over the entire local heap. R/S
@@ -484,7 +484,7 @@ inline RegionHead *GlobalHeap::allocate_region_impl(
     requested_placement = RegionPlacement::Streaming;
     requested_group_id = 0;
   }
-  const bool bind_groups = FarLib::get_config().region_placement_bind_groups;
+  const bool bind_groups = starfish::get_config().region_placement_bind_groups;
   auto pop_usable = [&](RegionPlacement placement, const char *debug_tag,
                         int class_override = -1) -> RegionHead * {
     auto matches = [placement, requested_group_id,
@@ -662,7 +662,7 @@ inline RegionHead *GlobalHeap::allocate_region_impl(
 
   region = static_cast<RegionHead *>(free_region_list.pop());
   if (region != nullptr) {
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     int64_t before = free_size.load(std::memory_order::relaxed);
     if (before < (int64_t)RegionSize) {
       alloc_debug_printf(
@@ -828,7 +828,7 @@ retry_alloc:
 }
 
 inline void GlobalHeap::return_back_region(RegionHead *region) {
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
   if (region->state.load(std::memory_order::relaxed) != IN_USE) {
     alloc_debug_printf(
         "[RETURN_BACK_BUG] return_back on non-IN_USE region=%p state=%u bin=%u stamp=%u enq_list=%p last_tag=%s\n",
@@ -877,7 +877,7 @@ inline void GlobalHeap::return_back_full_regions_batch(RegionHead **regions,
     assert(region != nullptr);
     assert(!region->is_empty());
     assert(!region->can_allocate());
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     assert(region->state.load(std::memory_order_relaxed) == IN_USE);
 #endif
     region->state.store(FULL, std::memory_order_relaxed);
@@ -901,7 +901,7 @@ inline void GlobalHeap::publish_owned_evict_region(RegionHead *region) {
     region->reset_placement(allocate_placement_epoch());
     region->state.store(FREE, std::memory_order::relaxed);
     add_free_size((int64_t)RegionSize);
-#if defined(FARLIB_ALLOC_DEBUG) && defined(FARLIB_ALLOC_DEBUG_FENCE)
+#if defined(STARFISH_ALLOC_DEBUG) && defined(STARFISH_ALLOC_DEBUG_FENCE)
     std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
     free_region_list.push_dbg(region, "evict.ready_to_free");
@@ -916,7 +916,7 @@ inline void GlobalHeap::publish_owned_evict_region(RegionHead *region) {
     if (region->load_placement() == RegionPlacement::Resident) {
       add_resident_counted_free_size(region_free);
     }
-#if defined(FARLIB_ALLOC_DEBUG) && defined(FARLIB_ALLOC_DEBUG_FENCE)
+#if defined(STARFISH_ALLOC_DEBUG) && defined(STARFISH_ALLOC_DEBUG_FENCE)
     std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
     usable_region_list[placement_index(region->load_placement())][region->bin]
@@ -1185,7 +1185,7 @@ inline size_t GlobalHeap::get_streaming_reserved_regions() const {
 
 inline void GlobalHeap::get_region_placement_group_snapshots(
     std::vector<RegionPlacementGroupSnapshot> &snapshots) const {
-  if (!FarLib::get_config().region_placement_bind_groups) {
+  if (!starfish::get_config().region_placement_bind_groups) {
     for (auto &snapshot : snapshots) {
       snapshot = {};
     }
@@ -1349,8 +1349,8 @@ inline RegionReclassifyResult GlobalHeap::try_reclassify_hotness_region(
     const RegionPlacementTransitionFn &on_entry_transition) {
   RegionReclassifyResult result;
   if (!region_placement_enabled ||
-      FarLib::get_config().region_placement_bind_groups || region == nullptr ||
-      from == to ||
+      starfish::get_config().region_placement_bind_groups ||
+      region == nullptr || from == to ||
       (from != RegionPlacement::Resident &&
        from != RegionPlacement::Streaming) ||
       (to != RegionPlacement::Resident && to != RegionPlacement::Streaming)) {
@@ -1538,7 +1538,7 @@ inline RegionExchangeResult GlobalHeap::try_exchange_hotness_regions(
     const RegionPlacementTransitionFn &on_entry_transition) {
   RegionExchangeResult result;
   if (!region_placement_enabled ||
-      FarLib::get_config().region_placement_bind_groups ||
+      starfish::get_config().region_placement_bind_groups ||
       hot_region == nullptr || cold_region == nullptr ||
       hot_region == cold_region) {
     result.failure = RegionExchangeFailure::InvalidInput;
@@ -1798,7 +1798,7 @@ inline RegionExchangeResult GlobalHeap::try_exchange_hotness_regions(
 inline size_t GlobalHeap::reclassify_region_placement_group(
     uint32_t group_id, RegionPlacement from, RegionPlacement to,
     size_t max_regions) {
-  if (!FarLib::get_config().region_placement_bind_groups) {
+  if (!starfish::get_config().region_placement_bind_groups) {
     return 0;
   }
   ASSERT(group_id != 0);
@@ -2091,7 +2091,7 @@ inline size_t GlobalHeap::mark_list(
       legacy_cursors ||
       eligibility == EvacuationEligibility::LegacyConcurrent ||
       region_placement_enabled ||
-      (FarLib::get_config().optimized_evacuator &&
+      (starfish::get_config().optimized_evacuator &&
        optimized_scan_past_blocked_region_enabled());
   const bool segment_diag = mark_diag != nullptr && mark_diag->segment_enabled;
   while (true) {
@@ -2138,7 +2138,7 @@ inline size_t GlobalHeap::mark_list(
           }
           return has_reclaims;
         }
-        if (FarLib::get_config().optimized_evacuator &&
+        if (starfish::get_config().optimized_evacuator &&
             optimized_skip_mark_pending_enabled() &&
             region->marked_list != nullptr) {
           if (mark_diag != nullptr) {
@@ -2148,7 +2148,7 @@ inline size_t GlobalHeap::mark_list(
           profile::count_evac_mark_region_skipped_stable();
           return false;
         }
-        if (FarLib::get_config().optimized_evacuator &&
+        if (starfish::get_config().optimized_evacuator &&
             optimized_mark_after_evict_enabled() &&
             region->last_mark_epoch.load(std::memory_order_relaxed) >
                 region->evict_drained_epoch.load(std::memory_order_relaxed)) {
@@ -2231,14 +2231,14 @@ inline size_t GlobalHeap::mark_list(
         list.push_dbg(region, "skip.in_use");
         continue;
       }
-      if (FarLib::get_config().optimized_evacuator &&
+      if (starfish::get_config().optimized_evacuator &&
           optimized_skip_mark_pending_enabled() &&
           region->marked_list != nullptr) {
         profile::count_evac_mark_region_skipped_stable();
         list.push_dbg(region, "skip.pending_marked");
         continue;
       }
-      if (FarLib::get_config().optimized_evacuator &&
+      if (starfish::get_config().optimized_evacuator &&
           optimized_mark_after_evict_enabled() &&
           region->last_mark_epoch.load(std::memory_order_relaxed) >
               region->evict_drained_epoch.load(std::memory_order_relaxed)) {
@@ -2389,7 +2389,7 @@ inline size_t GlobalHeap::mark_list_to_sink(
   const size_t batch_limit = 64;
   RegionHead *batch[batch_limit];
   const bool scan_past_blocked = region_placement_enabled ||
-                                 (FarLib::get_config().optimized_evacuator &&
+                                 (starfish::get_config().optimized_evacuator &&
                                   optimized_scan_past_blocked_region_enabled());
   while (true) {
     if (ready_task_budget != nullptr &&
@@ -2410,13 +2410,13 @@ inline size_t GlobalHeap::mark_list_to_sink(
         if (region->load_placement() == RegionPlacement::Resident) {
           return region->pending_reclaims.load(std::memory_order_acquire) != 0;
         }
-        if (FarLib::get_config().optimized_evacuator &&
+        if (starfish::get_config().optimized_evacuator &&
             optimized_skip_mark_pending_enabled() &&
             region->marked_list != nullptr) {
           profile::count_evac_mark_region_skipped_stable();
           return false;
         }
-        if (FarLib::get_config().optimized_evacuator &&
+        if (starfish::get_config().optimized_evacuator &&
             optimized_mark_after_evict_enabled() &&
             region->last_mark_epoch.load(std::memory_order_relaxed) >
                 region->evict_drained_epoch.load(std::memory_order_relaxed)) {
@@ -2455,14 +2455,14 @@ inline size_t GlobalHeap::mark_list_to_sink(
         list.push_dbg(region, "skip.in_use");
         continue;
       }
-      if (FarLib::get_config().optimized_evacuator &&
+      if (starfish::get_config().optimized_evacuator &&
           optimized_skip_mark_pending_enabled() &&
           region->marked_list != nullptr) {
         profile::count_evac_mark_region_skipped_stable();
         list.push_dbg(region, "skip.pending_marked");
         continue;
       }
-      if (FarLib::get_config().optimized_evacuator &&
+      if (starfish::get_config().optimized_evacuator &&
           optimized_mark_after_evict_enabled() &&
           region->last_mark_epoch.load(std::memory_order_relaxed) >
               region->evict_drained_epoch.load(std::memory_order_relaxed)) {
@@ -2565,7 +2565,7 @@ inline bool GlobalHeap::collect_evict_tasks_from_list(
       legacy_cursors ||
       eligibility == EvacuationEligibility::LegacyConcurrent ||
       region_placement_enabled ||
-      (FarLib::get_config().optimized_evacuator &&
+      (starfish::get_config().optimized_evacuator &&
        optimized_scan_past_blocked_region_enabled());
   if (list_complete != nullptr) *list_complete = false;
   while (true) {
@@ -2736,7 +2736,7 @@ inline void GlobalHeap::process_evict_task(EvictTask &task, Fn &&fn,
   size_t origin_free_size = region->free_size();
   const uint32_t used_before = region->used_count;
   const size_t slot_size = get_bin_size(region->bin);
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
   if (origin_free_size > RegionSize) {
     alloc_debug_printf(
         "[EVICT_ORIGIN_RANGE] origin_free=%zu (>RegionSize=%zu) region=%p bin=%u used=%u off=%u\n",
@@ -2785,7 +2785,7 @@ inline void GlobalHeap::process_evict_task(EvictTask &task, Fn &&fn,
       ERROR("delta should >= 0");
     }
     add_free_size(delta);
-#if defined(FARLIB_ALLOC_DEBUG) && defined(FARLIB_ALLOC_DEBUG_FENCE)
+#if defined(STARFISH_ALLOC_DEBUG) && defined(STARFISH_ALLOC_DEBUG_FENCE)
     std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
     free_region_list.push_dbg(region, "evict.to_free");
@@ -2799,7 +2799,7 @@ inline void GlobalHeap::process_evict_task(EvictTask &task, Fn &&fn,
       ERROR("delta should >= 0");
     }
     add_free_size(delta);
-#if defined(FARLIB_ALLOC_DEBUG) && defined(FARLIB_ALLOC_DEBUG_FENCE)
+#if defined(STARFISH_ALLOC_DEBUG) && defined(STARFISH_ALLOC_DEBUG_FENCE)
     std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
     usable_region_list[placement_index(region->load_placement())][region->bin]
@@ -2829,7 +2829,7 @@ inline size_t GlobalHeap::evict_list(
   const bool scan_past_blocked =
       eligibility == EvacuationEligibility::LegacyConcurrent ||
       region_placement_enabled ||
-      (FarLib::get_config().optimized_evacuator &&
+      (starfish::get_config().optimized_evacuator &&
        optimized_scan_past_blocked_region_enabled());
   if (list_complete != nullptr) *list_complete = false;
   while (true) {
@@ -2912,7 +2912,7 @@ inline size_t GlobalHeap::evict_list(
     size_t origin_free_size = region->free_size();
     const uint32_t used_before = region->used_count;
     const size_t slot_size = get_bin_size(region->bin);
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     if (origin_free_size > RegionSize) {
       alloc_debug_printf(
           "[EVICT_ORIGIN_RANGE] origin_free=%zu (>RegionSize=%zu) region=%p bin=%u used=%u off=%u\n",
@@ -2941,7 +2941,7 @@ inline size_t GlobalHeap::evict_list(
         ERROR("delta should >= 0");
       }
       add_free_size(delta);
-#if defined(FARLIB_ALLOC_DEBUG) && defined(FARLIB_ALLOC_DEBUG_FENCE)
+#if defined(STARFISH_ALLOC_DEBUG) && defined(STARFISH_ALLOC_DEBUG_FENCE)
       std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
       free_region_list.push_dbg(region, "evict.to_free");
@@ -2953,7 +2953,7 @@ inline size_t GlobalHeap::evict_list(
         ERROR("delta should >= 0");
       }
       add_free_size(delta);
-#if defined(FARLIB_ALLOC_DEBUG) && defined(FARLIB_ALLOC_DEBUG_FENCE)
+#if defined(STARFISH_ALLOC_DEBUG) && defined(STARFISH_ALLOC_DEBUG_FENCE)
       std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
       usable_region_list[placement_index(region->load_placement())][region->bin]
@@ -3095,4 +3095,4 @@ inline int64_t GlobalHeap::get_streaming_free_size() const {
          resident_counted_free_size.load(std::memory_order_relaxed);
 }
 
-}  // namespace FarLib::allocator
+}  // namespace starfish::allocator

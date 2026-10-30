@@ -13,7 +13,7 @@
 #include <algorithm>
 #include "mm/placement/behavior_group_runtime.hpp"
 
-namespace FarLib::simple_region_budget {
+namespace starfish::simple_region_budget {
 inline constexpr size_t kBins = 56;
 inline constexpr size_t kClasses = 6;
 inline bool six_enabled() {
@@ -787,4 +787,4 @@ inline uint64_t existing_metadata_bytes() noexcept {
 inline constexpr uint64_t metadata_observer_bytes() noexcept {
   return sizeof(local_instance) + sizeof(remote_instance);
 }
-}  // namespace FarLib::simple_region_budget
+}  // namespace starfish::simple_region_budget

@@ -24,7 +24,7 @@
 #include "profiling/simple_dirty_observer.hpp"
 #include "profiling/runtime_metadata.hpp"
 
-namespace FarLib::simple_region_heat {
+namespace starfish::simple_region_heat {
 
 inline constexpr uint8_t kCold = 1, kHot = 4;  // dirty dimension fixed Medium
 inline bool grouping_enabled() {
@@ -750,4 +750,4 @@ inline void end_work() {
   if (enabled()) monitor().end();
 }
 
-}  // namespace FarLib::simple_region_heat
+}  // namespace starfish::simple_region_heat

@@ -7,16 +7,16 @@
 #include "ft/ec/ec_rmw_fallback_policy.hpp"
 #include "ft/ec/ec_direct_group_builder.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure fixture;
 const rdma::Configure &get_config() { return fixture; }
 }
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
 }
 
-using namespace FarLib::cache;
-using namespace FarLib::cache::ec_batch;
+using namespace starfish::cache;
+using namespace starfish::cache::ec_batch;
 
 static bool host_allocate(void *, size_t bytes,
                           EcDirectWriteBank::RegisteredBank *out) {
@@ -48,7 +48,7 @@ int main() {
       for (unsigned background = 0; background < 2; ++background)
         assert(allow_capacity_replacement(failed, eligible, background) ==
                (failed && (eligible || background)));
-  assert(!FarLib::fixture.ft_rmw_read_failure_fallback);
+  assert(!starfish::fixture.ft_rmw_read_failure_fallback);
   for (unsigned enabled = 0; enabled < 2; ++enabled)
     for (unsigned sided = 0; sided < 2; ++sided)
       for (unsigned errors = 0; errors < 8; ++errors)
@@ -58,13 +58,13 @@ int main() {
                                                writes) ==
                    (enabled && sided && errors && terminal == 7 && !writes));
   setenv("FARLIB_EC_BENCHMARK_PHASED", "1", 1);
-  auto &c = FarLib::fixture;
+  auto &c = starfish::fixture;
   c.server_count = 7;
   c.server_buffer_size = 4ull << 20;
   c.client_buffer_size = 4ull << 20;
   c.remote_total = c.server_buffer_size * c.server_count;
-  c.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  c.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  c.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  c.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   c.ft_method = "ec_batch";
   c.exclusive_cache = true;
   c.ft_incremental_update = true;
@@ -73,8 +73,9 @@ int main() {
   c.ft_ec_parity_shards = 2;
   c.ft_small_object_cutoff = 4096;
   c.ft_small_stripe_shard_size_bytes =
-      FarLib::rdma::Configure::ft_ec_shard_size_bytes;
-  FarLib::allocator::remote::remote_global_heap.register_remote(c.remote_total);
+      starfish::rdma::Configure::ft_ec_shard_size_bytes;
+  starfish::allocator::remote::remote_global_heap.register_remote(
+      c.remote_total);
   SmallObjectStripeManager manager;
   manager.init(c.remote_total, c.ft_small_stripe_shard_size_bytes);
   assert(manager.enabled());
@@ -89,8 +90,8 @@ int main() {
   EcDirectGroupBuilder builder(&manager, &bank, 0, true);
   alignas(64) unsigned char object[512];
   std::memset(object, 0x5a, sizeof(object));
-  uint64_t address = FarLib::allocator::remote::InvalidRemoteAddr;
-  FarLib::ec_benchmark_phase::begin_work();
+  uint64_t address = starfish::allocator::remote::InvalidRemoteAddr;
+  starfish::ec_benchmark_phase::begin_work();
   assert(builder.add_object(object, sizeof(object), &address, 0, true) ==
          EcBatchStatus::kInvalidArgument);
   c.ft_rmw_read_failure_fallback = true;
@@ -106,7 +107,7 @@ int main() {
   // Ordinary/no-old-address sources must make progress after a real failure,
   // but use exactly the same bounded quota tested below.
   assert(!manager.data_address_needs_replacement(
-      FarLib::allocator::remote::InvalidRemoteAddr));
+      starfish::allocator::remote::InvalidRemoteAddr));
   assert(!allow_capacity_replacement(manager.recovery_replacement_enabled(),
                                      false, false));
   assert(allow_capacity_replacement(manager.recovery_replacement_enabled(),
@@ -114,7 +115,7 @@ int main() {
   assert(manager.data_address_needs_replacement(old[0].segments[0].addr));
   assert(builder.add_object(object, sizeof(object), &address, 0, true) ==
          EcBatchStatus::kOk);
-  assert(address != FarLib::allocator::remote::InvalidRemoteAddr);
+  assert(address != starfish::allocator::remote::InvalidRemoteAddr);
   assert(manager.backup_growth_data_bytes() == 0);
   assert(manager.recovery_replacement_data_bytes() == quantum);
   assert(manager.recovery_replacement_data_limit_bytes() == quantum);
@@ -148,9 +149,9 @@ int main() {
   assert(manager.backup_growth_data_bytes() == 0);
   // Config-on must not manufacture six distinct live endpoints after two losses.
   manager.mark_endpoint_dead(1);
-  address = FarLib::allocator::remote::InvalidRemoteAddr;
+  address = starfish::allocator::remote::InvalidRemoteAddr;
   assert(builder.add_object(object, sizeof(object), &address, 0, true) ==
          EcBatchStatus::kManagerRejected);
-  assert(address == FarLib::allocator::remote::InvalidRemoteAddr);
+  assert(address == starfish::allocator::remote::InvalidRemoteAddr);
   std::puts("RMW_READ_FALLBACK_CPU_PASS");
 }

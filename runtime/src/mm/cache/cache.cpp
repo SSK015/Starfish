@@ -12,21 +12,21 @@
 
 #ifdef NO_REMOTE
 
-namespace FarLib {
+namespace starfish {
 namespace allocator {
 #ifdef USE_BUMP_ALLOCATOR
 std::byte *heap = nullptr;
 size_t bump_pointer_offset = 0;
 #endif
 }  // namespace allocator
-}  // namespace FarLib
+}  // namespace starfish
 
 #else
 
 #include "mm/allocator/remote_allocator.hpp"
 #include "mm/allocator/fixed_six_runtime.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace cache {
 
 std::unique_ptr<Cache> Cache::default_instance;
@@ -490,7 +490,7 @@ class ThreadHeap {
       if (region != nullptr) [[likely]] {
         const bool placement_matches =
             global_heap.region_placement_is_enabled() &&
-                    !FarLib::get_config().region_placement_bind_groups
+                    !starfish::get_config().region_placement_bind_groups
                 ? region->placement_class_matches(slot_placement)
                 : region->placement_matches(slot_placement, requested_group_id);
         if (!placement_matches) {
@@ -1250,7 +1250,7 @@ class ThreadHeap {
     };
     auto placement_matches = [&](RegionHead *region,
                                  RegionPlacement placement) {
-      return !FarLib::get_config().region_placement_bind_groups
+      return !starfish::get_config().region_placement_bind_groups
                  ? region->placement_class_matches(placement)
                  : region->placement_matches(placement, placement_group);
     };
@@ -1988,6 +1988,6 @@ thread_local RemoteThreadHeap remote_thread_heap;
 
 }  // namespace allocator
 
-}  // namespace FarLib
+}  // namespace starfish
 
 #endif

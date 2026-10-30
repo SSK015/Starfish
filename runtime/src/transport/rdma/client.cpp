@@ -20,7 +20,7 @@
 #include "lib/defer.hpp"
 #include "async/uthreads.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace rdma {
 
 // Helper function to connect with retry and wait for connection
@@ -832,4 +832,4 @@ void print_read_batch_diagnostics() {
 Client *get_specific_client(size_t thread_id) { return get_client(thread_id); }
 
 }  // namespace rdma
-}  // namespace FarLib
+}  // namespace starfish

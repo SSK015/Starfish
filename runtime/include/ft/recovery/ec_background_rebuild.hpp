@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace FarLib::cache::ec_background {
+namespace starfish::cache::ec_background {
 inline constexpr uint32_t kWorkers = 4;
 inline constexpr uint32_t kPipelineDepth = 8;
 inline constexpr uint32_t kOpsPerJob = 5;
@@ -137,4 +137,4 @@ struct SharedState {
   std::atomic<uint64_t> spare_shards{0};
   std::atomic<uint64_t> regular_shards{0};
 };
-}  // namespace FarLib::cache::ec_background
+}  // namespace starfish::cache::ec_background

@@ -5,7 +5,7 @@
 #include <atomic>
 #include <cstdint>
 
-namespace FarLib::profile {
+namespace starfish::profile {
 std::atomic_bool work_phase_active{false};
 std::atomic<uint8_t> evac_phase_active_mask{0};
 }

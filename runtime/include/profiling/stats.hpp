@@ -23,7 +23,7 @@
 #include "profiling/object_group_trace.hpp"
 #include "mm/placement/simple_region_heat.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace profile {
 
@@ -44,18 +44,18 @@ inline bool cq_timing_enabled() {
 // Compile-time switch for evacuation fine-grained diagnostics.
 // 0: keep only high-level evac stats (default)
 // 1: enable detailed per-queue/per-region evac counters
-#ifndef FARLIB_ENABLE_EVAC_FINE_PROFILE
-#define FARLIB_ENABLE_EVAC_FINE_PROFILE 0
+#ifndef STARFISH_ENABLE_EVAC_FINE_PROFILE
+#define STARFISH_ENABLE_EVAC_FINE_PROFILE 0
 #endif
-constexpr bool EnableEvacFineProfile = (FARLIB_ENABLE_EVAC_FINE_PROFILE != 0);
+constexpr bool EnableEvacFineProfile = (STARFISH_ENABLE_EVAC_FINE_PROFILE != 0);
 // Compile-time switch for extra evacuation diagnostics beyond phase timing.
 // 0: only keep essential evac phase counters in logs (default)
 // 1: print verbose evac diagnostics (wait loops, state mix, rounds, etc.)
-#ifndef FARLIB_ENABLE_EVAC_VERBOSE_PROFILE
-#define FARLIB_ENABLE_EVAC_VERBOSE_PROFILE 0
+#ifndef STARFISH_ENABLE_EVAC_VERBOSE_PROFILE
+#define STARFISH_ENABLE_EVAC_VERBOSE_PROFILE 0
 #endif
 constexpr bool EnableEvacVerboseProfile =
-    (FARLIB_ENABLE_EVAC_VERBOSE_PROFILE != 0);
+    (STARFISH_ENABLE_EVAC_VERBOSE_PROFILE != 0);
 
 inline bool evac_fine_profile_runtime_enabled() {
   static const bool enabled =
@@ -908,10 +908,10 @@ inline void start_work() {
   assert(!working);
   if (benchmark_memory_begin_observer)
     benchmark_memory_begin_observer(benchmark_memory_observer_context);
-  ::FarLib::ec_benchmark_phase::begin_work();
+  ::starfish::ec_benchmark_phase::begin_work();
   if (memory_usage_begin_observer)
     memory_usage_begin_observer(memory_usage_observer_context);
-  ::FarLib::object_group_trace::phase_start();
+  ::starfish::object_group_trace::phase_start();
   work_traffic::begin();
   runtime_ec_cpu::begin_work("starfish");
   working = true;
@@ -919,11 +919,11 @@ inline void start_work() {
   evict_breakdown::begin_window(global_start_cycles);
   work_phase_active.store(true, std::memory_order_release);
   begin_evac_phase_metrics_window();
-  ::FarLib::simple_region_heat::begin_work();
+  ::starfish::simple_region_heat::begin_work();
 }
 inline void end_work() {
   assert(working);
-  ::FarLib::simple_region_heat::end_work();
+  ::starfish::simple_region_heat::end_work();
   end_evac_phase_metrics_window();
   work_phase_active.store(false, std::memory_order_release);
   working = false;
@@ -933,10 +933,10 @@ inline void end_work() {
   runtime_ec_cpu::end_work();
   work_traffic::print(work_traffic::end());
   evict_breakdown::end_window(global_start_cycles + global_cycles);
-  ::FarLib::object_group_trace::phase_end();
+  ::starfish::object_group_trace::phase_end();
   if (memory_usage_end_observer)
     memory_usage_end_observer(memory_usage_observer_context);
-  ::FarLib::runtime_metadata::end_work();
+  ::starfish::runtime_metadata::end_work();
 }
 inline bool is_working() {
   return work_phase_active.load(std::memory_order_acquire);
@@ -1739,4 +1739,4 @@ void print_mem_usage_trace();
 
 }  // namespace profile
 
-}  // namespace FarLib
+}  // namespace starfish

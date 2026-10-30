@@ -25,18 +25,17 @@ Canonical headers and inline implementation fragments live under
 | `profiling/` | Timing, counters, sampled diagnostics and memory reporting |
 | `lib/` | Shared helpers, timers and runtime lifecycle control |
 
-Runtime code and tests use these canonical paths. Existing namespace/type names,
-integration points and build targets are retained. This layout groups files by
-ownership without changing the current implementation or linkage boundaries.
+Runtime code and tests use these canonical paths and the `starfish`
+namespace. The layout groups files by ownership without changing runtime
+behavior or linkage boundaries. Executable targets and output paths are retained.
 
 `.ipp` files stay with the subsystem that owns them. Template/inline fragments
 remain included by their headers; the existing EC update/RMW fragments remain
 included by their compiled coordinator. Include order and existing guards are
 preserved.
 
-Applications and tests include canonical module paths directly. Types, function
-signatures and namespaces are unchanged. Earlier include spellings have been
-replaced as follows:
+Applications and tests include canonical module paths directly. Earlier
+include spellings have been replaced as follows:
 
 | Previous include | Canonical include |
 | --- | --- |
@@ -54,6 +53,24 @@ The Microsoft generator is retained unchanged at `lib/zipfian.hpp` and excluded
 from formatting. KVS keeps its application-specific string at
 `apps/kvs/include/test/fixed_size_string.hpp`; the app-local include directory
 retains precedence.
+
+## Runtime naming
+
+The C++ namespace is `starfish`. Update integrations that used `FarLib`
+and rebuild them; the namespace change also changes C++ symbol names. The
+profiling wrapper is `starfish::profile::profile_workload`, formerly
+`beehive_profile`.
+
+Project-owned compile definitions and CMake options use `STARFISH_*`.
+Legacy `-DFARLIB_*=...` cache inputs are accepted with a deprecation warning
+and converted to their canonical names. Conflicting old and new values are
+rejected. For an existing cache with a conflicting legacy value, remove that
+entry (for example, `-UFARLIB_BUILD_TESTS`) or use a fresh build directory
+before setting the canonical option.
+
+Runtime environment variables retain their existing `FARLIB_*` spellings.
+This keeps current experiment runners and their selected settings working.
+Upstream LibFibre names and `LIBFIBRE_DIR` are unchanged.
 
 ## C++ formatting
 
@@ -96,7 +113,7 @@ inside one verified CPU/memory-limited process tree:
 ```bash
 python3 -B scripts/build_resources.py -- bash -c '
   set -euo pipefail
-  bash scripts/build.sh -- -DFARLIB_BUILD_TESTS=ON
+  bash scripts/build.sh -- -DSTARFISH_BUILD_TESTS=ON
   cmake --build build --parallel 2
   ctest --test-dir build --parallel 2 --output-on-failure
 '

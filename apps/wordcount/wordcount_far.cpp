@@ -29,13 +29,13 @@
 #include "async/spinlock.hpp"
 #include "profiling/stats.hpp"
 
-#ifndef FARLIB_WORDCOUNT_STARFISH
-#define FARLIB_WORDCOUNT_STARFISH 0
+#ifndef STARFISH_WORDCOUNT_RECOMPUTE
+#define STARFISH_WORDCOUNT_RECOMPUTE 0
 #endif
-#ifndef FARLIB_WORDCOUNT_RECOVERY_TEST
-#define FARLIB_WORDCOUNT_RECOVERY_TEST 0
+#ifndef STARFISH_WORDCOUNT_RECOVERY_TEST
+#define STARFISH_WORDCOUNT_RECOVERY_TEST 0
 #endif
-#if FARLIB_WORDCOUNT_RECOVERY_TEST && !FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOVERY_TEST && !STARFISH_WORDCOUNT_RECOMPUTE
 #error "Recovery validation requires the Starfish Wordcount build"
 #endif
 
@@ -117,7 +117,7 @@ struct CountValue {
 // All runtimes share counting; only Starfish records a recomputation locator.
 struct NativeCount {
     uint64_t count{0};
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
     uint64_t first_offset{0};
 #endif
 };
@@ -125,12 +125,12 @@ struct NativeCount {
 using NativeCountMap =
     std::unordered_map<FixedWord, NativeCount, FixedWordHash>;
 
-using FarWordMap = FarLib::ConcurrentHashMap<FixedWord, CountValue, FixedWordHash>;
+using FarWordMap = starfish::ConcurrentHashMap<FixedWord, CountValue, FixedWordHash>;
 
-#if FARLIB_WORDCOUNT_STARFISH
-void mark_wordcount_recomputable(FarLib::far_obj_t obj) {
-    ASSERT(FarLib::mark_recomputable(obj));
-    ASSERT(FarLib::is_recomputable(obj));
+#if STARFISH_WORDCOUNT_RECOMPUTE
+void mark_wordcount_recomputable(starfish::far_obj_t obj) {
+    ASSERT(starfish::mark_recomputable(obj));
+    ASSERT(starfish::is_recomputable(obj));
 }
 #endif
 
@@ -203,8 +203,8 @@ size_t parse_size_arg(const char *text, const char *name) {
 }
 
 PhaseStats collect_phase_stats() {
-    return {FarLib::profile::collect_rdma_read_post_bytes(),
-            FarLib::profile::collect_rdma_write_post_bytes()};
+    return {starfish::profile::collect_rdma_read_post_bytes(),
+            starfish::profile::collect_rdma_write_post_bytes()};
 }
 
 PhaseStats operator-(const PhaseStats &after, const PhaseStats &before) {
@@ -279,7 +279,7 @@ CountValue make_count_value(const FixedWord &word, uint64_t count) {
 }
 
 void add_to_map(FarWordMap &map, const FixedWord &word, uint64_t delta,
-                FarLib::DereferenceScope &scope) {
+                starfish::DereferenceScope &scope) {
     CountValue value{};
     uint64_t count = delta;
     if (map.get(word, &value, scope)) {
@@ -292,11 +292,11 @@ void count_chunk_native(NativeCountMap &counts, const char *data, Chunk chunk,
                         ThreadStats &stats, bool cooperative_yield = false) {
     FixedWord word;
     size_t pos = chunk.begin;
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
     size_t words_since_yield = 0;
 #endif
     while (pos < chunk.end) {
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
         size_t word_offset = 0;
         if (read_word(data, pos, chunk.end, word, stats, &word_offset)) {
             auto [it, inserted] = counts.try_emplace(
@@ -305,7 +305,7 @@ void count_chunk_native(NativeCountMap &counts, const char *data, Chunk chunk,
         }
         if (cooperative_yield && ++words_since_yield == (1u << 16)) {
             words_since_yield = 0;
-            FarLib::uthread::yield();
+            starfish::uthread::yield();
         }
 #else
         if (read_word(data, pos, chunk.end, word, stats)) ++counts[word].count;
@@ -314,13 +314,13 @@ void count_chunk_native(NativeCountMap &counts, const char *data, Chunk chunk,
     stats.native_unique_words = counts.size();
 }
 
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
 std::atomic<uint64_t> recipe_restored_objects{0};
 std::atomic<uint64_t> recipe_partition_rebuilds{0};
 std::atomic<uint64_t> recipe_failures{0};
 #endif
 
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
 // This is the only compute-side state retained by a recipe.  It owns the
 // immutable mapped input and partition bounds, and lazily materializes a
 // derived count cache only when a lost object actually invokes the callback.
@@ -346,7 +346,7 @@ struct WordRecipeInput {
                 ThreadStats stats;
                 count_chunk_native(*built, file->data, chunk, stats, true);
                 cached_counts = std::move(built);
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
                 recipe_partition_rebuilds.fetch_add(1,
                                                     std::memory_order_relaxed);
 #endif
@@ -356,7 +356,7 @@ struct WordRecipeInput {
             }
         } else {
             while (expected == 1) {
-                FarLib::uthread::yield();
+                starfish::uthread::yield();
                 expected = cache_state.load(std::memory_order_acquire);
             }
         }
@@ -367,7 +367,7 @@ struct WordRecipeInput {
 };
 
 using RecipeInputs = decltype(
-    FarLib::recompute::Inputs::immutable_compute_owned(
+    starfish::recompute::Inputs::immutable_compute_owned(
         std::declval<std::shared_ptr<const WordRecipeInput>>()));
 
 struct RecipeBuildHookContext {
@@ -377,19 +377,19 @@ struct RecipeBuildHookContext {
 
     explicit RecipeBuildHookContext(std::shared_ptr<const WordRecipeInput> input)
         : input(std::move(input)),
-          inputs(FarLib::recompute::Inputs::immutable_compute_owned(this->input)) {}
+          inputs(starfish::recompute::Inputs::immutable_compute_owned(this->input)) {}
 };
 
 bool rebuild_wordcount_kv(void *dst, size_t bytes, const void *ctx,
                           uint64_t arg);
 
-void register_wordcount_recipe(FarLib::far_obj_t obj,
-                               FarLib::DereferenceScope &scope,
+void register_wordcount_recipe(starfish::far_obj_t obj,
+                               starfish::DereferenceScope &scope,
                                const void *raw_context, uint64_t arg) {
     auto *build = static_cast<const RecipeBuildHookContext *>(raw_context);
     if (build == nullptr || build->input == nullptr ||
         build->native_counts.load(std::memory_order_acquire) == nullptr) {
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
         recipe_failures.fetch_add(1, std::memory_order_relaxed);
 #endif
         ASSERT(false && "invalid wordcount recipe build context");
@@ -402,7 +402,7 @@ void register_wordcount_recipe(FarLib::far_obj_t obj,
 
 void load_native_counts_to_far(
     FarWordMap &map, const NativeCountMap &counts,
-    FarLib::DereferenceScope &scope) {
+    starfish::DereferenceScope &scope) {
     for (const auto &entry : counts) {
         ASSERT(map.put(entry.first,
                        make_count_value(entry.first, entry.second.count),
@@ -410,7 +410,7 @@ void load_native_counts_to_far(
     }
 }
 
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
 uint64_t checksum_native_counts(const NativeCountMap &counts) {
     std::vector<std::pair<std::string, uint64_t>> sorted;
     sorted.reserve(counts.size());
@@ -423,12 +423,12 @@ uint64_t checksum_native_counts(const NativeCountMap &counts) {
 }
 #endif
 
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
 bool rebuild_wordcount_kv(void *dst, size_t bytes, const void *ctx,
                           uint64_t arg) {
     auto *input = static_cast<const WordRecipeInput *>(ctx);
     auto fail = [] {
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
         recipe_failures.fetch_add(1, std::memory_order_relaxed);
 #endif
         return false;
@@ -469,14 +469,14 @@ bool rebuild_wordcount_kv(void *dst, size_t bytes, const void *ctx,
     std::memcpy(image.data() + FarWordMap::kv_value_offset(), &value,
                 sizeof(value));
     std::memcpy(dst, image.data(), image.size());
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
     recipe_restored_objects.fetch_add(1, std::memory_order_relaxed);
 #endif
     return true;
 }
 #endif
 
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
 void write_recipe_marker(const std::string &path, const std::string &line) {
     const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
@@ -534,7 +534,7 @@ int main(int argc, char **argv) {
     }
 
     try {
-        FarLib::rdma::Configure config;
+        starfish::rdma::Configure config;
         config.from_file(argv[1]);
 
         size_t threads = std::min<size_t>(env_size("FARLIB_WORDCOUNT_THREADS", 24),
@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
         size_t local_map_shift = env_size("FARLIB_WORDCOUNT_LOCAL_MAP_SHIFT", 21);
         size_t map_uthreads =
             std::max(env_size("FARLIB_WORDCOUNT_UTHREADS", threads), threads);
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
         const bool recipe_mode =
             env_size("FARLIB_WORDCOUNT_RECIPES", 0) != 0;
         const bool recomputable_mode =
@@ -573,7 +573,7 @@ int main(int argc, char **argv) {
                 "FARLIB_WORDCOUNT_RECIPES=1 requires "
                 "FARLIB_WORDCOUNT_KEEP_LOCAL_FAR_MAPS=1");
         }
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
         auto file_owner = std::make_shared<MappedFile>(argv[2]);
         const MappedFile &file = *file_owner;
 #else
@@ -587,7 +587,7 @@ int main(int argc, char **argv) {
         size_t subtasks_per_chunk =
             (map_uthreads + chunks.size() - 1) / chunks.size();
         size_t map_task_count = chunks.size() * subtasks_per_chunk;
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
         const char *ready_env = std::getenv("FARLIB_WC_RECIPE_READY_PATH");
         const char *go_env = std::getenv("FARLIB_WC_RECIPE_GO_PATH");
         const bool recipe_gate =
@@ -604,7 +604,7 @@ int main(int argc, char **argv) {
                   << " global_map_shift=" << global_map_shift
                   << " keep_local_far_maps=" << keep_local_far_maps
                   << " local_map_shift=" << local_map_shift
-                  << " starfish_hooks=" << FARLIB_WORDCOUNT_STARFISH
+                  << " starfish_hooks=" << STARFISH_WORDCOUNT_RECOMPUTE
                   << " recipe_mode=" << recipe_mode
                   << " sizeof_key=" << sizeof(FixedWord)
                   << " sizeof_value=" << sizeof(CountValue)
@@ -616,13 +616,13 @@ int main(int argc, char **argv) {
             std::cout << "wordcount_far_recipe start scope=local_maps\n";
         }
 
-        FarLib::runtime_init(config);
+        starfish::runtime_init(config);
         {
             std::vector<std::unique_ptr<FarWordMap>> local_maps;
             if (keep_local_far_maps) {
                 local_maps.reserve(map_task_count);
                 for (size_t i = 0; i < map_task_count; ++i) {
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
                     local_maps.emplace_back(
                         std::make_unique<FarWordMap>(
                             local_map_shift,
@@ -636,7 +636,7 @@ int main(int argc, char **argv) {
 #endif
                 }
             }
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
             // Legacy mode keeps its historical all-map annotation.  Recipe
             // mode deliberately leaves the global aggregate protected by EC;
             // only local partial-map objects carry replayable recipes.
@@ -648,22 +648,22 @@ int main(int argc, char **argv) {
 #else
             FarWordMap global_map(global_map_shift);
 #endif
-            std::array<FarLib::Spinlock, kGlobalLockCount> global_locks;
+            std::array<starfish::Spinlock, kGlobalLockCount> global_locks;
             std::vector<ThreadStats> task_stats(map_task_count);
             std::vector<std::unique_ptr<
                 NativeCountMap>>
                 native_partials(map_task_count);
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
             std::vector<uint64_t> native_partition_checksums(map_task_count, 0);
 #endif
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
             std::vector<std::shared_ptr<RecipeBuildHookContext>>
                 recipe_bindings(map_task_count);
 #endif
 
             auto preagg_stats_before = collect_phase_stats();
             auto preagg_start = std::chrono::steady_clock::now();
-            FarLib::uthread::parallel_for_with_scope<1>(
+            starfish::uthread::parallel_for_with_scope<1>(
                 map_task_count, map_task_count, [&](size_t task_id, auto &scope) {
                     (void)scope;
                     size_t chunk_id = task_id % chunks.size();
@@ -694,13 +694,13 @@ int main(int argc, char **argv) {
                     native_counts->reserve(1 << 20);
                     count_chunk_native(*native_counts, file.data, subchunk,
                                        task_stats[task_id]);
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
                     if (recipe_gate) {
                         native_partition_checksums[task_id] =
                             checksum_native_counts(*native_counts);
                     }
 #endif
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
                     if (recipe_mode) {
                         auto input = std::make_shared<const WordRecipeInput>(
                             file_owner, subchunk, kMaxWordBytes);
@@ -732,13 +732,13 @@ int main(int argc, char **argv) {
 
             // Measure only the remote map/merge/reduce portion. Keep input
             // parsing and native preaggregation outside the planner window.
-            FarLib::profile::start_work();
+            starfish::profile::start_work();
             std::cout << "wordcount_far_work_phase_start phase=map_local\n";
             auto map_stats_before = collect_phase_stats();
             auto map_start = std::chrono::steady_clock::now();
             auto map_one_task = [&](size_t task_id, auto &scope) {
                 auto &native_counts = native_partials[task_id];
-#if FARLIB_WORDCOUNT_STARFISH
+#if STARFISH_WORDCOUNT_RECOMPUTE
                 if (recipe_mode) {
                     auto &map = *local_maps[task_id];
                     auto &build = recipe_bindings[task_id];
@@ -778,13 +778,13 @@ int main(int argc, char **argv) {
             auto run_map_range = [&](size_t begin, size_t end) {
                 if (begin >= end) return;
                 const size_t count = end - begin;
-                FarLib::uthread::parallel_for_with_scope<1>(
+                starfish::uthread::parallel_for_with_scope<1>(
                     count, count, [&](size_t offset, auto &scope) {
                         map_one_task(begin + offset, scope);
                     });
             };
 
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
             if (recipe_gate) {
                 const size_t completed_partitions = (map_task_count * 3) / 4;
                 run_map_range(0, completed_partitions);
@@ -797,11 +797,11 @@ int main(int argc, char **argv) {
                 std::cout << ready_line << "\n";
                 write_recipe_marker(ready_env, ready_line + "\n");
                 if (!wait_for_recipe_marker(go_env)) {
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
                     recipe_failures.fetch_add(1, std::memory_order_relaxed);
 #endif
                     const auto runtime_recipe_stats =
-                        FarLib::Cache::get_default()->recomputable_stats();
+                        starfish::Cache::get_default()->recomputable_stats();
                     std::cout
                         << "wordcount_recipe_local_verify status=fail "
                            "reason=go_timeout\n";
@@ -830,7 +830,7 @@ int main(int argc, char **argv) {
                      ++task_id) {
                     std::vector<std::pair<std::string, uint64_t>> actual;
                     actual.reserve(task_stats[task_id].native_unique_words);
-                    FarLib::RootDereferenceScope verify_scope;
+                    starfish::RootDereferenceScope verify_scope;
                     local_maps[task_id]->for_each_locked(
                         [&](const FixedWord &word, const CountValue &value,
                             auto &) {
@@ -853,14 +853,14 @@ int main(int argc, char **argv) {
                     verify_ok = verify_ok && partition_ok;
                 }
                 const auto runtime_recipe_stats =
-                    FarLib::Cache::get_default()->recomputable_stats();
+                    starfish::Cache::get_default()->recomputable_stats();
                 const uint64_t callback_restored =
                     recipe_restored_objects.load(std::memory_order_relaxed);
                 const bool runtime_recovery_ok =
                     runtime_recipe_stats.restored == callback_restored;
                 verify_ok = verify_ok && runtime_recovery_ok;
                 if (!verify_ok) {
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
                     recipe_failures.fetch_add(1, std::memory_order_relaxed);
 #endif
                 }
@@ -898,7 +898,7 @@ int main(int argc, char **argv) {
                 run_map_range(0, map_task_count);
             }
 #endif
-#if !FARLIB_WORDCOUNT_RECOVERY_TEST
+#if !STARFISH_WORDCOUNT_RECOVERY_TEST
             run_map_range(0, map_task_count);
 #endif
             auto map_stop = std::chrono::steady_clock::now();
@@ -916,7 +916,7 @@ int main(int argc, char **argv) {
                              std::min<size_t>(threads, map_task_count));
                 merge_worker_count = std::max<size_t>(
                     1, std::min<size_t>(merge_worker_count, map_task_count));
-                FarLib::uthread::parallel_for_with_scope<1, true>(
+                starfish::uthread::parallel_for_with_scope<1, true>(
                     merge_worker_count, map_task_count,
                     [&](size_t tid, auto &scope) {
                         local_maps[tid]->for_each_snapshot(
@@ -955,7 +955,7 @@ int main(int argc, char **argv) {
                         native_counts.emplace(std::string(word.view()), value.count);
                     }, reduce_readers);
             } else {
-                FarLib::RootDereferenceScope scope;
+                starfish::RootDereferenceScope scope;
                 global_map.for_each_locked(
                     [&](const FixedWord &word, const CountValue &value,
                         auto &) {
@@ -994,12 +994,12 @@ int main(int argc, char **argv) {
 
             std::cout
                 << "wordcount_far_work_phase_end phase=reduce_checksum\n";
-            FarLib::profile::end_work();
+            starfish::profile::end_work();
 
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
             if (recipe_mode) {
                 const auto runtime_recipe_stats =
-                    FarLib::Cache::get_default()->recomputable_stats();
+                    starfish::Cache::get_default()->recomputable_stats();
                 std::cout << "wordcount_recipe_summary restored_objects="
                           << recipe_restored_objects.load()
                           << " partition_rebuilds="
@@ -1029,12 +1029,12 @@ int main(int argc, char **argv) {
                       << " too_long_words=" << too_long_words
                       << " max_word_len=" << max_word_len
                       << " remote_used_bytes="
-                      << FarLib::allocator::remote::remote_global_heap.get_used_bytes()
+                      << starfish::allocator::remote::remote_global_heap.get_used_bytes()
                       << "\n";
-#if FARLIB_WORDCOUNT_RECOVERY_TEST
+#if STARFISH_WORDCOUNT_RECOVERY_TEST
             if (recomputable_mode) {
                 const auto recomputable_stats =
-                    FarLib::Cache::get_default()->recomputable_stats();
+                    starfish::Cache::get_default()->recomputable_stats();
                 std::cout << "wordcount_far_recomputable_stats"
                           << " marked=" << recomputable_stats.marked
                           << " flat_writebacks="
@@ -1052,9 +1052,9 @@ int main(int argc, char **argv) {
                           << "\n";
             }
 
-            FarLib::runtime_quiesce_cache();
+            starfish::runtime_quiesce_cache();
         }
-        FarLib::runtime_destroy();
+        starfish::runtime_destroy();
     } catch (const std::exception &ex) {
         std::cerr << "error: " << ex.what() << "\n";
         return 1;

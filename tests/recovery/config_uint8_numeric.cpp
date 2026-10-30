@@ -22,8 +22,8 @@
 namespace {
 
 namespace fs = std::filesystem;
-using FarLib::rdma::Configure;
-using FarLib::rdma::detail::read_config_value;
+using starfish::rdma::Configure;
+using starfish::rdma::detail::read_config_value;
 
 class ConfigFiles {
  public:
@@ -32,7 +32,7 @@ class ConfigFiles {
     const auto stamp =
         std::chrono::high_resolution_clock::now().time_since_epoch().count();
     root_ = fs::temp_directory_path() /
-            ("farlib-config-uint8-" + std::to_string(stamp) + "-" +
+            ("starfish-config-uint8-" + std::to_string(stamp) + "-" +
              std::to_string(sequence++));
     std::error_code error;
     assert(fs::create_directory(root_, error));

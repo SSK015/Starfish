@@ -2,7 +2,7 @@
 #include "mm/cache/concurrent_cache.hpp"
 #include "profiling/scope_diag.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 template <bool IncreaseRefCount>
 inline bool ConcurrentArrayCache::post_fetch(far_obj_t obj,
@@ -151,12 +151,13 @@ retry:
     goto retry;
   }
   if constexpr (Mut) {
-    if (::FarLib::get_config().is_ec_batch_mode() &&
+    if (::starfish::get_config().is_ec_batch_mode() &&
         (old_state.state == LOCAL || old_state.state == MARKED ||
          old_state.state == EVICTING) &&
         entry.local_addr() != nullptr &&
-        ::FarLib::allocator::ec_write_source_borrowed(
-            static_cast<::FarLib::allocator::BlockHead *>(entry.local_addr()) -
+        ::starfish::allocator::ec_write_source_borrowed(
+            static_cast<::starfish::allocator::BlockHead *>(
+                entry.local_addr()) -
             1)) {
       // Rescue as clean LOCAL before waiting, so completion keeps this
       // local copy. Only after every shard WRITE may it become writable.
@@ -309,7 +310,7 @@ inline bool ConcurrentArrayCache::check_fetch(FarObjectEntry *entry,
   auto *client = rdma::get_client(client_idx);
   size_t qp_idx = client->get_qp_idx();
   auto [endpoint_idx, _offset] =
-      ::FarLib::get_config().map_remote_addr(entry->remote_addr());
+      ::starfish::get_config().map_remote_addr(entry->remote_addr());
   // EC read-side recovery (ft_method=ec_batch): the poll below only reaps the
   // endpoint of the object's own segment, and that may be the endpoint that
   // is gone.  Re-post the entry once as a degraded read of its slot group and
@@ -340,7 +341,7 @@ inline FarObjectEntry *ConcurrentArrayCache::fetch_wait_until_local(
   // may itself move the accessor and clear the old entry's address.
   auto *wait_block =
       wait_local_addr != nullptr
-          ? static_cast<::FarLib::allocator::BlockHead *>(wait_local_addr) - 1
+          ? static_cast<::starfish::allocator::BlockHead *>(wait_local_addr) - 1
           : nullptr;
   auto resolve_wait_entry = [&]() -> FarObjectEntry * {
     if (wait_block == nullptr) return entry;
@@ -368,7 +369,7 @@ inline FarObjectEntry *ConcurrentArrayCache::fetch_wait_until_local(
       const auto current_remote = entry->remote_addr();
       if (current_remote != FarObjectEntry::RemoteAddrInvalid48) {
         endpoint_idx =
-            ::FarLib::get_config().map_remote_addr(current_remote).first;
+            ::starfish::get_config().map_remote_addr(current_remote).first;
       }
       // While the endpoint of this object's own segment is gone, the
       // degraded read of its slot group is what completes the fetch; the
@@ -397,7 +398,7 @@ inline void *ConcurrentArrayCache::fetch_with_miss_handler(
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
     auto [endpoint_idx, _offset] =
-        ::FarLib::get_config().map_remote_addr(entry->remote_addr());
+        ::starfish::get_config().map_remote_addr(entry->remote_addr());
     handler(entry, ddl);
     entry = fetch_wait_until_local(entry, wait_local_addr, qp_idx, client_idx,
                                    endpoint_idx);
@@ -448,7 +449,7 @@ inline void *ConcurrentArrayCache::fetch_lite_no_profile(
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
     auto [endpoint_idx, _offset] =
-        ::FarLib::get_config().map_remote_addr(entry->remote_addr());
+        ::starfish::get_config().map_remote_addr(entry->remote_addr());
 
     handler(entry, ddl);
     entry = fetch_wait_until_local(entry, wait_local_addr, qp_idx, client_idx,
@@ -476,7 +477,7 @@ inline void *ConcurrentArrayCache::fetch_lite_slow_path(
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
     auto [endpoint_idx, _offset] =
-        ::FarLib::get_config().map_remote_addr(entry->remote_addr());
+        ::starfish::get_config().map_remote_addr(entry->remote_addr());
 
     handler(entry, ddl);
     entry = fetch_wait_until_local(entry, wait_local_addr, qp_idx, client_idx,
@@ -504,4 +505,4 @@ ConcurrentArrayCache::async_fetch_lite_no_profile(far_obj_t obj,
   return {at_local, get_entry_of(obj).local_addr()};
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

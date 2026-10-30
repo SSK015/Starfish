@@ -4,7 +4,7 @@
 #include <cstdint>
 // #define NPREFETCH
 #define MISS_FOR_COUNT
-namespace FarLib {
+namespace starfish {
 
 namespace cache {
 
@@ -52,14 +52,14 @@ class DataMissHandlerImpl : public DataMissHandler {
 
 }  // namespace cache
 
-#define __DMH__ const FarLib::cache::DataMissHandler &__on_miss__
+#define __DMH__ const starfish::cache::DataMissHandler &__on_miss__
 
 #define ON_MISS_BEGIN_X                   \
     auto &__last_on_miss__ = __on_miss__; \
-    auto __on_miss__ = FarLib::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
+    auto __on_miss__ = starfish::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
 #ifndef MISS_FOR_COUNT
 #define ON_MISS_END_X                                           \
-    if (FarLib::cache::check_fetch(__entry__, __ddl__)) return; \
+    if (starfish::cache::check_fetch(__entry__, __ddl__)) return; \
     __last_on_miss__(__entry__, __ddl__);                       \
     });
 #else
@@ -70,18 +70,18 @@ class DataMissHandlerImpl : public DataMissHandler {
 
 #ifndef NPREFETCH
 #define ON_MISS_BEGIN \
-    auto __on_miss__ = FarLib::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
+    auto __on_miss__ = starfish::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
 #define ON_MISS_END \
     });
 
 #else
 /* clang-format off */
 #define ON_MISS_BEGIN \
-    auto __on_miss__ = FarLib::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {   \
+    auto __on_miss__ = starfish::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {   \
         auto f = [&] () {
 #define ON_MISS_END \
     };              \
     });
 /* clang-format on */
 #endif
-}  // namespace FarLib
+}  // namespace starfish

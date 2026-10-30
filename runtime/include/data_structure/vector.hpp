@@ -9,7 +9,7 @@
 
 // #define USE_YIELD
 
-namespace FarLib {
+namespace starfish {
 
 template <typename T,
           size_t GroupSize = (4096 - allocator::BlockHeadSize) / sizeof(T)>
@@ -134,4 +134,4 @@ class DenseVector {
   }
 };
 
-}  // namespace FarLib
+}  // namespace starfish

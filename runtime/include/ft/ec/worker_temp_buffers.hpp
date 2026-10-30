@@ -9,7 +9,7 @@
 
 #include <cstddef>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 namespace ec_batch {
 struct EcStagingGroupSlot;
@@ -52,4 +52,4 @@ class WorkerTempBufferProvider {
   virtual size_t limit() const = 0;
 };
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

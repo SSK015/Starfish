@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace FarLib::cache::ec_backup_policy {
+namespace starfish::cache::ec_backup_policy {
 
 // Return whether the remote copy cannot be reused because one of the physical
 // endpoints serving it is dead.  A split object's public address is data[0],
@@ -48,4 +48,4 @@ constexpr bool can_reuse_clean_backup(bool policy_enabled, bool dirty,
   return policy_enabled && !dirty && valid_remote && has_reservation;
 }
 
-}  // namespace FarLib::cache::ec_backup_policy
+}  // namespace starfish::cache::ec_backup_policy

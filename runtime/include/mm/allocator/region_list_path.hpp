@@ -4,7 +4,7 @@
 
 #include <thread>
 
-namespace FarLib::allocator {
+namespace starfish::allocator {
 
 struct RegionListLockDiagnostics {
   std::atomic<uint64_t> list_lock_calls{0};
@@ -360,7 +360,7 @@ inline void RegionList::push_dbg(RegionHead *node, const char *tag,
     list_only_six_parent->push_dbg(node, tag, mark_diag);
     return;
   }
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
   // Debug-only invariant: a node must not already be linked in any list.
   // We enforce this by setting node->next_region = nullptr on successful pop.
   if (node->next_region != nullptr) {
@@ -492,7 +492,7 @@ inline void RegionList::push_batch_dbg(RegionHead **nodes, size_t count,
   for (size_t i = 0; i < count; ++i) {
     RegionHead *node = nodes[i];
     assert(node != nullptr);
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     if (node->next_region != nullptr) {
       alloc_debug_printf(
           "[REGION_LIST_BUG] batch double-push? list=%p tag=%s node=%p next=%p state=%u bin=%u stamp=%u last_tag=%s\n",
@@ -585,7 +585,7 @@ inline RegionHead *RegionList::pop() {
     // Mark as unlinked so a later push can detect double-enqueue.
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     static_cast<RegionHead *>(node)->dbg_enqueued_list.store(
         nullptr, std::memory_order::relaxed);
 #endif
@@ -644,7 +644,7 @@ inline RegionHead *RegionList::pop_for_six_group(uint32_t group_id,
     head.prev_region = tail;
     region->next_region = nullptr;
     region->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order_relaxed);
 #endif
     item_count.fetch_sub(1, std::memory_order_relaxed);
@@ -796,7 +796,7 @@ inline size_t RegionList::extract_simple_budget_usable(
     head.prev_region = tail;
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order_relaxed);
 #endif
     out.push_back(region);
@@ -874,7 +874,7 @@ inline RegionHead *RegionList::pop_first_matching(EligibleFn &&eligible) {
     head.prev_region = tail;
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order_relaxed);
 #endif
     item_count.fetch_sub(1, std::memory_order_relaxed);
@@ -922,7 +922,7 @@ inline size_t RegionList::extract_all_matching(std::vector<RegionHead *> &out,
     head.prev_region = tail;
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order_relaxed);
 #endif
     out.push_back(region);
@@ -992,7 +992,7 @@ inline void RegionList::push_front_batch_dbg(RegionHead **nodes, size_t count,
   for (size_t i = 0; i < count; ++i) {
     RegionHead *node = nodes[i];
     ASSERT(node != nullptr);
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     ASSERT(node->next_region == nullptr);
     void *expected = nullptr;
     ASSERT(node->dbg_enqueued_list.compare_exchange_strong(
@@ -1065,7 +1065,7 @@ inline RegionHead *RegionList::pop_unmatched(uint32_t time_stamp, int *reason) {
     // Mark as unlinked so a later push can detect double-enqueue.
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     static_cast<RegionHead *>(node)->dbg_enqueued_list.store(
         nullptr, std::memory_order::relaxed);
 #endif
@@ -1145,7 +1145,7 @@ inline size_t RegionList::pop_matching_batch(uint32_t time_stamp,
     head.prev_region = tail;
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order::relaxed);
 #endif
     out_batch[count++] = region;
@@ -1293,7 +1293,7 @@ inline size_t RegionList::pop_matching_batch_cursor(
     head.prev_region = tail;
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order_relaxed);
 #endif
     out_batch[count++] = region;
@@ -1472,7 +1472,7 @@ inline size_t RegionList::pop_matching_batch_evict_cursor(
     head.prev_region = tail;
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order_relaxed);
 #endif
     out_batch[count++] = region;
@@ -1587,7 +1587,7 @@ inline size_t RegionList::pop_unmatched_batch(uint32_t time_stamp,
     // Mark as unlinked so a later push can detect double-enqueue.
     node->next_region = nullptr;
     node->prev_region = nullptr;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     region->dbg_enqueued_list.store(nullptr, std::memory_order::relaxed);
 #endif
     out_batch[count++] = region;
@@ -1621,4 +1621,4 @@ inline size_t RegionList::pop_unmatched_batch(uint32_t time_stamp,
   return count;
 }
 
-}  // namespace FarLib::allocator
+}  // namespace starfish::allocator

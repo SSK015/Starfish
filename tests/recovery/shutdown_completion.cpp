@@ -8,8 +8,8 @@ int main() {
   constexpr uint64_t kStop = 0;
   constexpr uint32_t kControlQp = 77;
   constexpr uint32_t kOtherQp = 78;
-  using FarLib::rdma::StopCompletionKind;
-  using FarLib::rdma::classify_stop_completion;
+  using starfish::rdma::StopCompletionKind;
+  using starfish::rdma::classify_stop_completion;
 
   ibv_wc wc{};
   wc.wr_id = kStop;

@@ -14,7 +14,7 @@
 #include "async/context.hpp"
 #include "dyn_sized_object.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <typename T, bool Ordered = false,
           size_t ChunkSizeInByte = 4096 - allocator::BlockHeadSize>
@@ -2096,4 +2096,4 @@ class FarSmallVector {
 };
 template <typename T>
 using OrderedVector = FarSmallVector<T, true>;
-}  // namespace FarLib
+}  // namespace starfish

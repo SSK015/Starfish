@@ -108,7 +108,7 @@ using starfish_refinement_persistent_wide_uint =
     boost::multiprecision::uint256_t;
 #endif
 
-namespace FarLib {
+namespace starfish {
 namespace cache {
 namespace refinement {
 
@@ -1831,30 +1831,30 @@ class BehaviorGroupRegistry {
                                           RegionProfile &result) {
     RegionProfile sum;
     sum.complete_window = lhs.complete_window && rhs.complete_window;
-#define FARLIB_DYNAMIC_SUM(field)                                      \
+#define STARFISH_DYNAMIC_SUM(field)                                      \
         if (!checked_add_u64(lhs.field, rhs.field, sum.field)) return false
-    FARLIB_DYNAMIC_SUM(fetch_commit);
-    FARLIB_DYNAMIC_SUM(clean_evict_commit);
-    FARLIB_DYNAMIC_SUM(dirty_evict_commit);
-    FARLIB_DYNAMIC_SUM(free_commit);
-    FARLIB_DYNAMIC_SUM(demand_read_reference);
-    FARLIB_DYNAMIC_SUM(demand_write_reference);
-    FARLIB_DYNAMIC_SUM(live_object_exposure);
-    FARLIB_DYNAMIC_SUM(live_object_time_ns);
-    FARLIB_DYNAMIC_SUM(completed_lifetime_sum_ns);
-    FARLIB_DYNAMIC_SUM(completed_lifetime_samples);
+    STARFISH_DYNAMIC_SUM(fetch_commit);
+    STARFISH_DYNAMIC_SUM(clean_evict_commit);
+    STARFISH_DYNAMIC_SUM(dirty_evict_commit);
+    STARFISH_DYNAMIC_SUM(free_commit);
+    STARFISH_DYNAMIC_SUM(demand_read_reference);
+    STARFISH_DYNAMIC_SUM(demand_write_reference);
+    STARFISH_DYNAMIC_SUM(live_object_exposure);
+    STARFISH_DYNAMIC_SUM(live_object_time_ns);
+    STARFISH_DYNAMIC_SUM(completed_lifetime_sum_ns);
+    STARFISH_DYNAMIC_SUM(completed_lifetime_samples);
     sum.occupancy_known = lhs.occupancy_known && rhs.occupancy_known;
     if (sum.occupancy_known) {
-      FARLIB_DYNAMIC_SUM(live_objects_at_end);
+      STARFISH_DYNAMIC_SUM(live_objects_at_end);
     }
     sum.primary_census_known =
         lhs.primary_census_known && rhs.primary_census_known;
     if (sum.primary_census_known) {
-      FARLIB_DYNAMIC_SUM(primary_live_objects);
-      FARLIB_DYNAMIC_SUM(primary_live_bytes);
-      FARLIB_DYNAMIC_SUM(primary_object_time_ns);
+      STARFISH_DYNAMIC_SUM(primary_live_objects);
+      STARFISH_DYNAMIC_SUM(primary_live_bytes);
+      STARFISH_DYNAMIC_SUM(primary_object_time_ns);
     }
-#undef FARLIB_DYNAMIC_SUM
+#undef STARFISH_DYNAMIC_SUM
     std::uint64_t ignored = 0;
     if (!checked_add_u64(sum.clean_evict_commit, sum.dirty_evict_commit,
                          ignored) ||
@@ -4125,4 +4125,4 @@ using RegionRefinementRegistry = BehaviorGroupRegistry;
 
 }  // namespace refinement
 }  // namespace cache
-}  // namespace FarLib
+}  // namespace starfish

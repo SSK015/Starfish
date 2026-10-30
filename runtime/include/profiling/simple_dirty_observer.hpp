@@ -28,7 +28,7 @@
 #include <string>
 #include <utility>
 
-namespace FarLib::simple_dirty_observer {
+namespace starfish::simple_dirty_observer {
 
 enum class Mode : std::uint8_t { Off = 0, Regions = 1, Both = 2 };
 
@@ -958,4 +958,4 @@ inline void snapshot(std::uint64_t window, bool partial = false) {
 }
 inline void end() { monitor().end(); }
 
-}  // namespace FarLib::simple_dirty_observer
+}  // namespace starfish::simple_dirty_observer

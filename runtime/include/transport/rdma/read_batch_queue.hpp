@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <utility>
 
-namespace FarLib::rdma::read_batch {
+namespace starfish::rdma::read_batch {
 
 enum class QueueStatus { Ok, Busy, Full };
 
@@ -178,4 +178,4 @@ class PrefixQueue {
   std::size_t count_ = 0;
 };
 
-}  // namespace FarLib::rdma::read_batch
+}  // namespace starfish::rdma::read_batch

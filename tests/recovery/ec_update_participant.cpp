@@ -16,14 +16,14 @@
 
 namespace {
 
-using FarLib::cache::small_object_stripe_encode_parity_delta;
-using FarLib::cache::small_object_stripe_encode_shards;
-using FarLib::cache::small_object_stripe_initialize_encoder;
-using FarLib::cache::small_object_stripe_rebuild_shards;
-using FarLib::rdma::ec_update::Message;
-using FarLib::rdma::ec_update::Op;
-using FarLib::rdma::ec_update::Participant;
-using FarLib::rdma::ec_update::Status;
+using starfish::cache::small_object_stripe_encode_parity_delta;
+using starfish::cache::small_object_stripe_encode_shards;
+using starfish::cache::small_object_stripe_initialize_encoder;
+using starfish::cache::small_object_stripe_rebuild_shards;
+using starfish::rdma::ec_update::Message;
+using starfish::rdma::ec_update::Op;
+using starfish::rdma::ec_update::Participant;
+using starfish::rdma::ec_update::Status;
 
 Message make_request(Op op, uint64_t generation, uint32_t owner, uint16_t slot,
                      uint8_t participant, uint64_t offset, uint16_t bytes) {
@@ -41,7 +41,7 @@ Message make_request(Op op, uint64_t generation, uint32_t owner, uint16_t slot,
 Status submit(Participant &participant, const Message &message,
               Message &response) {
   return participant.handle(
-      message, FarLib::rdma::ec_update::wire_bytes(message), response);
+      message, starfish::rdma::ec_update::wire_bytes(message), response);
 }
 
 void fill_payload(Message &message, uint8_t seed) {

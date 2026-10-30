@@ -31,9 +31,9 @@
 #include "profiling/object_group_trace.hpp"
 #include "mm/placement/behavior_group_runtime.hpp"
 
-namespace FarLib::allocator::six_group {
+namespace starfish::allocator::six_group {
 
-namespace refinement = ::FarLib::cache::refinement;
+namespace refinement = ::starfish::cache::refinement;
 
 using GroupId = std::uint32_t;
 
@@ -70,7 +70,7 @@ inline constexpr std::size_t kChildCount = 6;
 // size/placement parent, without enabling the old fixed-six policy metadata.
 // Regions are assigned round-robin by the parent list itself.
 inline bool grouped() noexcept {
-  if (::FarLib::behavior_group_runtime::enabled()) return false;
+  if (::starfish::behavior_group_runtime::enabled()) return false;
   static const bool value = [] {
 #if defined(_WIN32)
     char *raw = nullptr;
@@ -91,7 +91,7 @@ inline bool grouped() noexcept {
 }
 
 inline bool enabled() noexcept {
-  if (::FarLib::behavior_group_runtime::enabled()) return true;
+  if (::starfish::behavior_group_runtime::enabled()) return true;
   static const bool value = [] {
 #if defined(_WIN32)
     char *raw = nullptr;
@@ -626,13 +626,13 @@ class Registry {
     {
       // Sampled event timestamps and this group publication share only
       // a diagnostic lock; the allocator callback runs after releasing it.
-      auto trace_guard = ::FarLib::object_group_trace::lock_region(
+      auto trace_guard = ::starfish::object_group_trace::lock_region(
           record->token.generation_id);
       record->group.store(group, std::memory_order_release);
-      if (::FarLib::object_group_trace::enabled()) {
+      if (::starfish::object_group_trace::enabled()) {
         const auto slot = std::find(record->family_groups.begin(),
                                     record->family_groups.end(), group);
-        ::FarLib::object_group_trace::route_change(
+        ::starfish::object_group_trace::route_change(
             record->token.generation_id, group,
             slot == record->family_groups.end()
                 ? 255
@@ -906,4 +906,4 @@ inline void clear_primary(std::atomic<Record *> &entry_binding,
   registry().clear_primary(entry_binding, bytes);
 }
 
-}  // namespace FarLib::allocator::six_group
+}  // namespace starfish::allocator::six_group

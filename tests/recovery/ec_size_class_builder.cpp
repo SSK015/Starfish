@@ -27,22 +27,22 @@
 #include "ft/ec/small_object_stripe_codec.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure g_ec_size_class_config;
 const rdma::Configure &get_config() { return g_ec_size_class_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 
 namespace {
 
-using FarLib::cache::SmallObjectStripeManager;
-using FarLib::cache::ec_batch::EcBatchStatus;
-using FarLib::cache::ec_batch::EcSizeClassBuilder;
-using FarLib::cache::ec_split::BufferPools;
-using FarLib::cache::ec_read_recovery::RecoveryScratchChunk;
+using starfish::cache::SmallObjectStripeManager;
+using starfish::cache::ec_batch::EcBatchStatus;
+using starfish::cache::ec_batch::EcSizeClassBuilder;
+using starfish::cache::ec_split::BufferPools;
+using starfish::cache::ec_read_recovery::RecoveryScratchChunk;
 
 struct Checks {
   int count = 0;
@@ -117,31 +117,31 @@ void release_chunk(void *opaque, RecoveryScratchChunk chunk) {
 }
 
 bool configure_fixture() {
-  auto &config = FarLib::g_ec_size_class_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_ec_size_class_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   // Enough remote stripe capacity for the explicit 64-open-group bound.
   config.server_buffer_size = 64ull * 1024 * 1024;
   config.client_buffer_size = 4ull * 1024 * 1024;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
 
 size_t bin_for_size(size_t size) {
-  return ::FarLib::allocator::bin_from_wsize(
-      ::FarLib::allocator::wsize_from_size(size));
+  return ::starfish::allocator::bin_from_wsize(
+      ::starfish::allocator::wsize_from_size(size));
 }
 
 std::array<std::vector<uint8_t>, 6> copy_record_shards(
@@ -172,8 +172,8 @@ bool recover_all_single_and_double_losses(
       }
     }
     const uint8_t alive = static_cast<uint8_t>(~missing) & 0x3fu;
-    if (!FarLib::cache::small_object_stripe_rebuild_shards(alive, shards.data(),
-                                                           slot_size, 0)) {
+    if (!starfish::cache::small_object_stripe_rebuild_shards(
+            alive, shards.data(), slot_size, 0)) {
       return false;
     }
     if (recovered != encoded) return false;
@@ -191,9 +191,9 @@ bool cleanup_group(SmallObjectStripeManager &manager,
 
 std::array<size_t, 4> lengths_for_bin(size_t requested) {
   const size_t bin = bin_for_size(requested);
-  const size_t slot_size = ::FarLib::allocator::get_bin_size(bin);
+  const size_t slot_size = ::starfish::allocator::get_bin_size(bin);
   const size_t lower =
-      bin == 0 ? size_t{1} : ::FarLib::allocator::get_bin_size(bin - 1) + 1;
+      bin == 0 ? size_t{1} : ::starfish::allocator::get_bin_size(bin - 1) + 1;
   return {slot_size, slot_size - 1,
           slot_size > lower + 7 ? slot_size - 7 : lower, lower};
 }
@@ -232,12 +232,12 @@ void run_full_case(Checks &checks, SmallObjectStripeManager &manager,
   checks.check(!record.split_object && record.size_class_staging,
                "record is whole-object size-class staging");
   checks.check(record.slot_size ==
-                   ::FarLib::allocator::get_bin_size(bin_for_size(requested)),
+                   ::starfish::allocator::get_bin_size(bin_for_size(requested)),
                "record slot size is the exact allocator bin");
   for (size_t i = 0; i < objects.size(); ++i) {
     checks.check(
         addresses[i] == record.group.segments[i].addr &&
-            addresses[i] != ::FarLib::allocator::remote::InvalidRemoteAddr,
+            addresses[i] != ::starfish::allocator::remote::InvalidRemoteAddr,
         "object address is published before pending post");
     checks.equal(record.object_sizes[i],
                  static_cast<uint32_t>(objects[i].size()),
@@ -327,7 +327,7 @@ void run_backpressure_case(Checks &checks, SmallObjectStripeManager &manager,
   }
   checks.check(final_status == EcBatchStatus::kPendingQueueFull,
                "fourth object reports pending backpressure after consumption");
-  checks.check(address_b != ::FarLib::allocator::remote::InvalidRemoteAddr,
+  checks.check(address_b != ::starfish::allocator::remote::InvalidRemoteAddr,
                "backpressured fourth object retains published address");
   checks.check(builder.group_open() && builder.pending_count() == 1,
                "full backpressured group remains open for retry");
@@ -381,10 +381,10 @@ void run_open_limit_case(Checks &checks, SmallObjectStripeManager &manager,
   std::array<size_t, 12> canonical_bins{};
   size_t canonical_count = 0;
   for (size_t bin = 0;
-       bin < ::FarLib::allocator::RegionBinCount && canonical_count < 12;
+       bin < ::starfish::allocator::RegionBinCount && canonical_count < 12;
        ++bin) {
-    const size_t size = ::FarLib::allocator::get_bin_size(bin);
-    if (size > FarLib::cache::ec_batch::kEcSizeClassMaxSlotSize) break;
+    const size_t size = ::starfish::allocator::get_bin_size(bin);
+    if (size > starfish::cache::ec_batch::kEcSizeClassMaxSlotSize) break;
     if (bin_for_size(size) == bin) {
       canonical_bins[canonical_count++] = bin;
     }
@@ -398,7 +398,7 @@ void run_open_limit_case(Checks &checks, SmallObjectStripeManager &manager,
     for (size_t canonical = 0; canonical < 11; ++canonical) {
       if (added == 64) break;
       const size_t bin = canonical_bins[canonical];
-      const size_t size = ::FarLib::allocator::get_bin_size(bin);
+      const size_t size = ::starfish::allocator::get_bin_size(bin);
       objects.emplace_back(size, static_cast<uint8_t>(behavior + bin));
       uint64_t address = 0;
       if (builder.add_object(objects.back().data(), size, &address, behavior) !=
@@ -412,8 +412,8 @@ void run_open_limit_case(Checks &checks, SmallObjectStripeManager &manager,
   checks.check(all_staged && added == 64 && builder.open_group_count() == 64,
                "builder admits exactly 64 bounded open groups");
   const size_t overflow_bin = canonical_bins[11];
-  std::vector<uint8_t> overflow(::FarLib::allocator::get_bin_size(overflow_bin),
-                                0x3c);
+  std::vector<uint8_t> overflow(
+      ::starfish::allocator::get_bin_size(overflow_bin), 0x3c);
   uint64_t overflow_address = 0;
   checks.check(
       builder.add_object(overflow.data(), overflow.size(), &overflow_address,
@@ -428,10 +428,10 @@ void run_open_limit_case(Checks &checks, SmallObjectStripeManager &manager,
 int run() {
   Checks checks;
   checks.check(configure_fixture(), "size-class EC fixture configured");
-  const auto &config = FarLib::g_ec_size_class_config;
+  const auto &config = starfish::g_ec_size_class_config;
   SmallObjectStripeManager manager;
   manager.init(config.remote_total,
-               FarLib::rdma::Configure::ft_ec_shard_size_bytes);
+               starfish::rdma::Configure::ft_ec_shard_size_bytes);
   checks.check(manager.enabled(), "real stripe manager initialized");
 
   RegistrationContext registration;

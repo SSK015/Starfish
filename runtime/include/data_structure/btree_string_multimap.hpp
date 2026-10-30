@@ -13,7 +13,7 @@
 #include "data_structure/dyn_sized_object.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <typename V>
 class KVPairs {
@@ -684,4 +684,4 @@ class BTreeMultiMap {
   iterator end() { return iterator(nullptr); }
 };
 
-}  // namespace FarLib
+}  // namespace starfish

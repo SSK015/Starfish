@@ -40,7 +40,7 @@
 
 #include "mm/cache/concurrent_cache.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // How long a degraded read may wait for temporary memory or for a send
 // queue slot before it gives up and leaves the entry to the legacy path.  The
@@ -82,7 +82,7 @@ inline bool ConcurrentArrayCache::ec_recovery_endpoint_is_dead(
 // pointer and for every ec_batch write tag.
 inline bool ConcurrentArrayCache::ec_recovery_is_read_wr_id(
     uint64_t wr_id) const {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return false;
+  if (!::starfish::get_config().is_ec_batch_mode()) return false;
   return ec_read_recovery::is_ec_read_wr_id(wr_id);
 }
 
@@ -98,7 +98,7 @@ inline int ConcurrentArrayCache::ec_recovery_endpoint_for_qp_num(
   // qp_count); its length is the one ClientControl built it with.  The
   // accessor for it is private, so it is recomputed from the same config
   // fields (client.cpp: data_qp_count).
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   size_t qp_total = config.max_thread_cnt + 1;
   if (config.enable_eager_evict) qp_total += config.evacuate_thread_cnt;
   qp_total *= static_cast<size_t>(config.qp_count);
@@ -128,7 +128,7 @@ inline void ConcurrentArrayCache::note_ec_recovery_error_wc(const ibv_wc &wc) {
     // Publish that stop condition BEFORE enabling degraded reads. Otherwise
     // a reader could see cache-dead while a new writer still sees heap-live,
     // pass the busy check, and race a subsequent parity COMMIT.
-    if (::FarLib::get_config().ft_incremental_update)
+    if (::starfish::get_config().ft_incremental_update)
       remote_allocator.small_object_stripe_manager().mark_endpoint_dead(
           static_cast<size_t>(endpoint_idx));
     bool expected = false;
@@ -142,7 +142,7 @@ inline void ConcurrentArrayCache::note_ec_recovery_error_wc(const ibv_wc &wc) {
       remote_allocator.small_object_stripe_manager().mark_endpoint_dead(
           static_cast<size_t>(endpoint_idx));
       ec_recovery_dead_endpoints_.fetch_add(1, std::memory_order_relaxed);
-      if (::FarLib::get_config().ft_background_rebuild) {
+      if (::starfish::get_config().ft_background_rebuild) {
         int none = -1;
         background_rebuild_failed_endpoint_.compare_exchange_strong(
             none, endpoint_idx, std::memory_order_acq_rel);
@@ -204,7 +204,7 @@ inline bool ConcurrentArrayCache::ec_recovery_group_view(
     FarObjectEntry *entry, uint32_t byte_count, EcRecoveryGroupView *view_out) {
   if (entry == nullptr || view_out == nullptr) return false;
   if (entry->is_recomputable()) return false;
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode() || config.server_count <= 1) return false;
   const uint64_t remote_addr = entry->remote_addr();
   if (remote_addr == FarObjectEntry::RemoteAddrInvalid48) return false;
@@ -394,7 +394,8 @@ inline void unpin_fetch_entry_for_recovery(FarObjectEntry *entry) {
   }
 }
 
-inline void release_degraded_read_owner(::FarLib::allocator::BlockHead *block) {
+inline void release_degraded_read_owner(
+    ::starfish::allocator::BlockHead *block) {
   // The matching entry reference is still held. Its later release permits
   // deallocate(), which supplies the normal allocator notification.
   ASSERT(!block->obj_meta_data.load(std::memory_order_acquire).is_null());
@@ -410,7 +411,7 @@ ConcurrentArrayCache::post_ec_degraded_read_entry(FarObjectEntry *entry,
   using Outcome = EcRecoveryProfile::PostOutcome;
   EcRecoveryProfile::PostAttemptScope profile_post_attempt(
       ec_recovery_profile());
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode() || entry == nullptr ||
       entry->is_recomputable()) {
     profile_post_attempt.set_outcome(Outcome::kUnavailable);
@@ -449,14 +450,14 @@ ConcurrentArrayCache::post_ec_degraded_read_entry(FarObjectEntry *entry,
     return Result::kInFlight;
   }
   auto *target_block =
-      static_cast<::FarLib::allocator::BlockHead *>(local_addr) - 1;
+      static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
   // Cheap object-local duplicate test, before group lookup or buffer borrowing.
-  if (::FarLib::allocator::degraded_read_owned(target_block)) {
+  if (::starfish::allocator::degraded_read_owned(target_block)) {
     ec_recovery_post_duplicates_.fetch_add(1, std::memory_order_relaxed);
     profile_post_attempt.set_outcome(Outcome::kDuplicate);
     return Result::kInFlight;
   }
-  ::FarLib::allocator::begin_normal_read_recovery(target_block);
+  ::starfish::allocator::begin_normal_read_recovery(target_block);
   if (!ec_recovery_drain_normal_reads_once(target_block)) {
     profile_post_attempt.set_outcome(Outcome::kInFlight);
     return Result::kInFlight;
@@ -469,12 +470,12 @@ ConcurrentArrayCache::post_ec_degraded_read_entry(FarObjectEntry *entry,
            entry->remote_addr() == remote_addr;
   };
   if (!still_fetching() ||
-      !::FarLib::allocator::try_claim_degraded_read(target_block)) {
+      !::starfish::allocator::try_claim_degraded_read(target_block)) {
     profile_post_attempt.set_outcome(Outcome::kInFlight);
     return Result::kInFlight;
   }
   struct OwnerGuard {
-    ::FarLib::allocator::BlockHead *block;
+    ::starfish::allocator::BlockHead *block;
     bool active = true;
     ~OwnerGuard() {
       if (active) release_degraded_read_owner(block);
@@ -693,7 +694,7 @@ ConcurrentArrayCache::post_ec_degraded_read_entry(FarObjectEntry *entry,
 inline ec_read_recovery::EcReadPostResult
 ConcurrentArrayCache::post_ec_degraded_read(far_obj_t obj, size_t client_idx,
                                             void *local_addr) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) {
+  if (!::starfish::get_config().is_ec_batch_mode()) {
     return ec_read_recovery::EcReadPostResult::kUnavailable;
   }
   auto &entry = get_entry_of(obj);
@@ -731,7 +732,7 @@ inline void ConcurrentArrayCache::finish_ec_read_context(
       };
   if (event.kind == ec_read_recovery::EcReadTokenEventKind::kRelease) {
     auto *block =
-        static_cast<::FarLib::allocator::BlockHead *>(
+        static_cast<::starfish::allocator::BlockHead *>(
             reinterpret_cast<void *>(event.token->target_local_addr)) -
         1;
     auto *entry =
@@ -773,7 +774,7 @@ inline void ConcurrentArrayCache::finish_ec_read_context(
   const uint64_t target = token->target_local_addr;
   const ec_batch::EcStagingGroupSlot scratch = token->scratch;
   void *dst = reinterpret_cast<void *>(static_cast<uintptr_t>(target));
-  auto *target_block = static_cast<::FarLib::allocator::BlockHead *>(dst) - 1;
+  auto *target_block = static_cast<::starfish::allocator::BlockHead *>(dst) - 1;
   const auto owner_obj =
       target_block->obj_meta_data.load(std::memory_order_acquire);
   ASSERT(!owner_obj.is_null());
@@ -924,7 +925,7 @@ inline void ConcurrentArrayCache::finish_ec_read_context(
 // other fibres and its diagnostics deadline live; completion callbacks never
 // wait for a CQE that may already be in their caller's WC batch.
 inline bool ConcurrentArrayCache::ec_recovery_drain_normal_reads_once(
-    ::FarLib::allocator::BlockHead *block) {
+    ::starfish::allocator::BlockHead *block) {
   EcRecoveryProfile::ScopedTimer timer(
       ec_recovery_profile(), EcRecoveryProfile::Stage::kOrdinaryReadDrain);
   if (block->pending_rdma_reads.load(std::memory_order_acquire) == 0)
@@ -955,7 +956,7 @@ inline void ConcurrentArrayCache::ec_recovery_verify_rebuild(
   EcRecoveryProfile::ScopedTimer verify_timer(
       ec_recovery_profile(), EcRecoveryProfile::Stage::kVerify);
   auto verify_skip = [&] { ec_recovery_profile().note_verify_skip(); };
-  if (!::FarLib::get_config().is_ec_batch_mode()) {
+  if (!::starfish::get_config().is_ec_batch_mode()) {
     verify_skip();
     return;
   }
@@ -1083,7 +1084,7 @@ inline bool ConcurrentArrayCache::ec_recovery_assist_wait(FarObjectEntry *entry,
   if (entry != nullptr && entry->has_recompute_recipe()) {
     return recompute_recipe_assist_wait(entry, qp_idx, client_idx);
   }
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode()) return false;
   if (entry == nullptr) return false;
   if (entry->is_local()) return false;
@@ -1156,7 +1157,7 @@ inline bool ConcurrentArrayCache::ec_recovery_assist_wait(FarObjectEntry *entry,
 // ec_batch teardown trace, so it prints nothing unless ec_batch runs.
 inline void ConcurrentArrayCache::ec_read_recovery_diag_report(
     const char *where) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   auto ld = [](const std::atomic<uint64_t> &v) {
     return v.load(std::memory_order_relaxed);
   };
@@ -1264,7 +1265,7 @@ inline size_t ConcurrentArrayCache::ec_recovery_dead_endpoint_count() const {
 // group_alloc_blocked the refusals counted by
 // ec_recovery_report_group_alloc_blocked().
 inline void ConcurrentArrayCache::ec_recovery_report_counters() {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   constexpr uint64_t interval_ms = 30000;
   const uint64_t now_ms = static_cast<uint64_t>(
       std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1320,7 +1321,7 @@ inline void ConcurrentArrayCache::ec_recovery_report_counters() {
 // by one, then one line every 100 posts.
 inline void ConcurrentArrayCache::ec_recovery_report_degraded_read(
     FarObjectEntry *entry, const EcRecoveryGroupView &view) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   ec_recovery_report_counters();
   if (!ec_recovery_throttled(ec_recovery_degraded_read_events_, 20, 100)) {
     return;
@@ -1360,7 +1361,7 @@ inline void ConcurrentArrayCache::ec_recovery_report_degraded_read(
 // this line stays silent.  Throttled: the first refusal, then every 1000th.
 inline void ConcurrentArrayCache::ec_recovery_report_group_alloc_blocked(
     const char *reason) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   ec_recovery_report_counters();
   const size_t endpoints = ec_recovery_endpoint_count();
   size_t dead = 0;
@@ -1399,7 +1400,7 @@ inline size_t ConcurrentArrayCache::init_ec_read_recovery(
     void *local_buf, size_t local_buf_size) {
   ec_endpoint_dead_.reset();
   ec_endpoint_dead_count_ = 0;
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode()) return local_buf_size;
   const size_t endpoints = static_cast<size_t>(config.server_count);
   if (endpoints > 0) {
@@ -1483,4 +1484,4 @@ inline size_t ConcurrentArrayCache::init_ec_read_recovery(
   return local_buf_size;
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

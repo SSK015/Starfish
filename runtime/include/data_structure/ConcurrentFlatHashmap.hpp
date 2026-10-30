@@ -7,7 +7,7 @@
 
 #include "async/spinlock.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 /*
     Key and Val should have a small size
@@ -695,4 +695,4 @@ class ConcurrentFlatMap {
   }
 };
 
-}  // namespace FarLib
+}  // namespace starfish

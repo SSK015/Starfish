@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace FarLib::cache::ec_rmw_runtime {
+namespace starfish::cache::ec_rmw_runtime {
 inline constexpr bool allow_background_bank_yield(bool background_rebuild,
                                                   bool endpoint_dead,
                                                   bool bank_ready) noexcept {
@@ -28,4 +28,4 @@ inline constexpr bool allow_read_failure_fallback(
   return enabled && one_sided && read_error != 0 &&
          read_terminal == uint8_t{7} && !writes_decided;
 }
-}  // namespace FarLib::cache::ec_rmw_runtime
+}  // namespace starfish::cache::ec_rmw_runtime

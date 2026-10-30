@@ -10,7 +10,7 @@
 #include "mm/cache/base/handler.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace allocator {
 constexpr size_t BlockHeadSize = 16;
@@ -83,14 +83,14 @@ class DereferenceScope;
 
 #define ON_MISS_BEGIN_X                   \
     auto &__last_on_miss__ = __on_miss__; \
-    auto __on_miss__ = FarLib::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
+    auto __on_miss__ = starfish::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
 #define ON_MISS_END_X                                           \
-    if (FarLib::cache::check_fetch(__entry__, __ddl__)) return; \
+    if (starfish::cache::check_fetch(__entry__, __ddl__)) return; \
     __last_on_miss__(__entry__, __ddl__);                       \
     });
 
 #define ON_MISS_BEGIN \
-    auto __on_miss__ = FarLib::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
+    auto __on_miss__ = starfish::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
 #define ON_MISS_END \
     });
 
@@ -510,4 +510,4 @@ inline LiteAccessor<void, true> alloc_uninitialized(size_t size,
   return LiteAccessor<void, true>::allocate(size, scope);
 }
 
-}  // namespace FarLib
+}  // namespace starfish

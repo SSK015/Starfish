@@ -1,14 +1,14 @@
 #pragma once
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline bool ConcurrentArrayCache::full_population_frequency_stats_enabled() {
   return hybrid_profiling_enabled() &&
-         ::FarLib::get_config().enable_full_population_frequency_stats;
+         ::starfish::get_config().enable_full_population_frequency_stats;
 }
 
 inline size_t ConcurrentArrayCache::full_population_frequency_scan_period_ms() {
-  return ::FarLib::get_config().full_population_frequency_scan_period_ms;
+  return ::starfish::get_config().full_population_frequency_scan_period_ms;
 }
 
 inline size_t detail::FullPopulationFrequencyTracker::shard_index(
@@ -199,24 +199,24 @@ inline void ConcurrentArrayCache::move_live_entry(FarObjectEntry *from,
 }
 
 inline const std::string &ConcurrentArrayCache::profiling_method() {
-  return ::FarLib::get_config().profiling_method;
+  return ::starfish::get_config().profiling_method;
 }
 
 inline bool ConcurrentArrayCache::hybrid_profiling_enabled() {
-  return ::FarLib::get_config().profiling_enabled;
+  return ::starfish::get_config().profiling_enabled;
 }
 
 inline bool ConcurrentArrayCache::hybrid_profile_object_access_enabled() {
-  return ::FarLib::get_config().profiling_object_access_enabled;
+  return ::starfish::get_config().profiling_object_access_enabled;
 }
 
 inline bool ConcurrentArrayCache::hybrid_profile_dereference_access_enabled() {
-  return ::FarLib::get_config().profiling_dereference_enabled;
+  return ::starfish::get_config().profiling_dereference_enabled;
 }
 
 inline uint32_t ConcurrentArrayCache::local_fast_path_sample_weight() {
   const size_t shift =
-      ::FarLib::get_config().hybrid_profile_local_fast_path_sample_shift;
+      ::starfish::get_config().hybrid_profile_local_fast_path_sample_shift;
   constexpr size_t MaxShift = std::numeric_limits<uint32_t>::digits - 2;
   if (shift >= MaxShift) {
     return std::numeric_limits<uint32_t>::max();
@@ -226,7 +226,7 @@ inline uint32_t ConcurrentArrayCache::local_fast_path_sample_weight() {
 
 inline bool ConcurrentArrayCache::should_sample_local_fast_path() {
   const size_t shift =
-      ::FarLib::get_config().hybrid_profile_local_fast_path_sample_shift;
+      ::starfish::get_config().hybrid_profile_local_fast_path_sample_shift;
   if (shift == 0) {
     return true;
   }
@@ -334,7 +334,7 @@ ConcurrentArrayCache::update_frequency_profile_on_mark(
     result.window_frequency = entry.consume_window_frequency();
     entry.update_ema_frequency(
         result.window_frequency,
-        ::FarLib::get_config().hybrid_profile_frequency_ema_shift);
+        ::starfish::get_config().hybrid_profile_frequency_ema_shift);
   } else {
     result.window_frequency = entry.load_window_frequency();
   }
@@ -344,4 +344,4 @@ ConcurrentArrayCache::update_frequency_profile_on_mark(
   return result;
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

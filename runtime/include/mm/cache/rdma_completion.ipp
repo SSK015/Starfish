@@ -2,12 +2,12 @@
 #include "mm/cache/concurrent_cache.hpp"
 #include "mm/evacuator/eviction_commit.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 namespace detail {
 
 struct NormalReadIdentity {
-  ::FarLib::allocator::BlockHead *block = nullptr;
+  ::starfish::allocator::BlockHead *block = nullptr;
   void *local_addr = nullptr;
   uint16_t generation = 0;
   bool tagged = false;
@@ -21,25 +21,26 @@ inline NormalReadIdentity decode_normal_read_wr_id(
     uint64_t wr_id, bool allow_raw_pointer = false) {
   NormalReadIdentity result;
   if (wr_id == 0) return result;
-  const bool tagged = ::FarLib::allocator::is_normal_read_wr_id(wr_id);
+  const bool tagged = ::starfish::allocator::is_normal_read_wr_id(wr_id);
   if (!tagged && !allow_raw_pointer) return result;
   const uintptr_t data_addr = reinterpret_cast<uintptr_t>(
-      tagged ? ::FarLib::allocator::normal_read_wr_id_local_addr(wr_id)
+      tagged ? ::starfish::allocator::normal_read_wr_id_local_addr(wr_id)
              : reinterpret_cast<void *>(wr_id));
-  const uintptr_t heap_addr =
-      reinterpret_cast<uintptr_t>(::FarLib::allocator::global_heap.get_heap());
-  const size_t heap_size = ::FarLib::allocator::global_heap.get_heap_size();
+  const uintptr_t heap_addr = reinterpret_cast<uintptr_t>(
+      ::starfish::allocator::global_heap.get_heap());
+  const size_t heap_size = ::starfish::allocator::global_heap.get_heap_size();
   if (heap_addr == 0 || data_addr < heap_addr) return result;
   const uintptr_t offset = data_addr - heap_addr;
-  if (offset < sizeof(::FarLib::allocator::BlockHead) || offset >= heap_size) {
+  if (offset < sizeof(::starfish::allocator::BlockHead) ||
+      offset >= heap_size) {
     return result;
   }
-  result.block = reinterpret_cast<::FarLib::allocator::BlockHead *>(
-      data_addr - sizeof(::FarLib::allocator::BlockHead));
+  result.block = reinterpret_cast<::starfish::allocator::BlockHead *>(
+      data_addr - sizeof(::starfish::allocator::BlockHead));
   result.local_addr = reinterpret_cast<void *>(data_addr);
   result.tagged = tagged;
   result.generation =
-      tagged ? ::FarLib::allocator::normal_read_wr_id_generation(wr_id) : 0;
+      tagged ? ::starfish::allocator::normal_read_wr_id_generation(wr_id) : 0;
   if (tagged && (result.generation == 0 ||
                  result.block->rdma_read_generation.load(
                      std::memory_order_acquire) != result.generation)) {
@@ -94,7 +95,7 @@ inline bool release_normal_read_pin(uint64_t wr_id) {
     // A mark/evict pass may have retained a FREE block solely for this
     // READ.  Make the next reclaim pass notice the transition to zero even
     // when no write completion is involved.
-    ::FarLib::allocator::block_to_region(block)->pending_reclaims.fetch_add(
+    ::starfish::allocator::block_to_region(block)->pending_reclaims.fetch_add(
         1, std::memory_order_release);
   }
   return true;
@@ -103,8 +104,8 @@ inline bool release_normal_read_pin(uint64_t wr_id) {
 }  // namespace detail
 
 inline void ConcurrentArrayCache::complete_evict_writeback(void *local_ptr) {
-  ::FarLib::allocator::BlockHead *block =
-      static_cast<::FarLib::allocator::BlockHead *>(local_ptr) - 1;
+  ::starfish::allocator::BlockHead *block =
+      static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
 retry:
   auto obj = block->obj_meta_data.load(std::memory_order_acquire);
   // A duplicate or delayed completion may arrive after the first
@@ -161,8 +162,8 @@ retry:
         // The block remains linked from marked_list until a reclaim pass.
         // Publish the asynchronous completion so the allocator cannot
         // reclaim/reuse it before a late duplicate completion is seen.
-        ::FarLib::allocator::block_to_region(block)->pending_reclaims.fetch_add(
-            1, std::memory_order_release);
+        ::starfish::allocator::block_to_region(block)
+            ->pending_reclaims.fetch_add(1, std::memory_order_release);
       } else {
         // maybe another rdma request (write back) in the progress
         // do not mark it as remote to prevent reallocating memory to
@@ -171,7 +172,7 @@ retry:
       }
       break;
     case EntryState::LOCAL: {
-      if (new_state.ref_cnt != 0 || !::FarLib::get_config().exclusive_cache) {
+      if (new_state.ref_cnt != 0 || !::starfish::get_config().exclusive_cache) {
         if (!entry.cas_state_weak(old_state, new_state)) goto retry;
         break;
       }
@@ -266,12 +267,12 @@ inline void ConcurrentArrayCache::handle_rdma_write_complete(const ibv_wc &wc) {
 inline void ConcurrentArrayCache::handle_rdma_write_error(const ibv_wc &wc) {
   if (!is_normal_write_wr_id(wc.wr_id)) return;
   void *local_ptr = normal_write_wr_id_local_addr(wc.wr_id);
-  auto *heap = ::FarLib::allocator::global_heap.get_heap();
+  auto *heap = ::starfish::allocator::global_heap.get_heap();
   const uintptr_t heap_begin = reinterpret_cast<uintptr_t>(heap);
   const uintptr_t data = reinterpret_cast<uintptr_t>(local_ptr);
-  const size_t heap_size = ::FarLib::allocator::global_heap.get_heap_size();
+  const size_t heap_size = ::starfish::allocator::global_heap.get_heap_size();
   if (heap_begin == 0 || data < heap_begin ||
-      data - heap_begin < sizeof(::FarLib::allocator::BlockHead) ||
+      data - heap_begin < sizeof(::starfish::allocator::BlockHead) ||
       data - heap_begin >= heap_size) {
     static std::atomic<uint64_t> bad_write_tokens{0};
     if (bad_write_tokens.fetch_add(1, std::memory_order_relaxed) < 8) {
@@ -280,7 +281,7 @@ inline void ConcurrentArrayCache::handle_rdma_write_error(const ibv_wc &wc) {
     }
     return;
   }
-  auto *block = static_cast<::FarLib::allocator::BlockHead *>(local_ptr) - 1;
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
   auto obj = block->obj_meta_data.load(std::memory_order_acquire);
   if (obj.is_null()) return;
   auto &entry = get_entry_of(obj);
@@ -320,7 +321,7 @@ retry:
     next.state = REMOTE;
     next.dirty = 0;
     if (!entry.cas_state_strong(lock_state, next)) goto retry;
-    const bool consumed = ::FarLib::design2::consume_six_pending_evict_once(
+    const bool consumed = ::starfish::design2::consume_six_pending_evict_once(
         [&entry] { return entry.take_six_pending_evict(); },
         [this, &entry, size = obj.size](bool dirty) {
           six_commit_evict(entry, size, dirty);
@@ -333,7 +334,7 @@ retry:
     // Recipe-only durable state: no bytes were written, but the binding
     // and dead remote identity remain available for a future recompute.
     block->obj_meta_data.store(far_obj_t::null(), std::memory_order_release);
-    ::FarLib::allocator::block_to_region(block)->pending_reclaims.fetch_add(
+    ::starfish::allocator::block_to_region(block)->pending_reclaims.fetch_add(
         1, std::memory_order_release);
     recomputable_failed_writes_.fetch_add(1, std::memory_order_relaxed);
     recomputable_virtual_evictions_.fetch_add(1, std::memory_order_relaxed);
@@ -357,7 +358,7 @@ retry:
     auto cleanup_state = next;
     cleanup_state.invalid = 1;
     if (!entry.cas_state_strong(lock_state, cleanup_state)) goto retry;
-    const bool consumed = ::FarLib::design2::discard_six_pending_evict_once(
+    const bool consumed = ::starfish::design2::discard_six_pending_evict_once(
         [&entry] { return entry.take_six_pending_evict(); });
     if (six_dirty_routing_enabled()) ASSERT(consumed);
     if (entry.has_remote_backup_reservation()) {
@@ -393,7 +394,7 @@ retry:
   auto cleanup_state = next;
   cleanup_state.invalid = 1;
   if (!entry.cas_state_strong(lock_state, cleanup_state)) goto retry;
-  const bool consumed = ::FarLib::design2::discard_six_pending_evict_once(
+  const bool consumed = ::starfish::design2::discard_six_pending_evict_once(
       [&entry] { return entry.take_six_pending_evict(); });
   if (six_dirty_routing_enabled()) ASSERT(consumed);
   auto published_state = cleanup_state;
@@ -478,7 +479,7 @@ inline void ConcurrentArrayCache::handle_rdma_read_complete(
   const auto identity =
       detail::decode_normal_read_wr_id(wc.wr_id, !release_read_pin);
   void *local_ptr = identity.local_addr;
-  ::FarLib::allocator::BlockHead *block = identity.block;
+  ::starfish::allocator::BlockHead *block = identity.block;
   if (block == nullptr) [[unlikely]] {
     static std::atomic<int> invalid_read_wr_id_log{0};
     if (invalid_read_wr_id_log.fetch_add(1, std::memory_order_relaxed) < 10) {
@@ -524,7 +525,7 @@ retry:
   if (old_state.state != EntryState::FETCHING) [[unlikely]] {
     return;
   }
-  if (::FarLib::get_config().exclusive_cache) {
+  if (::starfish::get_config().exclusive_cache) {
     if (old_state.invalid) [[unlikely]] {
       auto spin_start = get_cycles();
       profile::count_excl_move_lock_spin();
@@ -669,7 +670,7 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
     // retried, but every later read of a segment that lives on it has to be
     // served from the surviving segments of its slot group instead.
     // Gated: with ft_method=none this branch is exactly the old one.
-    if (::FarLib::get_config().is_ec_batch_mode()) [[unlikely]] {
+    if (::starfish::get_config().is_ec_batch_mode()) [[unlikely]] {
       note_ec_recovery_error_wc(wc);
       if (ec_batch::is_ec_batch_wr_id(wc.wr_id)) {
         // Failed/flush completions also discharge hardware ownership.
@@ -690,7 +691,7 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
       }
       return;
     }
-    if (::FarLib::allocator::is_normal_read_wr_id(wc.wr_id)) {
+    if (::starfish::allocator::is_normal_read_wr_id(wc.wr_id)) {
       const auto identity = detail::decode_normal_read_wr_id(wc.wr_id, false);
       if (identity.block != nullptr) {
         const auto obj =
@@ -700,7 +701,7 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
           if (entry.has_recompute_recipe() &&
               entry.load_state(std::memory_order_acquire).state ==
                   EntryState::FETCHING) {
-            ::FarLib::allocator::begin_normal_read_recovery(identity.block);
+            ::starfish::allocator::begin_normal_read_recovery(identity.block);
           }
         }
       }
@@ -745,7 +746,7 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
     // EC commit RPC: the SEND completion releases its client send slot.
     // Gated: with ft_method=none the condition is false and the WC is
     // ignored exactly as before.
-    if (::FarLib::get_config().ft_enabled() &&
+    if (::starfish::get_config().ft_enabled() &&
         rdma::Client::release_sponge_commit_send_slot(wc.wr_id)) {
       return;
     }
@@ -753,7 +754,8 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
   } else if (wc.opcode == IBV_WC_RECV) {
     if (handle_ec_incremental_complete(wc)) return;
     // EC commit RPC: the data server's final ACK releases the eviction.
-    if (::FarLib::get_config().ft_enabled() && handle_sponge_ack_complete(wc)) {
+    if (::starfish::get_config().ft_enabled() &&
+        handle_sponge_ack_complete(wc)) {
       return;
     }
     // Control QP operations - ignore
@@ -767,4 +769,4 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
   }
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

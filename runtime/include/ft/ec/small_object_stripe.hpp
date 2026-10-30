@@ -7,7 +7,7 @@
 // two deliberate adaptations:
 //
 //   1. The shard size is generalized to the region size of *this* tree
-//      (::FarLib::allocator::RegionSize == 256 KiB, see
+//      (::starfish::allocator::RegionSize == 256 KiB, see
 //      include/cache/region_based_allocator.hpp) instead of the prototype's
 //      hard-coded 512 KiB.  A stripe is 4 data shards + 2 parity shards and
 //      every shard occupies one whole region.
@@ -57,15 +57,15 @@
 #include "transport/rdma/config.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // One EC shard is one region.  The value must track the library's region size;
 // the static_assert below makes any drift a compile-time error.
 inline constexpr size_t SmallObjectStripeShardSize =
-    ::FarLib::allocator::RegionSize;
+    ::starfish::allocator::RegionSize;
 static_assert(
     SmallObjectStripeShardSize ==
-        ::FarLib::rdma::Configure::ft_ec_shard_size_bytes,
+        ::starfish::rdma::Configure::ft_ec_shard_size_bytes,
     "EC shard size must equal the region size (and ft_small_stripe_shard_size_bytes)");
 
 // Geometry: 4 data shards + 2 parity shards, one region each.
@@ -96,7 +96,7 @@ struct BackgroundRebuildStripe {
   // codeword validation; free/dead slots are deliberately not listed.
   std::vector<uint32_t> live_slot_ids;
   BackgroundRebuildStripe() {
-    original_base.fill(::FarLib::allocator::remote::InvalidRemoteAddr);
+    original_base.fill(::starfish::allocator::remote::InvalidRemoteAddr);
     endpoint.fill(std::numeric_limits<uint32_t>::max());
   }
 };
@@ -117,7 +117,7 @@ struct BackgroundRebuildSet {
   std::vector<uint32_t> live_slot_ids;
 
   BackgroundRebuildSet() {
-    original_base.fill(::FarLib::allocator::remote::InvalidRemoteAddr);
+    original_base.fill(::starfish::allocator::remote::InvalidRemoteAddr);
     endpoint.fill(std::numeric_limits<uint32_t>::max());
   }
 };
@@ -210,7 +210,7 @@ class SmallObjectStripeShardTable {
     return loc;
   }
 
-  static bool size_is_supported(const ::FarLib::rdma::Configure &config,
+  static bool size_is_supported(const ::starfish::rdma::Configure &config,
                                 size_t size) {
     return config.ft_small_object(size);
   }
@@ -226,11 +226,11 @@ class SmallObjectStripeShardTable {
 
 class SmallObjectStripeManager {
  public:
-  using BackgroundRebuildStripe = ::FarLib::cache::BackgroundRebuildStripe;
-  using BackgroundRebuildSet = ::FarLib::cache::BackgroundRebuildSet;
-  using BackgroundRebuildStatus = ::FarLib::cache::BackgroundRebuildStatus;
+  using BackgroundRebuildStripe = ::starfish::cache::BackgroundRebuildStripe;
+  using BackgroundRebuildSet = ::starfish::cache::BackgroundRebuildSet;
+  using BackgroundRebuildStatus = ::starfish::cache::BackgroundRebuildStatus;
   using View = BackgroundRebuildStripe;
-#ifdef FARLIB_REBUILD_TEST_HOOK
+#ifdef STARFISH_REBUILD_TEST_HOOK
   inline static void (*background_test_after_create)(SmallObjectStripeManager *,
                                                      uint64_t) = nullptr;
 #endif
@@ -266,7 +266,7 @@ class SmallObjectStripeManager {
   static constexpr uint64_t kInvalidStripeId =
       std::numeric_limits<uint64_t>::max();
   static constexpr uint64_t kInvalidRemoteAddr =
-      ::FarLib::allocator::remote::InvalidRemoteAddr;
+      ::starfish::allocator::remote::InvalidRemoteAddr;
   static constexpr uint64_t kBitsPerWord = 64;
   static constexpr uint64_t kInvalidBinding =
       std::numeric_limits<uint64_t>::max();
@@ -651,7 +651,7 @@ class SmallObjectStripeManager {
   };
 
   struct LocalLeases {
-    std::array<LocalLeaseEntry, ::FarLib::allocator::RegionBinCount> bins;
+    std::array<LocalLeaseEntry, ::starfish::allocator::RegionBinCount> bins;
   };
 
   SmallObjectStripeShardTable shard_table_;
@@ -666,17 +666,17 @@ class SmallObjectStripeManager {
   std::mutex recovery_replacement_mutex_;
   std::atomic<uint64_t> recovery_replacement_limit_stripes_{0};
   std::atomic<uint64_t> recovery_replacement_stripes_{0};
-  std::array<SizeClassPool, ::FarLib::allocator::RegionBinCount> pools_;
+  std::array<SizeClassPool, ::starfish::allocator::RegionBinCount> pools_;
   // Group allocations use their own candidate pool: group stripes stay out
   // of the single-object pool so the two paths cannot hand out the same
   // slot offset.
-  std::array<SizeClassPool, ::FarLib::allocator::RegionBinCount> group_pools_;
+  std::array<SizeClassPool, ::starfish::allocator::RegionBinCount> group_pools_;
   // Direct reuse index: one atomic stripe-summary bitmap per (size class,
   // behavior) key. Stripe-local candidate bitmaps carry exact slot IDs;
   // summaries avoid scanning unrelated stripes while remaining lock-free
   // for readers.
   std::array<std::array<AtomicBitmap, kReuseBehaviorGroupCount>,
-             ::FarLib::allocator::RegionBinCount>
+             ::starfish::allocator::RegionBinCount>
       reuse_stripe_summaries_;
   // create_stripe() and the rebuild scan use this barrier to ensure that a
   // pre-failure endpoint selection cannot be published after the scan limit
@@ -701,14 +701,14 @@ class SmallObjectStripeManager {
   inline static thread_local LocalReuseCursor local_reuse_cursor_;
 
   static size_t bin_from_size(size_t size) {
-    size_t wsize = ::FarLib::allocator::wsize_from_size(size);
-    size_t bin = ::FarLib::allocator::bin_from_wsize(wsize);
-    assert(::FarLib::allocator::get_bin_size(bin) >= size);
+    size_t wsize = ::starfish::allocator::wsize_from_size(size);
+    size_t bin = ::starfish::allocator::bin_from_wsize(wsize);
+    assert(::starfish::allocator::get_bin_size(bin) >= size);
     return bin;
   }
 
   uint64_t allocate_region_for_endpoint(size_t endpoint_idx) {
-    return ::FarLib::allocator::remote::remote_global_heap
+    return ::starfish::allocator::remote::remote_global_heap
         .allocate_whole_region_on_endpoint(endpoint_idx);
   }
 
@@ -718,9 +718,8 @@ class SmallObjectStripeManager {
       if (shard_base[shard] == kInvalidRemoteAddr) {
         continue;
       }
-      bool ok =
-          ::FarLib::allocator::remote::remote_global_heap.release_whole_region(
-              shard_base[shard]);
+      bool ok = ::starfish::allocator::remote::remote_global_heap
+                    .release_whole_region(shard_base[shard]);
       ASSERT(ok);
     }
   }
@@ -735,7 +734,7 @@ class SmallObjectStripeManager {
         const uint64_t target = stripe_ptr->rebuilt_base[shard].exchange(
             kInvalidRemoteAddr, std::memory_order_acq_rel);
         if (target == kInvalidRemoteAddr) continue;
-        const bool ok = ::FarLib::allocator::remote::remote_global_heap
+        const bool ok = ::starfish::allocator::remote::remote_global_heap
                             .release_whole_region(target);
         ASSERT(ok);
       }
@@ -762,7 +761,7 @@ class SmallObjectStripeManager {
                                  uint16_t bin) {
     assert(stripe_id <= kStripeIdMask);
     assert(shard_idx < kDataShards);
-    assert(bin < ::FarLib::allocator::RegionBinCount);
+    assert(bin < ::starfish::allocator::RegionBinCount);
     return (stripe_id & kStripeIdMask) |
            (static_cast<uint64_t>(shard_idx) << 48) |
            (static_cast<uint64_t>(bin) << 56);
@@ -955,7 +954,7 @@ class SmallObjectStripeManager {
   // Behavior-independent aggregate hint. Exact candidate slots live in the
   // per-behavior bitmaps, so this helper never walks group records.
   static bool stripe_has_reuse_candidate_locked(const Stripe &stripe) {
-    if (!::FarLib::ec_benchmark_phase::enabled()) {
+    if (!::starfish::ec_benchmark_phase::enabled()) {
       if (stripe.group_state_words.empty()) return false;
       for (uint32_t slot = 0; slot < stripe.slots_per_shard; slot++) {
         if (group_state_locked(stripe, slot) != kSlotGroupSealed ||
@@ -988,7 +987,7 @@ class SmallObjectStripeManager {
   }
 
   static bool group_endpoints_alive_for_reuse(const Stripe &stripe) {
-    auto &heap = ::FarLib::allocator::remote::remote_global_heap;
+    auto &heap = ::starfish::allocator::remote::remote_global_heap;
     if (!heap.endpoint_liveness_enabled()) return true;
     for (uint8_t shard = 0; shard < kShardCount; shard++) {
       const uint32_t endpoint = stripe.shard_endpoint[shard];
@@ -1034,7 +1033,7 @@ class SmallObjectStripeManager {
     stripe.group_payload_sizes.assign(stripe.slots_per_shard,
                                       std::array<uint32_t, kDataShards>{});
     stripe.group_payload_unknown.assign(stripe.slots_per_shard, 0);
-    if (::FarLib::ec_benchmark_phase::enabled()) {
+    if (::starfish::ec_benchmark_phase::enabled()) {
       for (uint8_t behavior = 0; behavior < kReuseBehaviorGroupCount;
            behavior++) {
         stripe.reuse_bits[behavior].init_empty(stripe.slots_per_shard);
@@ -1247,7 +1246,7 @@ class SmallObjectStripeManager {
     // Creation publishes the empty stripe before its first group is
     // reserved. Recheck under the stripe lock: a fault can land between
     // those events, after the rebuild scan already skipped the empty stripe.
-    if (::FarLib::get_config().ft_background_rebuild &&
+    if (::starfish::get_config().ft_background_rebuild &&
         !stripe_eligible_for_new_group(stripe))
       return false;
     if (!ensure_group_metadata_locked(stripe)) return false;
@@ -1399,19 +1398,19 @@ class SmallObjectStripeManager {
   }
 
   bool endpoint_alive_for_policy(size_t endpoint_idx) const {
-    return ::FarLib::allocator::remote::remote_global_heap
+    return ::starfish::allocator::remote::remote_global_heap
         .endpoint_is_eligible_for_allocation(endpoint_idx);
   }
 
   bool standby_active_for_policy() const {
-    return ::FarLib::allocator::remote::remote_global_heap
+    return ::starfish::allocator::remote::remote_global_heap
         .standby_active_for_allocation();
   }
 
   size_t count_endpoints_for_new_allocations() const {
     size_t count = 0;
     const size_t endpoint_count =
-        ::FarLib::allocator::remote::remote_global_heap.endpoint_count();
+        ::starfish::allocator::remote::remote_global_heap.endpoint_count();
     for (size_t endpoint = 0; endpoint < endpoint_count; endpoint++) {
       if (endpoint_alive_for_policy(endpoint)) count++;
     }
@@ -1425,9 +1424,9 @@ class SmallObjectStripeManager {
     std::vector<size_t> regular;
     const bool standby_active = standby_active_for_policy();
     const int standby_endpoint =
-        ::FarLib::allocator::remote::remote_global_heap.standby_endpoint();
+        ::starfish::allocator::remote::remote_global_heap.standby_endpoint();
     const size_t endpoint_count =
-        ::FarLib::allocator::remote::remote_global_heap.endpoint_count();
+        ::starfish::allocator::remote::remote_global_heap.endpoint_count();
     for (size_t endpoint = 0; endpoint < endpoint_count; endpoint++) {
       if (!endpoint_alive_for_policy(endpoint)) continue;
       if (standby_active && endpoint == static_cast<size_t>(standby_endpoint)) {
@@ -1459,7 +1458,7 @@ class SmallObjectStripeManager {
   bool stripe_eligible_for_new_group(const Stripe &stripe) const {
     const bool standby_active = standby_active_for_policy();
     const int standby_endpoint =
-        ::FarLib::allocator::remote::remote_global_heap.standby_endpoint();
+        ::starfish::allocator::remote::remote_global_heap.standby_endpoint();
     bool has_standby = false;
     for (uint8_t shard = 0; shard < kShardCount; shard++) {
       const uint32_t endpoint = stripe.shard_endpoint[shard];
@@ -1475,7 +1474,7 @@ class SmallObjectStripeManager {
     // Fresh stripe selection still includes the standby. Retain the
     // legacy policy when background reconstruction is disabled.
     return !standby_active || has_standby ||
-           ::FarLib::get_config().ft_background_rebuild;
+           ::starfish::get_config().ft_background_rebuild;
   }
 
   static bool reuse_behavior_indexable(uint32_t behavior_group) {
@@ -1483,14 +1482,14 @@ class SmallObjectStripeManager {
   }
 
   AtomicBitmap &reuse_summary(uint16_t bin, uint32_t behavior_group) {
-    assert(bin < ::FarLib::allocator::RegionBinCount);
+    assert(bin < ::starfish::allocator::RegionBinCount);
     assert(reuse_behavior_indexable(behavior_group));
     return reuse_stripe_summaries_[bin][behavior_group];
   }
 
   const AtomicBitmap &reuse_summary(uint16_t bin,
                                     uint32_t behavior_group) const {
-    assert(bin < ::FarLib::allocator::RegionBinCount);
+    assert(bin < ::starfish::allocator::RegionBinCount);
     assert(reuse_behavior_indexable(behavior_group));
     return reuse_stripe_summaries_[bin][behavior_group];
   }
@@ -1520,7 +1519,7 @@ class SmallObjectStripeManager {
   // The summary is deliberately conservative: an occasional stale set bit
   // is revalidated and cleared by begin_slot_reuse_indexed().
   void update_reuse_index_locked(Stripe &stripe, uint32_t slot) {
-    if (!::FarLib::ec_benchmark_phase::enabled()) return;
+    if (!::starfish::ec_benchmark_phase::enabled()) return;
     if (slot >= stripe.slots_per_shard || stripe.reuse_bits[0].words.empty()) {
       return;
     }
@@ -1557,7 +1556,7 @@ class SmallObjectStripeManager {
   }
 
   void clear_reuse_index_locked(Stripe &stripe, uint32_t slot) {
-    if (!::FarLib::ec_benchmark_phase::enabled()) return;
+    if (!::starfish::ec_benchmark_phase::enabled()) return;
     if (slot >= stripe.slots_per_shard || stripe.reuse_bits[0].words.empty()) {
       return;
     }
@@ -1574,7 +1573,7 @@ class SmallObjectStripeManager {
   // full cleanup) rather than scanning all six keys per object.
   void clear_reuse_key_locked(Stripe &stripe, uint32_t slot,
                               uint32_t behavior_group) {
-    if (!::FarLib::ec_benchmark_phase::enabled() ||
+    if (!::starfish::ec_benchmark_phase::enabled() ||
         !reuse_behavior_indexable(behavior_group) ||
         slot >= stripe.slots_per_shard ||
         stripe.reuse_bits[behavior_group].words.empty()) {
@@ -1585,7 +1584,7 @@ class SmallObjectStripeManager {
   }
 
   void clear_all_reuse_index_locked(Stripe &stripe) {
-    if (!::FarLib::ec_benchmark_phase::enabled()) return;
+    if (!::starfish::ec_benchmark_phase::enabled()) return;
     if (stripe.reuse_bits[0].words.empty()) return;
     for (uint8_t key = 0; key < kReuseBehaviorGroupCount; key++) {
       for (uint64_t &word : stripe.reuse_bits[key].words) word = 0;
@@ -1680,10 +1679,10 @@ class SmallObjectStripeManager {
                         bool backup_growth = false,
                         bool recovery_replacement = false) {
     if (backup_growth && recovery_replacement) return nullptr;
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     std::array<size_t, kShardCount> endpoints{};
     const bool endpoint_liveness_enabled =
-        ::FarLib::allocator::remote::remote_global_heap
+        ::starfish::allocator::remote::remote_global_heap
             .endpoint_liveness_enabled();
     if (!endpoint_liveness_enabled) {
       // Preserve the pre-standby placement exactly for sponge and for
@@ -1750,7 +1749,7 @@ class SmallObjectStripeManager {
     stripe->group_stripe = require_distinct_endpoints;
     stripe->bin = static_cast<uint16_t>(bin);
     stripe->slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     stripe->slots_per_shard =
         static_cast<uint32_t>(shard_table_.shard_size() / stripe->slot_size);
     stripe->live_count = 0;
@@ -1772,11 +1771,11 @@ class SmallObjectStripeManager {
     // particular, a selection made before failure must not be published
     // after the standby becomes active.
     if (endpoint_liveness_enabled &&
-        ::FarLib::get_config().ft_background_rebuild) {
+        ::starfish::get_config().ft_background_rebuild) {
       bool has_standby = false;
       const bool standby_active = standby_active_for_policy();
       const int standby_endpoint =
-          ::FarLib::allocator::remote::remote_global_heap.standby_endpoint();
+          ::starfish::allocator::remote::remote_global_heap.standby_endpoint();
       for (uint8_t a = 0; a < kShardCount; a++) {
         if (!endpoint_alive_for_policy(endpoints[a])) {
           release_allocated_shards(shard_base);
@@ -1849,8 +1848,8 @@ class SmallObjectStripeManager {
     for (size_t i = 0; i < stripe_capacity_; i++) {
       stripe_index_[i].store(nullptr, std::memory_order_relaxed);
     }
-    if (::FarLib::ec_benchmark_phase::enabled()) {
-      for (size_t bin = 0; bin < ::FarLib::allocator::RegionBinCount; bin++) {
+    if (::starfish::ec_benchmark_phase::enabled()) {
+      for (size_t bin = 0; bin < ::starfish::allocator::RegionBinCount; bin++) {
         for (uint8_t behavior = 0; behavior < kReuseBehaviorGroupCount;
              behavior++) {
           reuse_stripe_summaries_[bin][behavior].init(stripe_capacity_);
@@ -1888,7 +1887,7 @@ class SmallObjectStripeManager {
   }
 
   bool recovery_replacement_enabled() const {
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     return config.ft_rmw_read_failure_fallback &&
            config.ft_incremental_one_sided && config.server_count > 0 &&
            live_endpoint_count() < static_cast<size_t>(config.server_count);
@@ -1904,8 +1903,8 @@ class SmallObjectStripeManager {
 
   bool enabled() const { return shard_table_.enabled(); }
 
-  ::FarLib::runtime_metadata::Snapshot metadata_usage() {
-    using Snapshot = ::FarLib::runtime_metadata::Snapshot;
+  ::starfish::runtime_metadata::Snapshot metadata_usage() {
+    using Snapshot = ::starfish::runtime_metadata::Snapshot;
     Snapshot snapshot{};
 
     // Inline manager storage is counted once, including compiler padding.
@@ -2028,7 +2027,7 @@ class SmallObjectStripeManager {
   // standby.  The transition is idempotent; false means invalid or already
   // dead, and no allocator state is changed in either case.
   bool mark_endpoint_dead(size_t endpoint_idx) {
-    return ::FarLib::allocator::remote::remote_global_heap.mark_endpoint_dead(
+    return ::starfish::allocator::remote::remote_global_heap.mark_endpoint_dead(
         endpoint_idx);
   }
   // Capture an exclusive upper bound for a background scan.  The same
@@ -2067,8 +2066,8 @@ class SmallObjectStripeManager {
       BackgroundRebuildStripe *view_out) const {
     if (view_out == nullptr) return BackgroundRebuildStatus::Unsupported;
     *view_out = BackgroundRebuildStripe{};
-    if (failed_endpoint >=
-            ::FarLib::allocator::remote::remote_global_heap.endpoint_count() ||
+    if (failed_endpoint >= ::starfish::allocator::remote::remote_global_heap
+                               .endpoint_count() ||
         endpoint_is_alive(failed_endpoint))
       return BackgroundRebuildStatus::Unsupported;
     const Stripe *stripe = stripe_by_id(stripe_id);
@@ -2147,13 +2146,14 @@ class SmallObjectStripeManager {
         view.live_objects < view.live_groups) {
       return false;
     }
-    const auto &cfg = ::FarLib::get_config();
+    const auto &cfg = ::starfish::get_config();
     const auto mapped = cfg.map_remote_addr(target_base);
     if (cfg.ft_standby_endpoint < 0 ||
         mapped.first != static_cast<size_t>(cfg.ft_standby_endpoint) ||
         !endpoint_is_alive(mapped.first) ||
         view.failed_endpoint >=
-            ::FarLib::allocator::remote::remote_global_heap.endpoint_count() ||
+            ::starfish::allocator::remote::remote_global_heap
+                .endpoint_count() ||
         endpoint_is_alive(view.failed_endpoint) ||
         !cfg.validate_mapping(target_base, view.shard_bytes))
       return false;
@@ -2231,7 +2231,7 @@ class SmallObjectStripeManager {
     if (view_out == nullptr) return BackgroundRebuildStatus::Unsupported;
     *view_out = BackgroundRebuildSet{};
 
-    const auto &heap = ::FarLib::allocator::remote::remote_global_heap;
+    const auto &heap = ::starfish::allocator::remote::remote_global_heap;
     const size_t endpoint_count = heap.endpoint_count();
     if (endpoint_count == 0 || endpoint_count > 64 ||
         missing_endpoint_mask == 0) {
@@ -2279,7 +2279,7 @@ class SmallObjectStripeManager {
       return BackgroundRebuildStatus::Unsupported;
     }
     if (missing_count == 2 &&
-        ::FarLib::get_config().ft_background_rebuild_failures != 2) {
+        ::starfish::get_config().ft_background_rebuild_failures != 2) {
       return BackgroundRebuildStatus::Unsupported;
     }
 
@@ -2375,13 +2375,13 @@ class SmallObjectStripeManager {
       return false;
     }
 
-    const auto &cfg = ::FarLib::get_config();
+    const auto &cfg = ::starfish::get_config();
     if (missing_count == 2 && cfg.ft_background_rebuild_failures != 2) {
       return false;
     }
 
     const size_t endpoint_count =
-        ::FarLib::allocator::remote::remote_global_heap.endpoint_count();
+        ::starfish::allocator::remote::remote_global_heap.endpoint_count();
     if (endpoint_count == 0 || endpoint_count > 64) return false;
 
     Stripe *stripe = stripe_by_id(view.stripe_id);
@@ -2567,12 +2567,12 @@ class SmallObjectStripeManager {
 
   // Read-only liveness diagnostics used by recovery/self-check code.
   bool endpoint_is_alive(size_t endpoint_idx) const {
-    return ::FarLib::allocator::remote::remote_global_heap.endpoint_is_alive(
+    return ::starfish::allocator::remote::remote_global_heap.endpoint_is_alive(
         endpoint_idx);
   }
 
   size_t live_endpoint_count() const {
-    return ::FarLib::allocator::remote::remote_global_heap
+    return ::starfish::allocator::remote::remote_global_heap
         .live_endpoint_count();
   }
 
@@ -2636,7 +2636,7 @@ class SmallObjectStripeManager {
   uint64_t allocate(size_t size) {
     size_t bin = bin_from_size(size);
     const uint32_t slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     if (slot_size > shard_table_.shard_size()) {
       return kInvalidRemoteAddr;
     }
@@ -2646,7 +2646,7 @@ class SmallObjectStripeManager {
     bool leased_from_dead = false;
     if (allocate_from_local_lease(static_cast<uint16_t>(bin), &leased_addr,
                                   &leased_accounted_size, &leased_from_dead)) {
-      ::FarLib::allocator::remote::remote_global_heap.inc_used_bytes(
+      ::starfish::allocator::remote::remote_global_heap.inc_used_bytes(
           leased_accounted_size, leased_addr);
       return leased_addr;
     }
@@ -2675,7 +2675,7 @@ class SmallObjectStripeManager {
       if (should_enqueue) {
         set_local_lease(static_cast<uint16_t>(bin), stripe_id);
       }
-      ::FarLib::allocator::remote::remote_global_heap.inc_used_bytes(
+      ::starfish::allocator::remote::remote_global_heap.inc_used_bytes(
           accounted_size, addr);
       return addr;
     }
@@ -2696,7 +2696,7 @@ class SmallObjectStripeManager {
     if (should_enqueue) {
       set_local_lease(static_cast<uint16_t>(bin), stripe->stripe_id);
     }
-    ::FarLib::allocator::remote::remote_global_heap.inc_used_bytes(
+    ::starfish::allocator::remote::remote_global_heap.inc_used_bytes(
         accounted_size, addr);
     return addr;
   }
@@ -2739,7 +2739,7 @@ class SmallObjectStripeManager {
       accounted_size = stripe->slot_size;
       should_enqueue = mark_queued_if_has_space_locked(*stripe);
     }
-    ::FarLib::allocator::remote::remote_global_heap.dec_used_bytes(
+    ::starfish::allocator::remote::remote_global_heap.dec_used_bytes(
         accounted_size, addr);
     if (should_enqueue) {
       push_candidate(binding.bin, binding.stripe_id);
@@ -2767,7 +2767,7 @@ class SmallObjectStripeManager {
     }
     size_t bin = bin_from_size(size);
     const uint32_t slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     if (slot_size > shard_table_.shard_size()) return false;
 
     auto &pool = group_pools_[bin];
@@ -2803,7 +2803,7 @@ class SmallObjectStripeManager {
     Stripe *stripe =
         create_stripe(bin, true, backup_growth, recovery_replacement);
     if (stripe == nullptr) return false;
-#ifdef FARLIB_REBUILD_TEST_HOOK
+#ifdef STARFISH_REBUILD_TEST_HOOK
     if (background_test_after_create)
       background_test_after_create(this, stripe->stripe_id);
 #endif
@@ -2843,7 +2843,7 @@ class SmallObjectStripeManager {
 
     const size_t bin = bin_from_size(size);
     const uint32_t slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     if (slot_size > shard_table_.shard_size()) return 0;
 
     size_t total = 0;
@@ -2912,7 +2912,7 @@ class SmallObjectStripeManager {
     Stripe *stripe =
         create_stripe(bin, true, backup_growth, recovery_replacement);
     if (stripe != nullptr) {
-#ifdef FARLIB_REBUILD_TEST_HOOK
+#ifdef STARFISH_REBUILD_TEST_HOOK
       if (background_test_after_create)
         background_test_after_create(this, stripe->stripe_id);
 #endif
@@ -2946,14 +2946,14 @@ class SmallObjectStripeManager {
   bool begin_slot_reuse_indexed(
       size_t size, uint32_t behavior_group, SlotReuse *reuse_out,
       bool *busy_out = nullptr,
-      ::FarLib::profile::ec_rmw_prepare::Trace *trace = nullptr) {
+      ::starfish::profile::ec_rmw_prepare::Trace *trace = nullptr) {
     if (busy_out != nullptr) *busy_out = false;
-    if (!::FarLib::ec_benchmark_phase::enabled()) return false;
+    if (!::starfish::ec_benchmark_phase::enabled()) return false;
     if (reuse_out == nullptr || size == 0) return false;
     *reuse_out = SlotReuse{};
     const size_t bin = bin_from_size(size);
     const uint32_t slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     if (slot_size > shard_table_.shard_size() || size > slot_size ||
         size > std::numeric_limits<uint32_t>::max()) {
       return false;
@@ -2977,7 +2977,7 @@ class SmallObjectStripeManager {
       size_t index = 0;
       bool summary_found = false;
       {
-        ::FarLib::profile::ec_rmw_prepare::Scope summary_scope(
+        ::starfish::profile::ec_rmw_prepare::Scope summary_scope(
             trace != nullptr ? &trace->summary : nullptr);
         summary_found = summary.find_set(cursor.next_stripe, &index);
       }
@@ -2997,11 +2997,11 @@ class SmallObjectStripeManager {
         continue;
       }
 
-      ::FarLib::profile::ec_rmw_prepare::Scope lock_wait(
+      ::starfish::profile::ec_rmw_prepare::Scope lock_wait(
           trace != nullptr ? &trace->lock_wait : nullptr);
       std::lock_guard<std::mutex> lock(stripe->mutex);
       lock_wait.stop();
-      ::FarLib::profile::ec_rmw_prepare::Scope stripe_held(
+      ::starfish::profile::ec_rmw_prepare::Scope stripe_held(
           trace != nullptr ? &trace->stripe_held : nullptr);
       if (stripe->bin != bin || stripe->slot_size != slot_size ||
           stripe->group_state_words.empty() || !endpoints_distinct(*stripe) ||
@@ -3012,7 +3012,7 @@ class SmallObjectStripeManager {
         // holding the stripe lock so no later publication is lost.
         if (stripe->bin == bin && stripe->slot_size == slot_size) {
           {
-            ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+            ::starfish::profile::ec_rmw_prepare::Scope index_scope(
                 trace != nullptr ? &trace->index : nullptr);
             clear_all_reuse_index_locked(*stripe);
             summary.reset(index);
@@ -3027,7 +3027,7 @@ class SmallObjectStripeManager {
       if (!candidates.find_set(stripe->reuse_scan_slot, &slot) ||
           slot >= stripe->slots_per_shard) {
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_summary_if_empty_locked(*stripe, behavior_group);
           refresh_reuse_hint_locked(*stripe);
@@ -3045,7 +3045,7 @@ class SmallObjectStripeManager {
           slot_id >= stripe->group_behavior_group.size() ||
           stripe->group_behavior_group[slot_id] != behavior_group) {
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_key_locked(*stripe, slot_id, behavior_group);
         }
@@ -3056,7 +3056,7 @@ class SmallObjectStripeManager {
       const uint8_t holes = static_cast<uint8_t>(~live & 0x0fu);
       if (holes == 0) {
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_key_locked(*stripe, slot_id, behavior_group);
         }
@@ -3065,7 +3065,7 @@ class SmallObjectStripeManager {
       if (group_update_pending_locked(*stripe, slot_id)) {
         if (busy_out != nullptr) *busy_out = true;
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_key_locked(*stripe, slot_id, behavior_group);
         }
@@ -3076,7 +3076,7 @@ class SmallObjectStripeManager {
       SlotGroupHandle handle;
       if (!fill_group_handle(*stripe, stripe->bin, slot_id, &handle)) {
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_key_locked(*stripe, slot_id, behavior_group);
         }
@@ -3084,7 +3084,7 @@ class SmallObjectStripeManager {
       }
       if (slot_id >= stripe->group_generation.size()) {
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_key_locked(*stripe, slot_id, behavior_group);
         }
@@ -3094,7 +3094,7 @@ class SmallObjectStripeManager {
           next_group_generation_locked(*stripe, slot_id);
       if (generation == 0) {
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_reuse_key_locked(*stripe, slot_id, behavior_group);
         }
@@ -3105,7 +3105,7 @@ class SmallObjectStripeManager {
       // Pending target is no longer readable/reusable. Clear exact
       // candidate bit and summary before exposing reservation.
       {
-        ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+        ::starfish::profile::ec_rmw_prepare::Scope index_scope(
             trace != nullptr ? &trace->index : nullptr);
         clear_reuse_key_locked(*stripe, slot_id, behavior_group);
       }
@@ -3132,20 +3132,20 @@ class SmallObjectStripeManager {
   size_t begin_slot_reuse_indexed_batch(
       size_t size, uint32_t behavior_group, SlotReuse **outputs,
       size_t capacity, bool *busy_out = nullptr,
-      ::FarLib::profile::ec_rmw_prepare::Trace *trace = nullptr) {
+      ::starfish::profile::ec_rmw_prepare::Trace *trace = nullptr) {
     if (busy_out != nullptr) *busy_out = false;
     if (outputs == nullptr || capacity == 0 || size == 0) return 0;
     for (size_t i = 0; i < capacity; ++i) {
       if (outputs[i] == nullptr) return 0;
     }
-    if (!::FarLib::ec_benchmark_phase::enabled()) return 0;
+    if (!::starfish::ec_benchmark_phase::enabled()) return 0;
     if (!reuse_behavior_indexable(behavior_group) || stripe_capacity_ == 0) {
       return 0;
     }
 
     const size_t bin = bin_from_size(size);
     const uint32_t slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     if (slot_size > shard_table_.shard_size() || size > slot_size ||
         size > std::numeric_limits<uint32_t>::max()) {
       return 0;
@@ -3168,7 +3168,7 @@ class SmallObjectStripeManager {
       size_t index = 0;
       bool summary_found = false;
       {
-        ::FarLib::profile::ec_rmw_prepare::Scope summary_scope(
+        ::starfish::profile::ec_rmw_prepare::Scope summary_scope(
             trace != nullptr ? &trace->summary : nullptr);
         summary_found = summary.find_set(cursor.next_stripe, &index);
       }
@@ -3184,11 +3184,11 @@ class SmallObjectStripeManager {
         continue;
       }
 
-      ::FarLib::profile::ec_rmw_prepare::Scope lock_wait(
+      ::starfish::profile::ec_rmw_prepare::Scope lock_wait(
           trace != nullptr ? &trace->lock_wait : nullptr);
       std::lock_guard<std::mutex> lock(stripe->mutex);
       lock_wait.stop();
-      ::FarLib::profile::ec_rmw_prepare::Scope stripe_held(
+      ::starfish::profile::ec_rmw_prepare::Scope stripe_held(
           trace != nullptr ? &trace->stripe_held : nullptr);
 
       if (stripe->bin != bin || stripe->slot_size != slot_size ||
@@ -3198,7 +3198,7 @@ class SmallObjectStripeManager {
         // Endpoint/Stripe invalidation is the exceptional path where
         // all keys must be cleared while this lock is held.
         if (stripe->bin == bin && stripe->slot_size == slot_size) {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           clear_all_reuse_index_locked(*stripe);
           summary.reset(index);
@@ -3233,7 +3233,7 @@ class SmallObjectStripeManager {
         if (!structurally_valid) {
           // Behavior is immutable for a sealed group, so a
           // stale indexed bit can be removed from this key only.
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           candidates.reset(slot_id);
           continue;
@@ -3243,14 +3243,14 @@ class SmallObjectStripeManager {
             static_cast<uint8_t>(stripe->group_live_mask[slot_id] & 0x0fu);
         const uint8_t holes = static_cast<uint8_t>(~live & 0x0fu);
         if (holes == 0) {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           candidates.reset(slot_id);
           continue;
         }
         if (group_update_pending_locked(*stripe, slot_id)) {
           if (busy_out != nullptr) *busy_out = true;
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           candidates.reset(slot_id);
           continue;
@@ -3260,7 +3260,7 @@ class SmallObjectStripeManager {
             static_cast<uint8_t>(__builtin_ctz(static_cast<unsigned>(holes)));
         SlotGroupHandle handle;
         if (!fill_group_handle(*stripe, stripe->bin, slot_id, &handle)) {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           candidates.reset(slot_id);
           continue;
@@ -3268,7 +3268,7 @@ class SmallObjectStripeManager {
         const uint64_t generation =
             next_group_generation_locked(*stripe, slot_id);
         if (generation == 0) {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           candidates.reset(slot_id);
           continue;
@@ -3280,7 +3280,7 @@ class SmallObjectStripeManager {
         stripe->group_pending_mask[slot_id] =
             static_cast<uint8_t>(1u << data_shard);
         {
-          ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+          ::starfish::profile::ec_rmw_prepare::Scope index_scope(
               trace != nullptr ? &trace->index : nullptr);
           candidates.reset(slot_id);
         }
@@ -3297,7 +3297,7 @@ class SmallObjectStripeManager {
       // Publish/clear the manager summary only once for this Stripe;
       // all exact candidate bits above were changed under stripe->mutex.
       {
-        ::FarLib::profile::ec_rmw_prepare::Scope index_scope(
+        ::starfish::profile::ec_rmw_prepare::Scope index_scope(
             trace != nullptr ? &trace->index : nullptr);
         const bool remaining = candidates.any_set();
         if (!remaining) {
@@ -3320,7 +3320,7 @@ class SmallObjectStripeManager {
     *reuse_out = SlotReuse{};
     const size_t bin = bin_from_size(size);
     const uint32_t slot_size =
-        static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+        static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
     if (slot_size > shard_table_.shard_size() || size > slot_size ||
         size > std::numeric_limits<uint32_t>::max()) {
       return false;
@@ -3454,7 +3454,7 @@ class SmallObjectStripeManager {
         static_cast<uint8_t>(stripe->group_payload_unknown[id.slot_id] & ~bit);
     stripe->group_pending_mask[id.slot_id] = 0;
     stripe->live_count++;
-    if (!::FarLib::ec_benchmark_phase::enabled() &&
+    if (!::starfish::ec_benchmark_phase::enabled() &&
         stripe->group_live_mask[id.slot_id] != 0x0fu) {
       stripe->reuse_candidate.store(true, std::memory_order_release);
     } else {
@@ -3486,7 +3486,7 @@ class SmallObjectStripeManager {
           reuses[i]->data_shard >= kDataShards) {
         return false;
       }
-      if (::FarLib::ec_benchmark_phase::enabled() &&
+      if (::starfish::ec_benchmark_phase::enabled() &&
           !reuse_behavior_indexable(reuses[i]->behavior_group)) {
         return false;
       }
@@ -3567,7 +3567,7 @@ class SmallObjectStripeManager {
             static_cast<uint8_t>(stripe->group_payload_unknown[slot] & ~bit);
         stripe->group_pending_mask[slot] = 0;
         stripe->live_count++;
-        if (!::FarLib::ec_benchmark_phase::enabled()) {
+        if (!::starfish::ec_benchmark_phase::enabled()) {
           if (stripe->group_live_mask[slot] != 0x0fu) {
             stripe->reuse_candidate.store(true, std::memory_order_release);
           }
@@ -3581,7 +3581,7 @@ class SmallObjectStripeManager {
           }
         }
       }
-      if (::FarLib::ec_benchmark_phase::enabled()) {
+      if (::starfish::ec_benchmark_phase::enabled()) {
         if (!index_eligible) {
           // Recovery/endpoint invalidation is exceptional: clear
           // every key so no stale candidate survives the failure.
@@ -3638,7 +3638,7 @@ class SmallObjectStripeManager {
       }
       stripe->group_pending_mask[id.slot_id] = 0;
       if (stripe->group_live_mask[id.slot_id] == 0) {
-        const bool retain_empty = ::FarLib::ec_benchmark_phase::enabled() &&
+        const bool retain_empty = ::starfish::ec_benchmark_phase::enabled() &&
                                   id.slot_id < stripe->group_is_split.size() &&
                                   stripe->group_is_split[id.slot_id] == 0;
         if (retain_empty) {
@@ -3647,7 +3647,7 @@ class SmallObjectStripeManager {
           became_dead = mark_dead_group_locked(*stripe, id);
         }
       } else {
-        if (!::FarLib::ec_benchmark_phase::enabled() &&
+        if (!::starfish::ec_benchmark_phase::enabled() &&
             stripe->group_live_mask[id.slot_id] != 0x0fu) {
           stripe->reuse_candidate.store(true, std::memory_order_release);
         } else {
@@ -3679,7 +3679,7 @@ class SmallObjectStripeManager {
         !group_update_pending_locked(*stripe, id.slot_id) &&
         id.slot_id < stripe->group_durable.size()) {
       stripe->group_durable[id.slot_id] = 1;
-      if (!::FarLib::ec_benchmark_phase::enabled() &&
+      if (!::starfish::ec_benchmark_phase::enabled() &&
           id.slot_id < stripe->group_live_mask.size() &&
           (stripe->group_live_mask[id.slot_id] & 0x0fu) != 0x0fu &&
           id.slot_id < stripe->group_is_split.size() &&
@@ -3889,7 +3889,7 @@ class SmallObjectStripeManager {
   // retaining them. This restores normal group accounting before allocator
   // teardown releases backing regions.
   void release_retained_empty_groups_for_shutdown() {
-    if (!::FarLib::ec_benchmark_phase::enabled()) return;
+    if (!::starfish::ec_benchmark_phase::enabled()) return;
     const size_t count =
         static_cast<size_t>(stripe_count_.load(std::memory_order_acquire));
     for (size_t i = 0; i < count && i < stripe_capacity_; i++) {
@@ -4041,7 +4041,7 @@ class SmallObjectStripeManager {
               assert(stripe->group_counts_by_live[prior_live] > 0);
               stripe->group_counts_by_live[prior_live]--;
               stripe->group_counts_by_live[0]++;
-              if (!::FarLib::ec_benchmark_phase::enabled()) {
+              if (!::starfish::ec_benchmark_phase::enabled()) {
                 stripe->reuse_candidate.store(true, std::memory_order_release);
               } else {
                 update_reuse_index_locked(*stripe, slot);
@@ -4054,9 +4054,10 @@ class SmallObjectStripeManager {
             // accounting, group_counts_by_live[0], holes and live
             // count remain coherent; only object payload ownership is
             // removed.  Legacy modes still retire the group below.
-            const bool retain_empty = ::FarLib::ec_benchmark_phase::enabled() &&
-                                      slot < stripe->group_is_split.size() &&
-                                      stripe->group_is_split[slot] == 0;
+            const bool retain_empty =
+                ::starfish::ec_benchmark_phase::enabled() &&
+                slot < stripe->group_is_split.size() &&
+                stripe->group_is_split[slot] == 0;
             if (retain_empty) {
               account_group_object_release_locked(*stripe, slot,
                                                   binding.shard_idx);
@@ -4094,7 +4095,7 @@ class SmallObjectStripeManager {
             assert(stripe->group_counts_by_live[prior_live] > 0);
             stripe->group_counts_by_live[prior_live]--;
             stripe->group_counts_by_live[remaining]++;
-            if (!::FarLib::ec_benchmark_phase::enabled()) {
+            if (!::starfish::ec_benchmark_phase::enabled()) {
               stripe->reuse_candidate.store(true, std::memory_order_release);
             } else {
               update_reuse_index_locked(*stripe, slot);
@@ -4242,9 +4243,9 @@ class SmallObjectStripeManager {
   SpaceUsage space_usage() const {
     SpaceUsage result;
     size_t endpoint_count =
-        ::FarLib::allocator::remote::remote_global_heap.endpoint_count();
+        ::starfish::allocator::remote::remote_global_heap.endpoint_count();
     if (endpoint_count == 0) {
-      const int configured = ::FarLib::get_config().server_count;
+      const int configured = ::starfish::get_config().server_count;
       endpoint_count = configured > 0 ? static_cast<size_t>(configured) : 0;
     }
     result.endpoint_occupied_bytes.assign(endpoint_count, 0);
@@ -4298,7 +4299,7 @@ class SmallObjectStripeManager {
   // reservation mirror changes during Work. No registry or stripe lock is
   // acquired here. The exact locked space_usage() remains unchanged.
   std::vector<uint64_t> snapshot_group_endpoint_bytes_observer() const {
-    const int configured = ::FarLib::get_config().server_count;
+    const int configured = ::starfish::get_config().server_count;
     const size_t endpoint_count =
         configured > 0 ? static_cast<size_t>(configured) : 0;
     std::vector<uint64_t> result(endpoint_count, 0);
@@ -4407,4 +4408,4 @@ class SmallObjectStripeEncoder {
   }
 };
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

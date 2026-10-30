@@ -13,7 +13,7 @@
 #ifdef REMOTE_REGION_ALLOCATOR
 #include "mm/allocator/region_remote_allocator.hpp"
 #endif
-namespace FarLib {
+namespace starfish {
 
 namespace cache {
 // Defined out of line with the RMW coordinator; initialize diagnostic banks
@@ -21,9 +21,9 @@ namespace cache {
 void prepare_ec_rmw_timing(size_t owners);
 
 #ifdef REMOTE_REGION_ALLOCATOR
-using FarLib::allocator::remote::InvalidRemoteAddr;
-using FarLib::allocator::remote::remote_global_heap;
-using FarLib::allocator::remote::remote_thread_heap;
+using starfish::allocator::remote::InvalidRemoteAddr;
+using starfish::allocator::remote::remote_global_heap;
+using starfish::allocator::remote::remote_thread_heap;
 class RemoteAllocator {
  private:
   // EC stripe layout for small objects.  Only initialized when
@@ -43,7 +43,7 @@ class RemoteAllocator {
 
  public:
   RemoteAllocator(size_t buffer_size) {
-    ::FarLib::profile::runtime_ec_cpu::begin_initialization("starfish");
+    ::starfish::profile::runtime_ec_cpu::begin_initialization("starfish");
     // The backing remote heap is process-global and already requires one
     // live allocator. Keep the diagnostic callback contract in Release too.
     if (profile::memory_usage_observer_context != nullptr) {
@@ -51,13 +51,13 @@ class RemoteAllocator {
           "RemoteAllocator construction requires the previous EC allocator to be destroyed");
     }
     remote_global_heap.register_remote(buffer_size);
-    const auto &config = ::FarLib::get_config();
-    if (::FarLib::ec_benchmark_phase::enabled()) {
+    const auto &config = ::starfish::get_config();
+    if (::starfish::ec_benchmark_phase::enabled()) {
       if (!config.is_ec_batch_mode() || !config.ft_incremental_update ||
           !config.ft_incremental_one_sided || !config.exclusive_cache)
         ERROR(
             "FARLIB_EC_BENCHMARK_PHASED requires exclusive one-sided incremental ec_batch mode");
-      ::FarLib::ec_benchmark_phase::begin_runtime();
+      ::starfish::ec_benchmark_phase::begin_runtime();
       std::cout
           << "INFO: ec_benchmark_phase enabled=1 init=full_stripe"
              " work=one_sided_rmw dead_index=1 fresh_fallback=bounded_backup_growth"
@@ -103,9 +103,9 @@ class RemoteAllocator {
   ~RemoteAllocator() {
     // Cache quiescence joins the repair fibre before member destruction;
     // all readers/writers are gone before physical redirect targets free.
-    if (::FarLib::get_config().ft_background_rebuild)
+    if (::starfish::get_config().ft_background_rebuild)
       small_object_stripes.release_background_targets_for_shutdown();
-    if (::FarLib::ec_benchmark_phase::enabled())
+    if (::starfish::ec_benchmark_phase::enabled())
       small_object_stripes.release_retained_empty_groups_for_shutdown();
     if (ec_space_reporter_) {
       ec_space_reporter_->final_report();
@@ -267,4 +267,4 @@ class RemoteAllocator {
 #endif
 }  // namespace cache
 
-}  // namespace FarLib
+}  // namespace starfish

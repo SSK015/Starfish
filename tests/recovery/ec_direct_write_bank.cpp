@@ -10,7 +10,7 @@
 
 namespace {
 
-using Bank = FarLib::cache::ec_batch::EcDirectWriteBank;
+using Bank = starfish::cache::ec_batch::EcDirectWriteBank;
 
 struct CallbackState {
   size_t allocations = 0;

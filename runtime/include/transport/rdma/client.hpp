@@ -34,7 +34,7 @@
 #include "profiling/wc_object_diag.hpp"
 #include "profiling/stats.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace rdma {
 
@@ -1411,4 +1411,4 @@ ReadBatchSnapshot collect_read_batch_diagnostics();
 void print_read_batch_diagnostics();
 }  // namespace rdma
 
-}  // namespace FarLib
+}  // namespace starfish

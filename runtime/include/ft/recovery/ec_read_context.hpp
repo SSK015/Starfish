@@ -37,7 +37,7 @@
 #include "ft/ec/ec_batch_staging.hpp"
 #include "ft/recovery/ec_recovery_profile.hpp"
 
-namespace FarLib::cache::ec_read_recovery {
+namespace starfish::cache::ec_read_recovery {
 
 inline constexpr size_t kEcReadSegmentCount =
     ec_batch::kEcBatchSegmentsPerGroup;
@@ -79,10 +79,10 @@ enum class EcReadTokenEventKind : uint8_t {
   kRelease,
 };
 
-}  // namespace FarLib::cache::ec_read_recovery
+}  // namespace starfish::cache::ec_read_recovery
 #endif
 
-namespace FarLib::cache::ec_read_recovery {
+namespace starfish::cache::ec_read_recovery {
 
 // Where a successful split-read round placed its accepted READ payloads.
 // Scratch is the existing survivor/rebuild path; DirectSplit is the opt-in
@@ -702,4 +702,4 @@ inline uint64_t EcReadContext::token_id() const noexcept {
       this, EcReadContextPool::state_generation(state));
 }
 
-}  // namespace FarLib::cache::ec_read_recovery
+}  // namespace starfish::cache::ec_read_recovery

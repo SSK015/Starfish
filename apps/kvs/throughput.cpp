@@ -43,26 +43,26 @@
 
 #if __has_include("profiling/request_interval_diag.hpp")
 #include "profiling/request_interval_diag.hpp"
-#define FARLIB_KVS_HAS_REQUEST_INTERVAL_DIAG 1
+#define STARFISH_KVS_HAS_REQUEST_INTERVAL_DIAG 1
 #endif
 
-using namespace FarLib;
-using namespace FarLib::rdma;
+using namespace starfish;
+using namespace starfish::rdma;
 using namespace std::chrono_literals;
 
 #define ENABLE_BENCHMARK
 
-#ifndef FARLIB_KVS_OBJECT_BYTES
-#define FARLIB_KVS_OBJECT_BYTES 8192
+#ifndef STARFISH_KVS_OBJECT_BYTES
+#define STARFISH_KVS_OBJECT_BYTES 8192
 #endif
-#ifndef FARLIB_KVS_DATA_SIZE_SHIFT
-#define FARLIB_KVS_DATA_SIZE_SHIFT 27
+#ifndef STARFISH_KVS_DATA_SIZE_SHIFT
+#define STARFISH_KVS_DATA_SIZE_SHIFT 27
 #endif
 
 constexpr bool EnableLocalBench = false;
 
 using str_key_t = FixedSizeString<32>;
-constexpr size_t KVSObjectBytes = FARLIB_KVS_OBJECT_BYTES;
+constexpr size_t KVSObjectBytes = STARFISH_KVS_OBJECT_BYTES;
 static_assert(sizeof(str_key_t) + 1 < KVSObjectBytes);
 using str_value_t =
     FixedSizeString<KVSObjectBytes - sizeof(str_key_t) - 1>;
@@ -240,7 +240,7 @@ public:
     // 10GB
     // static constexpr size_t InitialDataCount = 32 * 1024 * 1024;
     static constexpr size_t DefaultInitialDataCount = 1024 * 1024 * 2;
-    static constexpr size_t DataSizeShift = FARLIB_KVS_DATA_SIZE_SHIFT;
+    static constexpr size_t DataSizeShift = STARFISH_KVS_DATA_SIZE_SHIFT;
     static constexpr size_t DataSize = 1 << DataSizeShift;
     static_assert(DefaultInitialDataCount < DataSize);
 
@@ -1771,7 +1771,7 @@ bool run(size_t n_server_core, const std::optional<LatencyOptions>& latency_opti
         ASSERT(fibres > 0 && fibres < (1ULL << 15));
         const char* yield_env = std::getenv("FARLIB_KVS_DIRECT_MISS_YIELD");
         const bool miss_yield = yield_env == nullptr || std::strtoull(yield_env, nullptr, 10) != 0;
-#ifdef FARLIB_KVS_HAS_REQUEST_INTERVAL_DIAG
+#ifdef STARFISH_KVS_HAS_REQUEST_INTERVAL_DIAG
         request_interval_diag::begin_stage(fibres);
 #endif
         profile::reset_all();
@@ -1781,7 +1781,7 @@ bool run(size_t n_server_core, const std::optional<LatencyOptions>& latency_opti
             workload.run_direct(config, fibres, miss_yield);
             profile::thread_end_work();
             profile::end_work();
-#ifdef FARLIB_KVS_HAS_REQUEST_INTERVAL_DIAG
+#ifdef STARFISH_KVS_HAS_REQUEST_INTERVAL_DIAG
             request_interval_diag::end_stage();
 #endif
         }).print();
@@ -1848,7 +1848,7 @@ int main(int argc, char* argv[]) {
     kvs_logging::write_record(stdout, "config: client buffer size = ",
                               config.client_buffer_size);
     runtime_init(config);
-#ifndef FARLIB_KVS_NONFT_COMPAT
+#ifndef STARFISH_KVS_NONFT_COMPAT
     kvs_logging::write_record(
         stdout, "kvs_scope_shards enabled=",
         Cache::get_default()->scope_counter_shards_enabled,
@@ -1856,14 +1856,14 @@ int main(int argc, char* argv[]) {
         " bytes_per_shard=", sizeof(cache::ShardedScopeCounters::Shard));
     kvs_logging::write_record(
         stdout, "kvs_lock_wait_scope_yield enabled=",
-        FarLib::detail::lock_wait_scope_yield_enabled());
+        starfish::detail::lock_wait_scope_yield_enabled());
 #else
     kvs_logging::write_record(stdout, "kvs_scope_shards enabled=0 supported=0");
     kvs_logging::write_record(
         stdout, "kvs_lock_wait_scope_yield supported=0 legacy_check_memory_low=1");
 #endif
     const bool successful = run(n_server_core, latency_options);
-#ifndef FARLIB_KVS_NONFT_COMPAT
+#ifndef STARFISH_KVS_NONFT_COMPAT
     if (Cache::get_default()->scope_counter_shards_enabled) {
         const auto v0 = Cache::get_default()->scope_counters.old_count(1);
         const auto v1 = Cache::get_default()->scope_counters.old_count(2);

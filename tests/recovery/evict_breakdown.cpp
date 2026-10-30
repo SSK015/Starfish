@@ -7,15 +7,15 @@
 
 #include "profiling/evict_breakdown.hpp"
 
-#if FARLIB_ENABLE_EVICT_BREAKDOWN
+#if STARFISH_ENABLE_EVICT_BREAKDOWN
 
 namespace {
 
-using FarLib::profile::evict_breakdown::Stage;
-using FarLib::profile::evict_breakdown::Worker;
-using FarLib::profile::evict_breakdown::clipped;
-using FarLib::profile::evict_breakdown::work_begin;
-using FarLib::profile::evict_breakdown::work_end;
+using starfish::profile::evict_breakdown::Stage;
+using starfish::profile::evict_breakdown::Worker;
+using starfish::profile::evict_breakdown::clipped;
+using starfish::profile::evict_breakdown::work_begin;
+using starfish::profile::evict_breakdown::work_end;
 
 struct Checks {
   int failures = 0;
@@ -150,7 +150,7 @@ void test_overlap_and_latest(Checks &checks) {
 
 int main() {
   setenv("FARLIB_EVAC_BREAKDOWN", "1", 1);
-  FarLib::profile::evict_breakdown::prepare();
+  starfish::profile::evict_breakdown::prepare();
   Checks checks;
   test_nested_exclusive(checks);
   test_window_clipping(checks);
@@ -164,7 +164,7 @@ int main() {
 #else
 
 int main() {
-  std::cerr << "SKIP: FARLIB_ENABLE_EVICT_BREAKDOWN=0\n";
+  std::cerr << "SKIP: STARFISH_ENABLE_EVICT_BREAKDOWN=0\n";
   return 77;
 }
 

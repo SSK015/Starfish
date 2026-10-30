@@ -38,7 +38,7 @@
 
 #include "ft/ec/ec_group_builder.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 // ------------------------------ wr_id tag ---------------------------------
 inline constexpr uint64_t kEcBatchWrIdTagBit = 1ull << 63;
@@ -471,4 +471,4 @@ class EcBatchTokenTable {
 // six CQEs of a group can be reaped by six different threads without holding a
 // lock across complete_evict_writeback().
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch

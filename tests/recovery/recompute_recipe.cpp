@@ -34,11 +34,11 @@ bool subtract(void *destination, size_t bytes, const void *opaque,
 }  // namespace
 
 int main() {
-  using FarLib::cache::FarObjectEntry;
-  using FarLib::cache::LOCAL;
-  using FarLib::cache::MARKED;
-  using FarLib::cache::REMOTE;
-  using FarLib::recompute::Inputs;
+  using starfish::cache::FarObjectEntry;
+  using starfish::cache::LOCAL;
+  using starfish::cache::MARKED;
+  using starfish::cache::REMOTE;
+  using starfish::recompute::Inputs;
 
   static_assert(sizeof(FarObjectEntry) == 48);
 

@@ -20,9 +20,9 @@
 
 namespace {
 
-constexpr size_t kDataShards = FarLib::cache::kEcDirectDataShards;
-constexpr size_t kParityShards = FarLib::cache::kEcDirectParityShards;
-constexpr size_t kMaxSlotSize = FarLib::cache::kEcDirectMaxSlotSize;
+constexpr size_t kDataShards = starfish::cache::kEcDirectDataShards;
+constexpr size_t kParityShards = starfish::cache::kEcDirectParityShards;
+constexpr size_t kMaxSlotSize = starfish::cache::kEcDirectMaxSlotSize;
 constexpr size_t kGuardBytes = 23;
 
 constexpr std::array<std::array<uint8_t, kDataShards>, kParityShards>
@@ -129,8 +129,8 @@ void test_variable_lengths_and_padding_snapshot(
   std::array<std::vector<uint8_t>, kParityShards> expected;
   make_oracle(data_storage, sizes, slot_size, data_begin, expected);
 
-  assert(FarLib::cache::encode_direct_shards(data, sizes.data(), parity,
-                                             slot_size, zero_pad));
+  assert(starfish::cache::encode_direct_shards(data, sizes.data(), parity,
+                                               slot_size, zero_pad));
 
   for (size_t shard = 0; shard < kDataShards; ++shard) {
     assert(data_storage[shard] == data_before[shard]);
@@ -170,29 +170,29 @@ void test_invalid_arguments_do_not_touch_parity() {
   std::array<uint8_t, slot_size> zero_pad{};
 
   sizes[1] = static_cast<uint32_t>(slot_size + 1);
-  assert(!FarLib::cache::encode_direct_shards(data, sizes, parity, slot_size,
-                                              zero_pad.data()));
+  assert(!starfish::cache::encode_direct_shards(data, sizes, parity, slot_size,
+                                                zero_pad.data()));
   assert(parity_storage == parity_before);
   sizes[1] = slot_size;
 
   const void *missing_data[kDataShards] = {nullptr, data[1], data[2], data[3]};
-  assert(!FarLib::cache::encode_direct_shards(missing_data, sizes, parity,
-                                              slot_size, zero_pad.data()));
+  assert(!starfish::cache::encode_direct_shards(missing_data, sizes, parity,
+                                                slot_size, zero_pad.data()));
   assert(parity_storage == parity_before);
 
   sizes[0] = 1;
-  assert(!FarLib::cache::encode_direct_shards(data, sizes, parity, slot_size,
-                                              nullptr));
+  assert(!starfish::cache::encode_direct_shards(data, sizes, parity, slot_size,
+                                                nullptr));
   assert(parity_storage == parity_before);
   sizes[0] = slot_size;
 
-  assert(!FarLib::cache::encode_direct_shards(data, sizes, parity, 0,
-                                              zero_pad.data()));
+  assert(!starfish::cache::encode_direct_shards(data, sizes, parity, 0,
+                                                zero_pad.data()));
   assert(parity_storage == parity_before);
 
   void *missing_parity[kParityShards] = {parity_storage[0].data(), nullptr};
-  assert(!FarLib::cache::encode_direct_shards(data, sizes, missing_parity,
-                                              slot_size, zero_pad.data()));
+  assert(!starfish::cache::encode_direct_shards(data, sizes, missing_parity,
+                                                slot_size, zero_pad.data()));
   assert(parity_storage == parity_before);
 }
 
@@ -206,8 +206,8 @@ void test_empty_group_clears_parity() {
   const void *data[kDataShards] = {nullptr, nullptr, nullptr, nullptr};
   void *parity[kParityShards] = {parity_storage[0].data(),
                                  parity_storage[1].data()};
-  assert(FarLib::cache::encode_direct_shards(data, sizes.data(), parity,
-                                             slot_size, nullptr));
+  assert(starfish::cache::encode_direct_shards(data, sizes.data(), parity,
+                                               slot_size, nullptr));
   for (const auto &buffer : parity_storage) {
     for (uint8_t byte : buffer) assert(byte == 0);
   }
@@ -277,8 +277,8 @@ void test_guard_pages_reject_overread() {
                                    data_pages[2].data(), nullptr};
   void *parity[kParityShards] = {parity_pages[0].data(),
                                  parity_pages[1].data()};
-  assert(FarLib::cache::encode_direct_shards(data, sizes.data(), parity,
-                                             slot_size, zero_page.data()));
+  assert(starfish::cache::encode_direct_shards(data, sizes.data(), parity,
+                                               slot_size, zero_page.data()));
 
   std::array<std::vector<uint8_t>, kDataShards> snapshots;
   for (size_t shard = 0; shard < kDataShards; ++shard) {

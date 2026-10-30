@@ -9,7 +9,7 @@
 
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace tcp {
 
@@ -75,4 +75,4 @@ int connect_to_server(const char *server_addr, const char *server_port) {
 
 }  // namespace tcp
 
-}  // namespace FarLib
+}  // namespace starfish

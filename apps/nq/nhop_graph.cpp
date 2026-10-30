@@ -26,7 +26,7 @@
 #include "async/uthreads.hpp"
 
 #include "graph_utils.hpp"
-using namespace FarLib;
+using namespace starfish;
 
 const int HOP_NUM = 3;
 // const int RANDOM_NUM = 20;
@@ -335,7 +335,7 @@ bool resident_state_check_enabled() {
 
 void print_resident_state(const char *phase, bool quiesced = false) {
     if (!resident_state_check_enabled()) return;
-#ifdef FARLIB_NQ_NONFT_COMPAT
+#ifdef STARFISH_NQ_NONFT_COMPAT
     throw std::runtime_error("NHOP_RESIDENT_STATE_CHECK requires the Starfish runtime");
 #else
     const auto s = Cache::get_default()->simple_resident_state_snapshot();
@@ -384,7 +384,7 @@ int main(int argc, char *argv[]) {
                      error.what());
         return 2;
     }
-#ifdef FARLIB_NQ_NONFT_COMPAT
+#ifdef STARFISH_NQ_NONFT_COMPAT
     if (resident_state_check_enabled()) {
         std::cerr << "NHOP_RESIDENT_STATE_CHECK requires the Starfish runtime" << std::endl;
         return 2;
@@ -395,7 +395,7 @@ int main(int argc, char *argv[]) {
     std::string config_path = argv[1];
     std::string graph_path = argv[2];
 
-    FarLib::rdma::Configure config;
+    starfish::rdma::Configure config;
     config.from_file(config_path.c_str());
     runtime_init(config);
     perf_init();

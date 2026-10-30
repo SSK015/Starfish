@@ -5,12 +5,12 @@
 #include "mm/allocator/region_based_allocator.hpp"
 #include "mm/allocator/remote_allocator.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace profile {
 
 template <typename Fn>
-inline void beehive_profile(Fn &&fn) {
+inline void profile_workload(Fn &&fn) {
   async::StreamRunnerProfiler::reset();
   profile::reset_all();
   profile::start_work();
@@ -20,9 +20,9 @@ inline void beehive_profile(Fn &&fn) {
   profile::end_work();
   profile::print_profile_data();
 
-  FarLib::allocator::global_heap.print_used_memory();
+  starfish::allocator::global_heap.print_used_memory();
 #ifdef REMOTE_REGION_ALLOCATOR
-  FarLib::allocator::remote::remote_global_heap.print_used_memory();
+  starfish::allocator::remote::remote_global_heap.print_used_memory();
 #endif
 
   std::cout << "stream runner: total cycles = "
@@ -31,4 +31,4 @@ inline void beehive_profile(Fn &&fn) {
             << async::StreamRunnerProfiler::get_sched_cycles() << std::endl;
 }
 }  // namespace profile
-}  // namespace FarLib
+}  // namespace starfish

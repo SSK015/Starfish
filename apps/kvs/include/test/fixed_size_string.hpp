@@ -8,7 +8,7 @@
 #include <functional>
 #include <string_view>
 
-namespace FarLib {
+namespace starfish {
 
 template <size_t Size>
 struct FixedSizeString {
@@ -45,12 +45,12 @@ struct FixedSizeString {
     std::string_view view() const { return {str.data(), str.size()}; }
 };
 
-}  // namespace FarLib
+}  // namespace starfish
 
 template <size_t Size>
-struct std::hash<FarLib::FixedSizeString<Size>> {
+struct std::hash<starfish::FixedSizeString<Size>> {
     std::size_t operator()(
-        const FarLib::FixedSizeString<Size>& str) const noexcept {
+        const starfish::FixedSizeString<Size>& str) const noexcept {
         return std::hash<std::string_view>{}(
             std::string_view(str.str.begin(), str.str.end()));
     }

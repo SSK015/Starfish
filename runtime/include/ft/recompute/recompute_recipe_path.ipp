@@ -2,7 +2,7 @@
 
 #include "mm/cache/concurrent_cache.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 namespace {
 
@@ -64,7 +64,7 @@ inline void release_recompute_snapshot(RecomputeRecipeSnapshot &snapshot) {
 }
 
 inline FarObjectEntry *current_recipe_entry(
-    ::FarLib::allocator::BlockHead *block) {
+    ::starfish::allocator::BlockHead *block) {
   if (block == nullptr) return nullptr;
   const auto obj = block->obj_meta_data.load(std::memory_order_acquire);
   return obj.is_null() ? nullptr : &ConcurrentArrayCache::get_entry_of(obj);
@@ -83,11 +83,11 @@ inline bool ConcurrentArrayCache::recompute_recipe_assist_wait(
 
   void *local_addr = entry->local_addr();
   if (local_addr == nullptr) return false;
-  auto *block = static_cast<::FarLib::allocator::BlockHead *>(local_addr) - 1;
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
 
   // The failed WC or known-dead prepost path closes this gate. If it is not
   // closed, the normal READ path still owns the fetch epoch.
-  if (!::FarLib::allocator::normal_read_recovery_active(block)) {
+  if (!::starfish::allocator::normal_read_recovery_active(block)) {
     return false;
   }
 
@@ -126,7 +126,7 @@ inline bool ConcurrentArrayCache::recompute_recipe_assist_wait(
 
   // Reuse the allocator's single owner bit: bit 0 is ordinary-READ gate,
   // bit 1 is the one-winner recovery owner.
-  if (!::FarLib::allocator::try_claim_degraded_read(block)) {
+  if (!::starfish::allocator::try_claim_degraded_read(block)) {
     unpin_fetch_entry_for_recovery(entry);
     uthread::yield();
     return true;
@@ -193,4 +193,4 @@ inline bool ConcurrentArrayCache::recompute_recipe_assist_wait(
   return true;
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

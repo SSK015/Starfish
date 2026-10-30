@@ -6,9 +6,9 @@
 
 template <size_t GroupSize>
 bool check_negative_offsets() {
-  using Vector = FarLib::FarVector<double, GroupSize>;
+  using Vector = starfish::FarVector<double, GroupSize>;
   using Group = std::array<double, GroupSize>;
-  using GroupPtr = FarLib::UniqueFarPtr<Group>;
+  using GroupPtr = starfish::UniqueFarPtr<Group>;
 
   constexpr size_t group_count = 8;
   std::array<GroupPtr, group_count> groups{};
@@ -43,9 +43,9 @@ bool check_negative_offsets() {
 }
 
 bool check_mg_psinv_halo() {
-  using Vector = FarLib::FarVector<double, 509>;
+  using Vector = starfish::FarVector<double, 509>;
   using Group = std::array<double, 509>;
-  using GroupPtr = FarLib::UniqueFarPtr<Group>;
+  using GroupPtr = starfish::UniqueFarPtr<Group>;
   using Iterator = typename Vector::const_lite_iterator;
 
   // MG level k=6, n=66, ir=1235212832, fibre=6, i3=19.

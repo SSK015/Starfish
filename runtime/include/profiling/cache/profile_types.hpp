@@ -12,7 +12,7 @@
 
 #include "profiling/stats.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace cache {
 
 class ConcurrentArrayCache;
@@ -61,4 +61,4 @@ struct FullPopulationFrequencyTracker {
 }  // namespace detail
 
 }  // namespace cache
-}  // namespace FarLib
+}  // namespace starfish

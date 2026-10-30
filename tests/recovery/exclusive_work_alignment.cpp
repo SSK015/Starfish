@@ -18,18 +18,18 @@
 #include "mm/allocator/region_based_allocator.hpp"
 #undef private
 
-using FarLib::allocator::EvacuationEligibility;
-using FarLib::allocator::EvictTask;
-using FarLib::allocator::GlobalHeap;
-using FarLib::allocator::IN_USE;
-using FarLib::allocator::RegionHead;
-using FarLib::allocator::RegionList;
-using FarLib::allocator::RegionPlacement;
-using FarLib::allocator::evict_region_admissible;
-using FarLib::allocator::refund_legacy_mark_regions;
-using FarLib::allocator::reserve_legacy_mark_regions;
-using FarLib::allocator::refund_scan_visits;
-using FarLib::allocator::reserve_scan_visits;
+using starfish::allocator::EvacuationEligibility;
+using starfish::allocator::EvictTask;
+using starfish::allocator::GlobalHeap;
+using starfish::allocator::IN_USE;
+using starfish::allocator::RegionHead;
+using starfish::allocator::RegionList;
+using starfish::allocator::RegionPlacement;
+using starfish::allocator::evict_region_admissible;
+using starfish::allocator::refund_legacy_mark_regions;
+using starfish::allocator::reserve_legacy_mark_regions;
+using starfish::allocator::refund_scan_visits;
+using starfish::allocator::reserve_scan_visits;
 
 [[noreturn]] static void fail(const char *expression, int line) {
   std::cerr << "CHECK failed: " << expression << " line=" << line << '\n';
@@ -73,7 +73,7 @@ static void test_all_eligibility_is_not_legacy_concurrent() {
   RegionHead region{};
   // is_empty() is based on the list heads.  The sentinel is inspected only
   // by the predicate, never dereferenced.
-  region.active_list = reinterpret_cast<FarLib::allocator::BlockHead *>(1);
+  region.active_list = reinterpret_cast<starfish::allocator::BlockHead *>(1);
   region.marked_list = nullptr;
   CHECK(evict_region_admissible(&region, EvacuationEligibility::All));
   CHECK(!evict_region_admissible(&region,
@@ -96,7 +96,7 @@ static void scan_cursor_with_six_workers(RegionList &list, uint32_t timestamp,
     worker = std::thread([&] {
       // Standalone CPU tests do not run inside a Fibre worker.  Keep the
       // production RegionList path from attempting a Fibre yield here.
-      FarLib::allocator::disable_region_list_fibre_yield_for_current_thread();
+      starfish::allocator::disable_region_list_fibre_yield_for_current_thread();
       for (;;) {
         const size_t reserved = reserve_scan_visits(visit_budget, 256);
         if (reserved == 0) break;
@@ -167,7 +167,7 @@ static size_t claim_mark_regions_with_six_workers(
   std::thread workers[kWorkers];
   for (size_t worker = 0; worker < kWorkers; ++worker) {
     workers[worker] = std::thread([&, worker] {
-      FarLib::allocator::disable_region_list_fibre_yield_for_current_thread();
+      starfish::allocator::disable_region_list_fibre_yield_for_current_thread();
       while (!start.load(std::memory_order_acquire)) {
         std::this_thread::yield();
       }

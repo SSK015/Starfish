@@ -1,6 +1,6 @@
 #pragma once
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
     uint64_t check_id) {
@@ -137,8 +137,8 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
       });
 
   const uint64_t resident_budget_bytes =
-      ::FarLib::allocator::global_heap.get_resident_region_budget() *
-      ::FarLib::allocator::RegionSize;
+      ::starfish::allocator::global_heap.get_resident_region_budget() *
+      ::starfish::allocator::RegionSize;
   uint64_t remaining_budget = resident_budget_bytes;
   uint64_t desired_bytes = 0;
   uint64_t published_bytes = 0;
@@ -245,7 +245,7 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
       uint64_t migrated_bytes = 0;
       const long double hysteresis =
           static_cast<long double>(
-              ::FarLib::get_config()
+              ::starfish::get_config()
                   .resident_profile_migration_hysteresis_pct) /
           100.0L;
       const size_t pairs = std::min(challengers.size(), incumbents.size());
@@ -328,7 +328,7 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
       2, published_groups *
              std::max<size_t>(1, resident_profile_migration_budget_pct) / 100);
   const uint64_t material_deficit_growth_bytes = std::max<uint64_t>(
-      8 * ::FarLib::allocator::RegionSize,
+      8 * ::starfish::allocator::RegionSize,
       resident_budget_bytes *
           std::max<size_t>(1, resident_profile_migration_budget_pct) / 100);
   const char *reclassification_transition = "none";
@@ -338,7 +338,7 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
     if (had_fetch_plan_before_publish) {
       observed_reclassification_bytes =
           (refill_successes - resident_region_fetch_last_refill_successes) *
-          ::FarLib::allocator::RegionSize;
+          ::starfish::allocator::RegionSize;
       observed_deficit_reduction_bytes =
           resident_region_fetch_last_target_deficit_bytes >
                   target_resident_deficit_bytes
@@ -373,8 +373,8 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
         }
       } else if (observed_reclassification_bytes != 0) {
         const uint64_t min_efficiency_pct = std::min<size_t>(
-            100,
-            ::FarLib::get_config().region_fetch_min_reclassify_efficiency_pct);
+            100, ::starfish::get_config()
+                     .region_fetch_min_reclassify_efficiency_pct);
         const bool efficient =
             static_cast<__uint128_t>(observed_deficit_reduction_bytes) * 100 >=
             static_cast<__uint128_t>(observed_reclassification_bytes) *
@@ -408,7 +408,7 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
     resident_region_fetch_last_refill_successes = refill_successes;
   }
   const size_t max_window_multiplier = std::max<size_t>(
-      1, ::FarLib::get_config().region_fetch_plan_max_window_multiplier);
+      1, ::starfish::get_config().region_fetch_plan_max_window_multiplier);
   if (warmup_complete && changed_groups >= material_target_change_threshold) {
     resident_region_fetch_window_multiplier = std::min(
         max_window_multiplier, resident_region_fetch_window_multiplier * 2);
@@ -473,17 +473,17 @@ inline void ConcurrentArrayCache::publish_region_fetch_hotness_predictions(
 }
 
 inline bool ConcurrentArrayCache::refill_resident_fetch_capacity(
-    const std::vector<::FarLib::allocator::RegionHotnessSnapshot> &snapshots,
+    const std::vector<::starfish::allocator::RegionHotnessSnapshot> &snapshots,
     uint64_t check_id) {
-  using ::FarLib::allocator::FULL;
-  using ::FarLib::allocator::RegionExchangeFailure;
-  using ::FarLib::allocator::RegionHotnessSnapshot;
-  using ::FarLib::allocator::RegionPlacement;
-  using ::FarLib::allocator::RegionSize;
-  using ::FarLib::allocator::USABLE;
+  using ::starfish::allocator::FULL;
+  using ::starfish::allocator::RegionExchangeFailure;
+  using ::starfish::allocator::RegionHotnessSnapshot;
+  using ::starfish::allocator::RegionPlacement;
+  using ::starfish::allocator::RegionSize;
+  using ::starfish::allocator::USABLE;
 
   const size_t headroom_pct = std::min<size_t>(
-      100, ::FarLib::get_config().region_fetch_resident_headroom_pct);
+      100, ::starfish::get_config().region_fetch_resident_headroom_pct);
   if (!region_fetch_hotness_placement_enabled() || headroom_pct == 0 ||
       !resident_region_fetch_reclassification_enabled.load(
           std::memory_order_acquire) ||
@@ -491,11 +491,11 @@ inline bool ConcurrentArrayCache::refill_resident_fetch_capacity(
     return false;
   }
 
-  std::array<uint64_t, ::FarLib::allocator::RegionBinCount> fallback_counts{};
-  std::array<uint64_t, ::FarLib::allocator::RegionBinCount> fallback_bytes{};
+  std::array<uint64_t, ::starfish::allocator::RegionBinCount> fallback_counts{};
+  std::array<uint64_t, ::starfish::allocator::RegionBinCount> fallback_bytes{};
   uint64_t total_fallback_count = 0;
   uint64_t total_fallback_bytes = 0;
-  for (size_t bin = 0; bin < ::FarLib::allocator::RegionBinCount; ++bin) {
+  for (size_t bin = 0; bin < ::starfish::allocator::RegionBinCount; ++bin) {
     fallback_counts[bin] =
         region_fetch_window_resident_fallback_count[bin].exchange(
             0, std::memory_order_acq_rel);
@@ -512,7 +512,7 @@ inline bool ConcurrentArrayCache::refill_resident_fetch_capacity(
   const uint64_t start = get_cycles();
   region_fetch_reserve_refill_checks.fetch_add(1, std::memory_order_relaxed);
   const size_t resident_budget_regions =
-      ::FarLib::allocator::global_heap.get_resident_region_budget();
+      ::starfish::allocator::global_heap.get_resident_region_budget();
   const size_t target_refill_regions =
       std::max<size_t>(1, resident_budget_regions * headroom_pct / 100);
   const size_t max_attempts = target_refill_regions;
@@ -635,7 +635,7 @@ inline bool ConcurrentArrayCache::refill_resident_fetch_capacity(
     }
   }
   const uint64_t prioritized_regions =
-      ::FarLib::allocator::global_heap.prioritize_profile_pending_regions(
+      ::starfish::allocator::global_heap.prioritize_profile_pending_regions(
           reserve_plan_id);
   for (size_t i = 0; i < pair_count; ++i) {
     if (!pair_pending[i]) {
@@ -645,7 +645,7 @@ inline bool ConcurrentArrayCache::refill_resident_fetch_capacity(
     const auto *cold = resident_cold[i];
     ++attempts;
     const auto result =
-        ::FarLib::allocator::global_heap.try_exchange_hotness_regions(
+        ::starfish::allocator::global_heap.try_exchange_hotness_regions(
             hot->region, hot->placement_epoch, cold->region,
             cold->placement_epoch, transition);
     if (result.changed) {
@@ -714,9 +714,9 @@ inline bool ConcurrentArrayCache::refill_resident_fetch_capacity(
 
 inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
     bool complete_phase) {
-  using ::FarLib::allocator::RegionHotnessSnapshot;
-  using ::FarLib::allocator::RegionPlacement;
-  constexpr uint64_t RegionBytes = ::FarLib::allocator::RegionSize;
+  using ::starfish::allocator::RegionHotnessSnapshot;
+  using ::starfish::allocator::RegionPlacement;
+  constexpr uint64_t RegionBytes = ::starfish::allocator::RegionSize;
 
   const uint64_t check_id = resident_profile_candidate_check_count.fetch_add(
                                 1, std::memory_order_relaxed) +
@@ -725,7 +725,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
 
   const uint64_t collection_start = get_cycles();
   std::vector<RegionHotnessSnapshot> snapshots;
-  ::FarLib::allocator::global_heap.collect_region_hotness_snapshots(
+  ::starfish::allocator::global_heap.collect_region_hotness_snapshots(
       snapshots, resident_profile_write_weight,
       resident_profile_ema_decay_shift);
   profile::count_resident_profile_planner_collection_cycles(get_cycles() -
@@ -763,19 +763,18 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
                       return snapshot.placement == RegionPlacement::Resident;
                     }));
   const size_t resident_reserved_regions =
-      ::FarLib::allocator::global_heap.get_resident_reserved_regions();
+      ::starfish::allocator::global_heap.get_resident_reserved_regions();
   const size_t fixed_resident_regions =
       resident_reserved_regions > resident_current_regions
           ? resident_reserved_regions - resident_current_regions
           : 0;
   const size_t resident_budget_regions =
-      ::FarLib::allocator::global_heap.get_resident_region_budget();
+      ::starfish::allocator::global_heap.get_resident_region_budget();
   const size_t fetch_headroom_regions =
       region_fetch_hotness_placement_enabled()
           ? resident_budget_regions *
-                std::min<size_t>(
-                    100,
-                    ::FarLib::get_config().region_fetch_resident_headroom_pct) /
+                std::min<size_t>(100, ::starfish::get_config()
+                                          .region_fetch_resident_headroom_pct) /
                 100
           : 0;
   const size_t soft_resident_budget_regions =
@@ -846,8 +845,9 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
                                                  std::memory_order_relaxed);
     const bool stable = streak >= kResidentDirectionStableComparisons;
     const bool transitionable_state =
-        snapshot.list_owned && (snapshot.state == ::FarLib::allocator::USABLE ||
-                                snapshot.state == ::FarLib::allocator::FULL);
+        snapshot.list_owned &&
+        (snapshot.state == ::starfish::allocator::USABLE ||
+         snapshot.state == ::starfish::allocator::FULL);
     if (stable) {
       if (desired == RegionPlacement::Resident) {
         ++stable_promotion_mismatches;
@@ -867,14 +867,14 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
     }
     if (desired == RegionPlacement::Resident) {
       promotion_candidates.push_back(&snapshot);
-      if (snapshot.state == ::FarLib::allocator::USABLE) {
+      if (snapshot.state == ::starfish::allocator::USABLE) {
         ++promotion_candidate_usable;
       } else {
         ++promotion_candidate_full;
       }
     } else {
       demotion_candidates.push_back(&snapshot);
-      if (snapshot.state == ::FarLib::allocator::USABLE) {
+      if (snapshot.state == ::starfish::allocator::USABLE) {
         ++demotion_candidate_usable;
       } else {
         ++demotion_candidate_full;
@@ -921,7 +921,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
     const __uint128_t cold_score =
         static_cast<__uint128_t>(cold->weighted_references) *
         (100 +
-         ::FarLib::get_config().resident_profile_migration_hysteresis_pct);
+         ::starfish::get_config().resident_profile_migration_hysteresis_pct);
     if (hot_score > cold_score) {
       break;
     }
@@ -977,7 +977,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
   uint64_t failed_promotion_regions = 0;
   uint64_t failed_demotion_regions = 0;
   std::array<size_t, static_cast<size_t>(
-                         ::FarLib::allocator::RegionExchangeFailure::Count)>
+                         ::starfish::allocator::RegionExchangeFailure::Count)>
       exchange_failure_counts{};
   const uint64_t publish_start = get_cycles();
 
@@ -1056,7 +1056,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
   while (true) {
     ++exchange_retry_passes;
     pending_regions_prioritized +=
-        ::FarLib::allocator::global_heap.prioritize_profile_pending_regions(
+        ::starfish::allocator::global_heap.prioritize_profile_pending_regions(
             plan_id);
     size_t remaining_swaps = 0;
     size_t committed_this_pass = 0;
@@ -1098,7 +1098,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
       }
       ++exchange_attempts;
       const auto exchanged =
-          ::FarLib::allocator::global_heap.try_exchange_hotness_regions(
+          ::starfish::allocator::global_heap.try_exchange_hotness_regions(
               hot->region, hot->placement_epoch, cold->region,
               cold->placement_epoch, transition_backup);
       if (exchanged.changed) {
@@ -1144,7 +1144,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
     resident_profile_active_plan_promotion_started_bytes.fetch_add(
         RegionBytes, std::memory_order_relaxed);
     const auto promoted =
-        ::FarLib::allocator::global_heap.try_reclassify_hotness_region(
+        ::starfish::allocator::global_heap.try_reclassify_hotness_region(
             hot->region, hot->placement_epoch, RegionPlacement::Streaming,
             RegionPlacement::Resident, transition_backup);
     if (promoted.changed) {
@@ -1160,7 +1160,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
     resident_profile_active_plan_demotion_started_bytes.fetch_add(
         RegionBytes, std::memory_order_relaxed);
     const auto demoted =
-        ::FarLib::allocator::global_heap.try_reclassify_hotness_region(
+        ::starfish::allocator::global_heap.try_reclassify_hotness_region(
             cold->region, cold->placement_epoch, RegionPlacement::Resident,
             RegionPlacement::Streaming, transition_backup);
     if (demoted.changed) {
@@ -1199,7 +1199,7 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
       std::memory_order_release);
   resident_profile_maybe_complete_active_plan(plan_id);
   resident_local_bytes.store(
-      ::FarLib::allocator::global_heap.get_resident_reserved_regions() *
+      ::starfish::allocator::global_heap.get_resident_reserved_regions() *
           RegionBytes,
       std::memory_order_release);
   profile::count_resident_profile_planner_publish_cycles(get_cycles() -
@@ -1242,33 +1242,36 @@ inline void ConcurrentArrayCache::publish_resident_region_hotness_plan(
       << resident_region_pending_evicting_seen.load(std::memory_order_relaxed)
       << " exchange_fail_invalid_input="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::InvalidInput)]
+             ::starfish::allocator::RegionExchangeFailure::InvalidInput)]
       << " exchange_fail_hot_invalid_state="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::HotInvalidRegionState)]
+             ::starfish::allocator::RegionExchangeFailure::
+                 HotInvalidRegionState)]
       << " exchange_fail_cold_invalid_state="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::
+             ::starfish::allocator::RegionExchangeFailure::
                  ColdInvalidRegionState)]
       << " exchange_fail_cold_unavailable="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::ColdRegionUnavailable)]
+             ::starfish::allocator::RegionExchangeFailure::
+                 ColdRegionUnavailable)]
       << " exchange_fail_hot_unavailable="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::HotRegionUnavailable)]
+             ::starfish::allocator::RegionExchangeFailure::
+                 HotRegionUnavailable)]
       << " exchange_fail_region_changed="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::RegionChanged)]
+             ::starfish::allocator::RegionExchangeFailure::RegionChanged)]
       << " exchange_fail_cold_entry_busy="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::ColdEntryBusy)]
+             ::starfish::allocator::RegionExchangeFailure::ColdEntryBusy)]
       << " exchange_fail_hot_entry_busy="
       << exchange_failure_counts[static_cast<size_t>(
-             ::FarLib::allocator::RegionExchangeFailure::HotEntryBusy)]
+             ::starfish::allocator::RegionExchangeFailure::HotEntryBusy)]
       << " promotion_candidate_usable=" << promotion_candidate_usable
       << " promotion_candidate_full=" << promotion_candidate_full
       << " demotion_candidate_usable=" << demotion_candidate_usable
       << " demotion_candidate_full=" << demotion_candidate_full << std::endl;
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

@@ -1,7 +1,7 @@
 #pragma once
 #include "mm/cache/concurrent_cache.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline void ConcurrentArrayCache::handle_rdma_write_complete(const ibv_wc &wc) {
   struct WriteCompleteCycleGuard {
@@ -18,8 +18,8 @@ inline void ConcurrentArrayCache::handle_rdma_write_complete(const ibv_wc &wc) {
     cycle_guard.start = get_cycles();
   }
   void *local_ptr = reinterpret_cast<void *>(wc.wr_id);
-  ::FarLib::allocator::BlockHead *block =
-      static_cast<::FarLib::allocator::BlockHead *>(local_ptr) - 1;
+  ::starfish::allocator::BlockHead *block =
+      static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
 retry:
   auto obj = block->obj_meta_data.load();
   auto &entry = get_entry_of(obj);
@@ -55,8 +55,8 @@ retry:
         // Region reclaim pass. Advertise it exactly like an explicit
         // local deallocation so shutdown cannot strand null marked
         // blocks after the final CQ drain.
-        ::FarLib::allocator::block_to_region(block)->pending_reclaims.fetch_add(
-            1, std::memory_order_release);
+        ::starfish::allocator::block_to_region(block)
+            ->pending_reclaims.fetch_add(1, std::memory_order_release);
       } else {
         // maybe another rdma request (write back) in the progress
         // do not mark it as remote to prevent reallocating memory to
@@ -72,7 +72,7 @@ retry:
         // Another write still owns the local buffer and remote slot.
         break;
       }
-      if (::FarLib::get_config().exclusive_cache) {
+      if (::starfish::get_config().exclusive_cache) {
         // Corner case: eviction was interrupted and the object stayed LOCAL.
         // The remote slot allocated for this eviction must be freed (after the
         // write completes) to preserve strict-exclusivity (LOCAL => no remote).
@@ -119,8 +119,8 @@ retry:
 
 inline void ConcurrentArrayCache::handle_rdma_read_complete(const ibv_wc &wc) {
   void *local_ptr = reinterpret_cast<void *>(wc.wr_id);
-  ::FarLib::allocator::BlockHead *block =
-      static_cast<::FarLib::allocator::BlockHead *>(local_ptr) - 1;
+  ::starfish::allocator::BlockHead *block =
+      static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
 retry:
   auto obj = block->obj_meta_data.load();
   auto &entry = get_entry_of(obj);
@@ -132,7 +132,7 @@ retry:
     goto retry;
   }
   assert(old_state.state == EntryState::FETCHING);
-  if (::FarLib::get_config().exclusive_cache) {
+  if (::starfish::get_config().exclusive_cache) {
     if (old_state.invalid) [[unlikely]] {
       auto spin_start = get_cycles();
       profile::count_excl_move_lock_spin();
@@ -239,4 +239,4 @@ inline void ConcurrentArrayCache::handle_work_complete(const ibv_wc &wc) {
   }
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

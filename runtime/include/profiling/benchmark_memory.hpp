@@ -28,7 +28,7 @@
 #include <vector>
 #include <cstring>
 
-namespace FarLib::benchmark_memory {
+namespace starfish::benchmark_memory {
 
 inline constexpr std::array<uint64_t, 5> kScheduledSeconds = {10, 20, 30, 40,
                                                               50};
@@ -752,4 +752,4 @@ inline void end_work_at(uint64_t end_ns, const char *origin) noexcept {
     explicit_work_end_observer(explicit_work_origin_context, end_ns, origin);
 }
 
-}  // namespace FarLib::benchmark_memory
+}  // namespace starfish::benchmark_memory

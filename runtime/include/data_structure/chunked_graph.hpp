@@ -19,7 +19,7 @@
 #include "mm/allocator/region_remote_allocator.hpp"
 #include "async/parallel.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <bool TimeStamp = false,
           size_t ChunkSize /* in byte */ = 4096 - allocator::BlockHeadSize>
@@ -156,7 +156,7 @@ class ChunkedGraph {
         ON_MISS_BEGIN
         __define_oms__(scope);
         if constexpr (Optimize) {
-          auto cache = FarLib::Cache::get_default();
+          auto cache = starfish::Cache::get_default();
           size_t &i = prefetch_idx;
           for (i = std::max(i, j + 1);
                i < chunks.size() && i < j + prefetch_distance; i++) {
@@ -222,7 +222,7 @@ class ChunkedGraph {
             ON_MISS_BEGIN
             __define_oms__(scope);
             if constexpr (Optimize) {
-              auto cache = FarLib::Cache::get_default();
+              auto cache = starfish::Cache::get_default();
               size_t &i = prefetch_idx;
               for (i = std::max(i, j + 1); i < chunks.size() && i < j + 1024;
                    i++) {
@@ -567,7 +567,8 @@ class ChunkedGraph {
             for (j = std::max(j, i + 1); j < vertices.size() && j < i + 1024;
                  j++) {
               out_edge_lists.prefetch(out_edges[vertices[j]], oms);
-              if (j % 8 == 0 && FarLib::cache::check_fetch(__entry__, __ddl__))
+              if (j % 8 == 0 &&
+                  starfish::cache::check_fetch(__entry__, __ddl__))
                 break;
             }
           } else {
@@ -671,4 +672,4 @@ class ChunkedGraph {
   }
 };
 
-}  // namespace FarLib
+}  // namespace starfish

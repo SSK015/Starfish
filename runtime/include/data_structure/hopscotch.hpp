@@ -5,7 +5,7 @@
 #include "mm/cache/accessor.hpp"
 #include "mm/cache/cache.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <typename Key, typename Object, typename Hash = std::hash<Key>,
           size_t NeighborhoodSize = 32>
@@ -224,4 +224,4 @@ class Hopscotch {
   size_t hash_mask;
 };
 
-}  // namespace FarLib
+}  // namespace starfish

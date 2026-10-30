@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace FarLib::object_group_trace {
+namespace starfish::object_group_trace {
 
 enum class Kind : std::uint8_t {
   Allocate = 0,
@@ -490,4 +490,4 @@ inline bool dump() noexcept {
   return ok;
 }
 
-}  // namespace FarLib::object_group_trace
+}  // namespace starfish::object_group_trace

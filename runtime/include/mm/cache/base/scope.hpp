@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <iostream>
 
-namespace FarLib {
+namespace starfish {
 namespace cache {
 class DereferenceScope {
   friend class ConcurrentArrayCache;
@@ -81,4 +81,4 @@ struct OnMissScope : public DereferenceScope {
 };
 
 }  // namespace cache
-};  // namespace FarLib
+};  // namespace starfish

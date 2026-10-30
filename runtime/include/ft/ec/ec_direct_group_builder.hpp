@@ -7,7 +7,7 @@
 #include "ft/ec/ec_direct_write_bank.hpp"
 #include "ft/ec/ec_direct_codec.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 // One permanent builder per logical Evict worker. Data sources are borrowed,
 // while each reserved bank position owns its parity and completion record.
@@ -81,8 +81,8 @@ class EcDirectGroupBuilder {
   EcBatchStatus add_object(const void *object, size_t size, uint64_t *address,
                            size_t key, bool recovery_fallback = false) {
     if (recovery_fallback &&
-        (!::FarLib::get_config().ft_rmw_read_failure_fallback ||
-         !::FarLib::get_config().ft_incremental_one_sided))
+        (!::starfish::get_config().ft_rmw_read_failure_fallback ||
+         !::starfish::get_config().ft_incremental_one_sided))
       return EcBatchStatus::kInvalidArgument;
     if (manager_ == nullptr || bank_ == nullptr || object == nullptr ||
         address == nullptr || size == 0 || size > kEcDirectMaxSlotSize ||
@@ -104,7 +104,7 @@ class EcDirectGroupBuilder {
       auto &r = g.entry->record;
       if (!manager_->allocate_slot_group(
               size, &r.group,
-              ::FarLib::ec_benchmark_phase::steady() && !recovery_fallback,
+              ::starfish::ec_benchmark_phase::steady() && !recovery_fallback,
               recovery_fallback)) {
         ++allocation_failed_;
         bank_->cancel(g.token);
@@ -178,7 +178,7 @@ class EcDirectGroupBuilder {
     return EcBatchStatus::kOk;
   }
   static constexpr size_t kOpenGroupCount =
-      kEcBatchBehaviorGroupCount * ::FarLib::allocator::RegionBinCount;
+      kEcBatchBehaviorGroupCount * ::starfish::allocator::RegionBinCount;
 
   struct Open {
     uint64_t token = 0;
@@ -192,17 +192,18 @@ class EcDirectGroupBuilder {
   };
 
   static size_t allocator_bin_for_size(size_t size) {
-    const size_t bin = ::FarLib::allocator::bin_from_wsize(
-        ::FarLib::allocator::wsize_from_size(size));
-    assert(bin < ::FarLib::allocator::RegionBinCount);
-    assert(::FarLib::allocator::get_bin_size(bin) >= size);
+    const size_t bin = ::starfish::allocator::bin_from_wsize(
+        ::starfish::allocator::wsize_from_size(size));
+    assert(bin < ::starfish::allocator::RegionBinCount);
+    assert(::starfish::allocator::get_bin_size(bin) >= size);
     return bin;
   }
 
   size_t physical_key_for(size_t behavior_group, size_t allocator_bin) const {
     if (!size_classed_) return behavior_group;
-    assert(allocator_bin < ::FarLib::allocator::RegionBinCount);
-    return behavior_group * ::FarLib::allocator::RegionBinCount + allocator_bin;
+    assert(allocator_bin < ::starfish::allocator::RegionBinCount);
+    return behavior_group * ::starfish::allocator::RegionBinCount +
+           allocator_bin;
   }
 
   SmallObjectStripeManager *manager_;
@@ -217,4 +218,4 @@ class EcDirectGroupBuilder {
            data_bytes_ = 0;
   std::array<uint64_t, kEcBatchBehaviorGroupCount> sealed_by_group_{};
 };
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch

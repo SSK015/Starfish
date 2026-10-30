@@ -1,7 +1,7 @@
 #pragma once
 #include <cassert>
 
-namespace FarLib {
+namespace starfish {
 namespace utils {
 
 template <typename Impl>
@@ -111,4 +111,4 @@ struct DoubleLinkedList {
 };
 
 }  // namespace utils
-}  // namespace FarLib
+}  // namespace starfish

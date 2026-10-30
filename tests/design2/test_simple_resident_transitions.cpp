@@ -13,11 +13,11 @@
 #include "transport/rdma/config.hpp"
 #include "lib/control.hpp"
 
-namespace allocator = FarLib::allocator;
-namespace heat = FarLib::simple_region_heat;
-using FarLib::cache::EntryStateBits;
-using FarLib::cache::FarObjectEntry;
-using FarLib::cache::far_obj_t;
+namespace allocator = starfish::allocator;
+namespace heat = starfish::simple_region_heat;
+using starfish::cache::EntryStateBits;
+using starfish::cache::FarObjectEntry;
+using starfish::cache::far_obj_t;
 
 namespace {
 
@@ -108,7 +108,8 @@ int main() {
   setenv("FARLIB_FIXED_SIX_GROUPS", "0", 1);
   setenv("FARLIB_FIXED_SIX_POOLS", "0", 1);
 
-  auto &config = const_cast<FarLib::rdma::Configure &>(FarLib::get_config());
+  auto &config =
+      const_cast<starfish::rdma::Configure &>(starfish::get_config());
   config.enable_region_resident_placement = true;
   config.region_placement_bind_groups = false;
   config.exclusive_cache = true;
@@ -220,7 +221,7 @@ int main() {
     assert(!object.entry->is_resident_local());
   check_supply_band(usable, usable_dirty);
   check_supply_band(full, full_dirty);
-  const auto counts = FarLib::simple_region_budget::local().snapshot(kBin);
+  const auto counts = starfish::simple_region_budget::local().snapshot(kBin);
   assert(counts.actual[0] + counts.actual[1] + counts.actual[2] ==
          allocator::global_heap.get_streaming_reserved_regions());
   assert(counts.actual[3] + counts.actual[4] + counts.actual[5] ==

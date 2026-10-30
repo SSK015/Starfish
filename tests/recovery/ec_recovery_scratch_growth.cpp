@@ -19,10 +19,10 @@
 
 namespace {
 
-using FarLib::cache::ec_batch::EcStagingGroupSlot;
-using FarLib::cache::ec_batch::EcStagingPool;
-using FarLib::cache::ec_read_recovery::EcRecoveryScratchPool;
-using FarLib::cache::ec_read_recovery::RecoveryScratchChunk;
+using starfish::cache::ec_batch::EcStagingGroupSlot;
+using starfish::cache::ec_batch::EcStagingPool;
+using starfish::cache::ec_read_recovery::EcRecoveryScratchPool;
+using starfish::cache::ec_read_recovery::RecoveryScratchChunk;
 
 struct FakeRegistration {
   uint32_t lkey;
@@ -104,14 +104,14 @@ void check_slot_layout(const EcStagingGroupSlot &slot,
   assert(reinterpret_cast<uintptr_t>(data0) -
              reinterpret_cast<uintptr_t>(base) ==
          slot.mr_offset);
-  for (size_t i = 0; i < FarLib::cache::ec_batch::kEcBatchDataSlots; ++i) {
+  for (size_t i = 0; i < starfish::cache::ec_batch::kEcBatchDataSlots; ++i) {
     const auto *expected = data0 + i * slot.slot_size;
     assert(slot.data[i] == expected);
   }
-  for (size_t i = 0; i < FarLib::cache::ec_batch::kEcBatchParitySlots; ++i) {
+  for (size_t i = 0; i < starfish::cache::ec_batch::kEcBatchParitySlots; ++i) {
     const auto *expected =
         data0 +
-        (FarLib::cache::ec_batch::kEcBatchDataSlots + i) * slot.slot_size;
+        (starfish::cache::ec_batch::kEcBatchDataSlots + i) * slot.slot_size;
     assert(slot.parity[i] == expected);
   }
 }
@@ -216,7 +216,7 @@ void test_explicit_limit_eight() {
   assert(pool.depth() == 8);
   assert(pool.in_use() == 8);
   assert(pool.bytes() ==
-         8 * 64 * FarLib::cache::ec_batch::kEcBatchSegmentsPerGroup);
+         8 * 64 * starfish::cache::ec_batch::kEcBatchSegmentsPerGroup);
   for (const auto &lease : leases) assert(pool.release(lease));
   assert(pool.in_use() == 0);
 }

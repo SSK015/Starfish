@@ -1,9 +1,9 @@
 #pragma once
-#ifndef FARLIB_HAS_PAPI
-#define FARLIB_HAS_PAPI 0
+#ifndef STARFISH_HAS_PAPI
+#define STARFISH_HAS_PAPI 0
 #endif
 
-#if FARLIB_HAS_PAPI
+#if STARFISH_HAS_PAPI
 extern "C" {
 #include <papi.h>
 }
@@ -18,7 +18,7 @@ extern "C" {
 #include "lib/debug.hpp"
 #include "async/uthreads.hpp"
 
-namespace FarLib {
+namespace starfish {
 // this value may modified when kernel changed.
 static constexpr size_t TID_OFFS = 0x2d0;
 static constexpr bool RESULT_PER_TH = false;
@@ -83,7 +83,7 @@ struct PerfResult {
 
 template <typename Fn>
 PerfResult perf_profile(Fn&& fn) {
-#if FARLIB_HAS_PAPI
+#if STARFISH_HAS_PAPI
   constexpr size_t PAPIEventCount = 3;
   int papi_events[PAPIEventCount] = {PAPI_TOT_INS, PAPI_L2_TCM, PAPI_L3_TCM};
   std::vector<int> events;
@@ -159,7 +159,7 @@ PerfResult perf_profile(Fn&& fn) {
 }
 
 inline void perf_init() {
-#if FARLIB_HAS_PAPI
+#if STARFISH_HAS_PAPI
   int ret = PAPI_library_init(PAPI_VER_CURRENT);
   if (ret != PAPI_VER_CURRENT) {
     std::cerr << "PAPI library init failed, with code " << ret << std::endl;
@@ -168,4 +168,4 @@ inline void perf_init() {
 #endif
 }
 
-}  // namespace FarLib
+}  // namespace starfish

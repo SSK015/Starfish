@@ -15,7 +15,7 @@
 #include <vector>
 #include <x86intrin.h>
 
-namespace FarLib::profile::runtime_ec_cpu {
+namespace starfish::profile::runtime_ec_cpu {
 
 enum class Operation : uint8_t { Encode, Decode, Xor, Update, Setup };
 
@@ -279,7 +279,7 @@ inline void install_measurement_aux_reader() {
   bool expected = false;
   if (installed.compare_exchange_strong(expected, true,
                                         std::memory_order_acq_rel)) {
-    ::FarLib::runtime_metadata::install_measurement_aux_reader(
+    ::starfish::runtime_metadata::install_measurement_aux_reader(
         &registry(), &measurement_aux_bytes);
   }
 }
@@ -459,4 +459,4 @@ class Scope {
   bool nested_ = false;
 };
 
-}  // namespace FarLib::profile::runtime_ec_cpu
+}  // namespace starfish::profile::runtime_ec_cpu

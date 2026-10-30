@@ -9,7 +9,7 @@
 
 namespace {
 
-using Counter = FarLib::profile::ShardedDiagnosticCounter;
+using Counter = starfish::profile::ShardedDiagnosticCounter;
 
 bool check(bool condition, const char *message) {
   if (!condition) {

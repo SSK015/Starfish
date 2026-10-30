@@ -3,12 +3,12 @@
 #include "data_structure/far_vector.hpp"
 #include "data_structure/view.hpp"
 
-namespace FarLib {
+namespace starfish {
 template <VecElementType T, size_t GroupSize>
 template <bool Mut>
 class FarVector<T, GroupSize>::VectorView
-    : public FarLib::FarView::View<T, Mut,
-                                   FarVector<T, GroupSize>::VectorView<Mut>> {
+    : public starfish::FarView::View<T, Mut,
+                                     FarVector<T, GroupSize>::VectorView<Mut>> {
   using Pointer = FarVector<T, GroupSize>::Pointer;
 
  private:
@@ -27,4 +27,4 @@ class FarVector<T, GroupSize>::VectorView
     }
   }
 };
-}  // namespace FarLib
+}  // namespace starfish

@@ -11,4 +11,4 @@
 #endif
 
 #define __define_oms__(__scope) \
-    FarLib::cache::OnMissScope oms(__entry__, &__scope);
+    starfish::cache::OnMissScope oms(__entry__, &__scope);

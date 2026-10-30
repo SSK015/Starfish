@@ -31,7 +31,7 @@
 #include "ft/ec/small_object_stripe_codec.hpp"
 #include "mm/allocator/region_based_allocator.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 static_assert(kEcBatchDataSlots == kStripeCodecDataShards,
               "size-class EC builder requires RS(4,2) data geometry");
@@ -71,7 +71,7 @@ class EcSizeClassBuilderT {
     uint32_t object_sizes[kEcBatchDataSlots]{};
   };
 
-  static constexpr size_t kBinCount = ::FarLib::allocator::RegionBinCount;
+  static constexpr size_t kBinCount = ::starfish::allocator::RegionBinCount;
   static constexpr size_t kLookupCount =
       kEcSizeClassBehaviorGroupCount * kBinCount;
   static constexpr uint8_t kInvalidOpenIndex =
@@ -150,12 +150,12 @@ class EcSizeClassBuilderT {
     if (bin_out == nullptr || size == 0 || size > kEcSizeClassMaxSlotSize) {
       return false;
     }
-    const size_t words = ::FarLib::allocator::wsize_from_size(size);
-    if (words == 0 || words > ::FarLib::allocator::MaxBinSize) {
+    const size_t words = ::starfish::allocator::wsize_from_size(size);
+    if (words == 0 || words > ::starfish::allocator::MaxBinSize) {
       return false;
     }
-    const size_t bin = ::FarLib::allocator::bin_from_wsize(words);
-    if (bin >= kBinCount || ::FarLib::allocator::get_bin_size(bin) < size) {
+    const size_t bin = ::starfish::allocator::bin_from_wsize(words);
+    if (bin >= kBinCount || ::starfish::allocator::get_bin_size(bin) < size) {
       return false;
     }
     *bin_out = static_cast<uint32_t>(bin);
@@ -327,7 +327,8 @@ class EcSizeClassBuilderT {
       // manager that hands back a different stride: combining it with
       // this key would violate the no-mixed-size-group invariant, and a
       // sender record assumes the staging and remote strides match.
-      const size_t expected_slot_size = ::FarLib::allocator::get_bin_size(bin);
+      const size_t expected_slot_size =
+          ::starfish::allocator::get_bin_size(bin);
       if (handle.slot_size != expected_slot_size ||
           handle.slot_size > kEcSizeClassMaxSlotSize || handle.slot_size == 0) {
         (void)manager_->mark_dead_group(handle.id);
@@ -610,7 +611,7 @@ class EcSizeClassBuilderT {
 };
 
 using EcSizeClassBuilder =
-    EcSizeClassBuilderT<::FarLib::cache::SmallObjectStripeManager,
-                        ::FarLib::cache::ec_split::BufferPools>;
+    EcSizeClassBuilderT<::starfish::cache::SmallObjectStripeManager,
+                        ::starfish::cache::ec_split::BufferPools>;
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch

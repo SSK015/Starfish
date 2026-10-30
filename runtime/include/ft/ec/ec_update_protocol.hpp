@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace FarLib::rdma::ec_update {
+namespace starfish::rdma::ec_update {
 
 // One compute process coordinates a transaction over one dead data slot and
 // its two parity slots. PREPARE never modifies the visible registered memory.
@@ -57,4 +57,4 @@ inline bool valid(const Message &m, size_t wire_size) {
          m.bytes <= kMaxBytes && wire_size == wire_bytes(m);
 }
 
-}  // namespace FarLib::rdma::ec_update
+}  // namespace starfish::rdma::ec_update

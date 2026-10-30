@@ -26,26 +26,26 @@
 
 // Debug (compile-time opt-in; zero cost when disabled)
 //
-// - FARLIB_ALLOC_DEBUG:
+// - STARFISH_ALLOC_DEBUG:
 //   Enables debug-only invariants, structured logs (non-interleaving), and tags.
-// - FARLIB_ALLOC_DEBUG_FENCE:
+// - STARFISH_ALLOC_DEBUG_FENCE:
 //   Adds debug-only fences around publish points to help diagnose ordering issues.
 //
 // Enable via build system, e.g. CMake:
-//   target_compile_definitions(<target> PRIVATE FARLIB_ALLOC_DEBUG FARLIB_ALLOC_DEBUG_FENCE)
-#ifdef FARLIB_ALLOC_DEBUG
+//   target_compile_definitions(<target> PRIVATE STARFISH_ALLOC_DEBUG STARFISH_ALLOC_DEBUG_FENCE)
+#ifdef STARFISH_ALLOC_DEBUG
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
 #endif
-namespace FarLib {
+namespace starfish {
 
 namespace allocator {
 
 namespace list_only_six = six_group::list_only_six;
 
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
 inline void alloc_debug_printf(const char *fmt, ...) {
   char buf[1024];
   va_list ap;
@@ -383,7 +383,7 @@ struct alignas(64) RegionHead : public RegionListNodeBase {
   std::atomic<uint8_t> profile_pending_target_placement;
   std::atomic<uint64_t> profile_pending_plan_id;
   std::atomic<uint32_t> profile_pending_plan_rank;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
   // Debug-only: track which RegionList currently owns/enqueues this region.
   // This catches double-enqueue even across different lists.
   std::atomic<void *> dbg_enqueued_list;
@@ -803,7 +803,7 @@ struct EvictTask {
 
   bool placement_still_matches() const {
     return region != nullptr && region->load_placement() == placement &&
-           (!FarLib::get_config().region_placement_bind_groups ||
+           (!starfish::get_config().region_placement_bind_groups ||
             region->load_placement_group_id() == placement_group_id) &&
            region->load_placement_epoch() == placement_epoch;
   }
@@ -1183,7 +1183,7 @@ inline runtime_metadata::Snapshot GlobalHeap::metadata_usage() {
 
 }  // namespace allocator
 
-}  // namespace FarLib
+}  // namespace starfish
 
 #include "mm/allocator/region_list_path.hpp"
 #include "mm/allocator/global_heap_path.hpp"

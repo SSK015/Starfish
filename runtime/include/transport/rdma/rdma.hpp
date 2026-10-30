@@ -14,7 +14,7 @@
 #include "transport/rdma/config.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace rdma {
 enum RequestType {
@@ -320,4 +320,4 @@ struct QueuePair {
 
 }  // namespace rdma
 
-}  // namespace FarLib
+}  // namespace starfish

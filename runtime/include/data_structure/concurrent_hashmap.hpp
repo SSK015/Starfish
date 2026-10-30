@@ -18,7 +18,7 @@
 #include "lib/cpu_cycles.hpp"
 #include "async/parallel.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <typename Key, typename Val, typename Hash = std::hash<Key>>
 class ConcurrentHashMap {
@@ -1439,4 +1439,4 @@ inline void ConcurrentHashMap<Key, Val, Hash>::for_each_snapshot(
   }
 }
 
-}  // namespace FarLib
+}  // namespace starfish

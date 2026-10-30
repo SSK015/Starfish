@@ -2,7 +2,7 @@
 #include "mm/cache/cache.hpp"
 #include "data_structure/far_vector.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <VecElementType T, size_t GroupSize>
 template <bool Mut>

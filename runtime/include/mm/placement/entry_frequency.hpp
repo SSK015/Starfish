@@ -9,11 +9,11 @@
 #include <new>
 #include <unordered_map>
 
-namespace FarLib::allocator::six_group {
+namespace starfish::allocator::six_group {
 struct Record;
 }
 
-namespace FarLib::cache::detail {
+namespace starfish::cache::detail {
 
 // The recovery Entry is 48B and therefore cannot retain the legacy fixed-six
 // atomic pointer inline.  This sidecar is deliberately lazy: ordinary entries
@@ -22,7 +22,7 @@ namespace FarLib::cache::detail {
 // References returned by binding() remain valid across unordered_map rehashes;
 // lifecycle code erases a key only after the owning Entry is quiescent.
 struct EntrySixBindingStore {
-  using Record = ::FarLib::allocator::six_group::Record;
+  using Record = ::starfish::allocator::six_group::Record;
   static constexpr size_t ShardCount = 64;
 
  private:
@@ -413,4 +413,4 @@ struct EntryFrequencyStore {
   }
 };
 
-}  // namespace FarLib::cache::detail
+}  // namespace starfish::cache::detail

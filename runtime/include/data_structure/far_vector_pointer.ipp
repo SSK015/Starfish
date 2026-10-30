@@ -1,7 +1,7 @@
 #pragma once
 #include "data_structure/far_vector.hpp"
 
-namespace FarLib {
+namespace starfish {
 template <VecElementType T, size_t GroupSize>
 class FarVector<T, GroupSize>::Pointer {
  public:
@@ -53,4 +53,4 @@ class FarVector<T, GroupSize>::Pointer {
         scope);
   }
 };
-}  // namespace FarLib
+}  // namespace starfish

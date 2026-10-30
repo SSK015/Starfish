@@ -1,5 +1,5 @@
 add_executable(kvs_throughput throughput.cpp)
-target_compile_definitions(kvs_throughput PRIVATE FARLIB_KVS_OBJECT_BYTES=512)
+target_compile_definitions(kvs_throughput PRIVATE STARFISH_KVS_OBJECT_BYTES=512)
 # Retain the baseline's locked-GET/deref-stats header without shadowing runtime headers.
 target_include_directories(kvs_throughput BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(kvs_throughput hdr_histogram::hdr_histogram ${COMMON_LIBS})

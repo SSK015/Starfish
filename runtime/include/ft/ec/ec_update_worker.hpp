@@ -3,7 +3,7 @@
 #include "ft/ec/ec_update_protocol.hpp"
 #include <array>
 
-namespace FarLib::cache::ec_update_runtime {
+namespace starfish::cache::ec_update_runtime {
 struct Transaction {
   SmallObjectStripeManager::SlotReuse reservation;
   void *source = nullptr;
@@ -20,4 +20,4 @@ struct Worker {
   uint64_t committed = 0, aborted = 0, payload_bytes = 0;
   uint64_t request_bytes = 0, phases = 0;
 };
-}  // namespace FarLib::cache::ec_update_runtime
+}  // namespace starfish::cache::ec_update_runtime

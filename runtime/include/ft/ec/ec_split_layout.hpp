@@ -17,7 +17,7 @@
 #include "ft/ec/small_object_stripe_codec.hpp"
 #include "profiling/evict_breakdown.hpp"
 
-namespace FarLib::cache::ec_split {
+namespace starfish::cache::ec_split {
 
 inline constexpr size_t kDataSlots = ec_batch::kEcBatchDataSlots;
 inline constexpr size_t kParitySlots = ec_batch::kEcBatchParitySlots;
@@ -256,4 +256,4 @@ inline bool reconstruct(uint8_t selected_mask,
   return true;
 }
 
-}  // namespace FarLib::cache::ec_split
+}  // namespace starfish::cache::ec_split

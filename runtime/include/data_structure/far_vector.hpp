@@ -11,7 +11,7 @@
 #include "async/option.hpp"
 #include "async/parallel.hpp"
 #include "async/scoped_inline_task.hpp"
-namespace FarLib {
+namespace starfish {
 // TODO VecElementType can be non-trivially destructible
 template <typename T>
 concept VecElementType =
@@ -1092,7 +1092,7 @@ class FarVector {
     return val;
   }
 };
-}  // namespace FarLib
+}  // namespace starfish
 /* clang-format off */
 #include "data_structure/far_vector_iter.ipp"
 #include "data_structure/far_vector_lite_iter.ipp"

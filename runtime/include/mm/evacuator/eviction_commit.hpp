@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <utility>
 
-namespace FarLib::design2 {
+namespace starfish::design2 {
 
 // `take_pending` must atomically exchange the entry's pending flag with zero.
 // `commit` receives the dirty bit (kind==2) only when commit_event is true.
@@ -31,4 +31,4 @@ inline bool discard_six_pending_evict_once(TakePending &&take_pending) {
       std::forward<TakePending>(take_pending), [](bool) {}, false);
 }
 
-}  // namespace FarLib::design2
+}  // namespace starfish::design2

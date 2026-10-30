@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-namespace FarLib::profile::read_size_profile {
+namespace starfish::profile::read_size_profile {
 
 // Diagnostic only: exact 8-byte-aligned READ payload lengths representable by
 // FarObject's 16-bit size. No allocation, locking, or I/O on the recording path.
@@ -60,4 +60,4 @@ struct Histogram {
   }
 };
 
-}  // namespace FarLib::profile::read_size_profile
+}  // namespace starfish::profile::read_size_profile

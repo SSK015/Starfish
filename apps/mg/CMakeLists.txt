@@ -25,7 +25,7 @@ add_executable(test_mg_iterator_boundaries EXCLUDE_FROM_ALL tests/iterator_bound
 target_compile_options(test_mg_iterator_boundaries PRIVATE -UNDEBUG)
 target_link_libraries(test_mg_iterator_boundaries PRIVATE ${COMMON_LIBS})
 
-if(DEFINED FARLIB_MG_OUTPUT_DIR)
+if(DEFINED STARFISH_MG_OUTPUT_DIR)
     set_target_properties(mg PROPERTIES
-                          RUNTIME_OUTPUT_DIRECTORY "${FARLIB_MG_OUTPUT_DIR}")
+                          RUNTIME_OUTPUT_DIRECTORY "${STARFISH_MG_OUTPUT_DIR}")
 endif()

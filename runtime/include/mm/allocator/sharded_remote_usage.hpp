@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 
 // Accounting only: this class neither owns nor changes any allocation bitmap.
 // A shard survives its writer thread until reset/destruction of the whole heap.
@@ -215,4 +215,4 @@ class ShardedRemoteUsage {
     return snapshot()[ep];
   }
 };
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote

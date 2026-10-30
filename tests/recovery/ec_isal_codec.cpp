@@ -24,9 +24,9 @@ namespace {
 
 std::atomic<unsigned> g_ec_init_tables_calls{0};
 
-constexpr size_t kDataShards = FarLib::cache::kStripeCodecDataShards;
-constexpr size_t kParityShards = FarLib::cache::kStripeCodecParityShards;
-constexpr size_t kShardCount = FarLib::cache::kStripeCodecShardCount;
+constexpr size_t kDataShards = starfish::cache::kStripeCodecDataShards;
+constexpr size_t kParityShards = starfish::cache::kStripeCodecParityShards;
+constexpr size_t kShardCount = starfish::cache::kStripeCodecShardCount;
 constexpr std::array<std::array<uint8_t, kDataShards>, kParityShards>
     kParityMatrix{{{{1, 1, 1, 1}}, {{1, 2, 4, 8}}}};
 
@@ -102,8 +102,8 @@ void test_cold_initialization_is_once() {
       while (!go.load(std::memory_order_acquire)) {
         std::this_thread::yield();
       }
-      if (!FarLib::cache::small_object_stripe_encode_shards(data, parity,
-                                                            kByteCount, 0)) {
+      if (!starfish::cache::small_object_stripe_encode_shards(data, parity,
+                                                              kByteCount, 0)) {
         failures.fetch_add(1, std::memory_order_relaxed);
       }
     });
@@ -117,7 +117,7 @@ void test_cold_initialization_is_once() {
   assert(failures.load(std::memory_order_relaxed) == 0);
   assert(g_ec_init_tables_calls.load(std::memory_order_relaxed) == 1);
 
-  FarLib::cache::small_object_stripe_initialize_encoder();
+  starfish::cache::small_object_stripe_initialize_encoder();
   assert(g_ec_init_tables_calls.load(std::memory_order_relaxed) == 1);
 }
 
@@ -154,7 +154,7 @@ void test_encode_oracle_for_length(size_t byte_count, size_t shard_offset) {
   void *parity[kParityShards] = {parity_storage[0].data() + kPointerBias,
                                  parity_storage[1].data() + kPointerBias};
 
-  assert(FarLib::cache::small_object_stripe_encode_shards(
+  assert(starfish::cache::small_object_stripe_encode_shards(
       data, parity, byte_count, shard_offset));
   assert(g_ec_init_tables_calls.load(std::memory_order_relaxed) == 1);
 
@@ -198,30 +198,30 @@ void test_invalid_arguments_do_not_touch_buffers() {
                                    data_buffer.data(), data_buffer.data()};
   void *parity[kParityShards] = {parity_buffer.data(), parity_buffer.data()};
 
-  assert(!FarLib::cache::small_object_stripe_encode_shards(
+  assert(!starfish::cache::small_object_stripe_encode_shards(
       static_cast<const void *const *>(nullptr), parity, 1, 0));
-  assert(!FarLib::cache::small_object_stripe_encode_shards(
+  assert(!starfish::cache::small_object_stripe_encode_shards(
       data, static_cast<void *const *>(nullptr), 1, 0));
   assert(data_buffer == data_before);
   assert(parity_buffer == parity_before);
 
   const void *bad_data[kDataShards] = {data_buffer.data(), data_buffer.data(),
                                        nullptr, data_buffer.data()};
-  assert(!FarLib::cache::small_object_stripe_encode_shards(bad_data, parity, 1,
-                                                           0));
+  assert(!starfish::cache::small_object_stripe_encode_shards(bad_data, parity,
+                                                             1, 0));
   assert(data_buffer == data_before);
   assert(parity_buffer == parity_before);
 
   void *bad_parity[kParityShards] = {parity_buffer.data(), nullptr};
-  assert(!FarLib::cache::small_object_stripe_encode_shards(data, bad_parity, 1,
-                                                           0));
+  assert(!starfish::cache::small_object_stripe_encode_shards(data, bad_parity,
+                                                             1, 0));
   assert(data_buffer == data_before);
   assert(parity_buffer == parity_before);
 
   constexpr size_t kTooLong =
       static_cast<size_t>(std::numeric_limits<int>::max()) + 1u;
-  assert(!FarLib::cache::small_object_stripe_encode_shards(data, parity,
-                                                           kTooLong, 0));
+  assert(!starfish::cache::small_object_stripe_encode_shards(data, parity,
+                                                             kTooLong, 0));
   assert(data_buffer == data_before);
   assert(parity_buffer == parity_before);
 }
@@ -239,8 +239,8 @@ void test_rebuild_all_single_and_double_erasures() {
   const void *data[kDataShards] = {original[0].data(), original[1].data(),
                                    original[2].data(), original[3].data()};
   void *parity[kParityShards] = {original[4].data(), original[5].data()};
-  assert(FarLib::cache::small_object_stripe_encode_shards(data, parity,
-                                                          kByteCount, 0));
+  assert(starfish::cache::small_object_stripe_encode_shards(data, parity,
+                                                            kByteCount, 0));
 
   for (uint8_t missing = 1; missing < (1u << kShardCount); ++missing) {
     const size_t missing_count = popcount(missing);
@@ -258,8 +258,8 @@ void test_rebuild_all_single_and_double_erasures() {
                                  rebuilt[4].data(), rebuilt[5].data()};
     const uint8_t alive = static_cast<uint8_t>(
         (~missing) & static_cast<uint8_t>((1u << kShardCount) - 1u));
-    assert(FarLib::cache::small_object_stripe_rebuild_shards(alive, shards,
-                                                             kByteCount, 0));
+    assert(starfish::cache::small_object_stripe_rebuild_shards(alive, shards,
+                                                               kByteCount, 0));
     for (size_t shard = 0; shard < kShardCount; ++shard) {
       assert(rebuilt[shard] == original[shard]);
     }

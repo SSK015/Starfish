@@ -20,21 +20,21 @@
 #include "ft/ec/small_object_stripe_codec.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure g_ec_direct_group_config;
 const rdma::Configure &get_config() { return g_ec_direct_group_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 
 namespace {
 
-using FarLib::cache::SmallObjectStripeManager;
-using FarLib::cache::ec_batch::EcBatchStatus;
-using FarLib::cache::ec_batch::EcDirectGroupBuilder;
-using FarLib::cache::ec_batch::EcDirectWriteBank;
+using starfish::cache::SmallObjectStripeManager;
+using starfish::cache::ec_batch::EcBatchStatus;
+using starfish::cache::ec_batch::EcDirectGroupBuilder;
+using starfish::cache::ec_batch::EcDirectWriteBank;
 
 struct Checks {
   int count = 0;
@@ -89,23 +89,23 @@ void host_bank_free(void *, EcDirectWriteBank::RegisteredBank &bank) {
 }
 
 bool configure_fixture() {
-  auto &config = FarLib::g_ec_direct_group_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_ec_direct_group_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   config.server_buffer_size = 4ull * 1024 * 1024;
   config.client_buffer_size = 4ull * 1024 * 1024;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
@@ -133,7 +133,7 @@ bool parity_matches(const EcDirectWriteBank::Entry &entry) {
 
   std::array<std::array<uint8_t, 4096>, 2> expected{};
   void *parity[2] = {expected[0].data(), expected[1].data()};
-  if (!FarLib::cache::small_object_stripe_encode_shards(
+  if (!starfish::cache::small_object_stripe_encode_shards(
           data, parity, entry.record.slot_size, 0)) {
     return false;
   }
@@ -174,7 +174,7 @@ bool recovery_matches(const EcDirectWriteBank::Entry &entry) {
     if (missing_b < 6) work[missing_b].fill(0);
     void *shards[6] = {work[0].data(), work[1].data(), work[2].data(),
                        work[3].data(), work[4].data(), work[5].data()};
-    if (!FarLib::cache::small_object_stripe_rebuild_shards(
+    if (!starfish::cache::small_object_stripe_rebuild_shards(
             alive_mask, shards, entry.record.slot_size, 0)) {
       return false;
     }
@@ -236,7 +236,7 @@ void add_four_4072(EcDirectGroupBuilder &builder,
         builder.add_object(objects[i].data(), objects[i].size(), &address, key);
     const bool expected_ok = status == EcBatchStatus::kOk;
     checks.check(expected_ok, prefix);
-    checks.check(address != FarLib::allocator::remote::InvalidRemoteAddr,
+    checks.check(address != starfish::allocator::remote::InvalidRemoteAddr,
                  "direct group returns a valid remote data address");
   }
 }
@@ -315,7 +315,7 @@ void test_partial_and_interleaved(SmallObjectStripeManager &manager,
       checks.check(builder.add_object(sources[row][i], sizes[row][i], &address,
                                       keys[row]) == EcBatchStatus::kOk,
                    "interleaved partial/unequal source accepted");
-      checks.check(address != FarLib::allocator::remote::InvalidRemoteAddr,
+      checks.check(address != starfish::allocator::remote::InvalidRemoteAddr,
                    "partial group returns a valid remote data address");
     }
   }
@@ -413,10 +413,10 @@ void test_slot_reuse(SmallObjectStripeManager &manager, Checks &checks) {
 int run() {
   Checks checks;
   checks.check(configure_fixture(), "direct-group fixture configured");
-  const auto &config = FarLib::g_ec_direct_group_config;
+  const auto &config = starfish::g_ec_direct_group_config;
   SmallObjectStripeManager manager;
   manager.init(config.remote_total,
-               FarLib::rdma::Configure::ft_ec_shard_size_bytes);
+               starfish::rdma::Configure::ft_ec_shard_size_bytes);
   checks.check(manager.enabled(),
                "stripe manager initialized for direct groups");
   if (manager.enabled()) {

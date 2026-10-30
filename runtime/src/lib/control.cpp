@@ -14,8 +14,8 @@
 
 #include "transport/rdma/client.hpp"
 
-namespace FarLib {
-using namespace FarLib::rdma;
+namespace starfish {
+using namespace starfish::rdma;
 static uint8_t mode;
 static Configure global_config;
 
@@ -131,12 +131,12 @@ void runtime_quiesce_cache() {
 }
 
 const Configure &get_config() { return global_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
 #else
 
-namespace FarLib {
-using namespace FarLib::rdma;
+namespace starfish {
+using namespace starfish::rdma;
 static Configure global_config;
 void runtime_init(const rdma::Configure &config, bool enable_cache) {
   global_config = config;
@@ -162,6 +162,6 @@ void runtime_destroy() {
 void runtime_quiesce_cache() {}
 
 const Configure &get_config() { return global_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
 #endif

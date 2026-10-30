@@ -1,14 +1,14 @@
 #pragma once
 #include "mm/cache/accessor.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 template <typename T, typename Impl>
 inline void UniqueFarPtrBase<T, Impl>::move(FarObjectEntry *other) {
   auto *cache = Cache::get_default();
   EntryStateBits state = other->load_state();
 retry:
-  if (::FarLib::get_config().exclusive_cache && state.invalid) {
+  if (::starfish::get_config().exclusive_cache && state.invalid) {
     state = other->load_state();
     goto retry;
   }
@@ -86,7 +86,7 @@ inline void UniqueFarPtrBase<T, Impl>::atomic_move_to_and_set_busy(
 retry:
   EntryStateBits prev_state = entry.load_state(std::memory_order::relaxed);
   // Completion and placement updates own the reservation flags while invalid.
-  if (::FarLib::get_config().exclusive_cache && prev_state.invalid) {
+  if (::starfish::get_config().exclusive_cache && prev_state.invalid) {
     goto retry;
   }
   EntryStateBits busy_state = {
@@ -661,4 +661,4 @@ inline void check_memory_low(DereferenceScope &scope) {
 inline void DereferenceScope::enter() { Cache::get_default()->enter_scope(); }
 inline void DereferenceScope::exit() { Cache::get_default()->exit_scope(); }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

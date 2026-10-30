@@ -1,7 +1,7 @@
 #pragma once
 #include "mm/allocator/region_based_allocator.hpp"
 
-namespace FarLib::allocator {
+namespace starfish::allocator {
 
 inline bool GlobalHeap::async_full_returns_enabled() {
   static const bool enabled = [] {
@@ -81,4 +81,4 @@ inline void GlobalHeap::finish_async_full_returns_for_shutdown() {
   print_async_full_returns("shutdown");
 }
 
-}  // namespace FarLib::allocator
+}  // namespace starfish::allocator

@@ -6,7 +6,7 @@
 #include <optional>
 #include <string_view>
 
-namespace FarLib::cache::design1 {
+namespace starfish::cache::design1 {
 
 // The placement policy only ranks behavior groups. Region allocation and
 // reclassification are separate runtime concerns.
@@ -141,4 +141,4 @@ inline bool ranks_before(PlacementPolicy policy, const RankedGroup &left,
   return left.group_id < right.group_id;
 }
 
-}  // namespace FarLib::cache::design1
+}  // namespace starfish::cache::design1

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 // Diagnostic only: no admission decisions and no shared per-object total.
 // Releases may occur on another OS thread, so individual nets can be negative.
 class BackupUsageShards {

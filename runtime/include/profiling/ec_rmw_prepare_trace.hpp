@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-namespace FarLib::profile::ec_rmw_prepare {
+namespace starfish::profile::ec_rmw_prepare {
 
 struct Trace {
   uint64_t summary = 0;
@@ -36,4 +36,4 @@ class Scope {
   uint64_t start_ = 0;
 };
 
-}  // namespace FarLib::profile::ec_rmw_prepare
+}  // namespace starfish::profile::ec_rmw_prepare

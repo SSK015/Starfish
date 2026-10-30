@@ -3,7 +3,7 @@
 #ifndef NO_REMOTE
 #include "libfibre/fibre.h"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 BatchedBackupBudget::Handle &current_backup_budget_handle() {
   static const size_t key = Fibre::key_create(
@@ -23,5 +23,5 @@ BatchedBackupBudget::Handle &current_backup_thread_handle() {
   return handle;
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache
 #endif

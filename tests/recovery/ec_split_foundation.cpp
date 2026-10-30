@@ -24,9 +24,9 @@
 
 namespace {
 
-using FarLib::cache::ec_batch::EcStagingGroupSlot;
-using FarLib::cache::ec_read_recovery::RecoveryScratchChunk;
-using FarLib::cache::ec_split::BufferPools;
+using starfish::cache::ec_batch::EcStagingGroupSlot;
+using starfish::cache::ec_read_recovery::RecoveryScratchChunk;
+using starfish::cache::ec_split::BufferPools;
 
 struct Registration {
   uint32_t lkey = 0;
@@ -76,18 +76,18 @@ size_t rounded_slot_size(size_t bytes) {
   // exercises allocator-bin rounding; keeping this CPU codec fixture at the
   // exact logical fragment size avoids pulling RDMA allocator headers into a
   // standalone unit test.
-  return FarLib::cache::ec_split::fragment_size(bytes);
+  return starfish::cache::ec_split::fragment_size(bytes);
 }
 
 EcStagingGroupSlot slot_for(std::vector<uint8_t> &storage, size_t slot_size) {
   EcStagingGroupSlot slot;
   slot.slot_size = static_cast<uint32_t>(slot_size);
-  for (size_t i = 0; i < FarLib::cache::ec_split::kDataSlots; ++i) {
+  for (size_t i = 0; i < starfish::cache::ec_split::kDataSlots; ++i) {
     slot.data[i] = storage.data() + i * slot_size;
   }
-  for (size_t i = 0; i < FarLib::cache::ec_split::kParitySlots; ++i) {
-    slot.parity[i] =
-        storage.data() + (FarLib::cache::ec_split::kDataSlots + i) * slot_size;
+  for (size_t i = 0; i < starfish::cache::ec_split::kParitySlots; ++i) {
+    slot.parity[i] = storage.data() +
+                     (starfish::cache::ec_split::kDataSlots + i) * slot_size;
   }
   return slot;
 }
@@ -98,12 +98,12 @@ void test_all_survivor_sets(size_t bytes) {
     object[i] = static_cast<uint8_t>((i * 131u + bytes * 17u) & 0xffu);
   }
   const size_t slot_size = rounded_slot_size(bytes);
-  std::vector<uint8_t> encoded(FarLib::cache::ec_split::kSegments * slot_size,
+  std::vector<uint8_t> encoded(starfish::cache::ec_split::kSegments * slot_size,
                                0xa5);
   auto source = slot_for(encoded, slot_size);
-  assert(FarLib::cache::ec_split::encode(object.data(), bytes, source));
+  assert(starfish::cache::ec_split::encode(object.data(), bytes, source));
 
-  const size_t logical = FarLib::cache::ec_split::fragment_size(bytes);
+  const size_t logical = starfish::cache::ec_split::fragment_size(bytes);
   for (size_t data = 0; data < 4; ++data) {
     const size_t offset = data * logical;
     const size_t count =
@@ -128,8 +128,8 @@ void test_all_survivor_sets(size_t bytes) {
       }
     }
     std::vector<uint8_t> output(bytes, 0);
-    assert(FarLib::cache::ec_split::reconstruct(selected, scratch,
-                                                output.data(), bytes));
+    assert(starfish::cache::ec_split::reconstruct(selected, scratch,
+                                                  output.data(), bytes));
     assert(output == object);
   }
 }
@@ -148,11 +148,11 @@ void test_direct_read_fragment_ranges_and_canaries() {
     std::memset(payload, 0xa6, bytes);
 
     size_t covered = 0;
-    for (size_t fragment = 0; fragment < FarLib::cache::ec_split::kDataSlots;
+    for (size_t fragment = 0; fragment < starfish::cache::ec_split::kDataSlots;
          ++fragment) {
-      FarLib::cache::ec_split::DirectReadFragment range;
-      assert(FarLib::cache::ec_split::direct_read_fragment(bytes, fragment,
-                                                           &range));
+      starfish::cache::ec_split::DirectReadFragment range;
+      assert(starfish::cache::ec_split::direct_read_fragment(bytes, fragment,
+                                                             &range));
       assert(range.bytes != 0);
       assert(range.offset + range.bytes <= bytes);
       if (bytes == 8169 && fragment == 3) {
@@ -172,25 +172,25 @@ void test_direct_read_fragment_ranges_and_canaries() {
     }
   }
 
-  FarLib::cache::ec_split::DirectReadFragment untouched{17, 19};
-  assert(!FarLib::cache::ec_split::direct_read_fragment(0, 0, &untouched));
-  assert(!FarLib::cache::ec_split::direct_read_fragment(
-      FarLib::cache::ec_split::kMaxObjectBytes + 1, 0, &untouched));
-  assert(!FarLib::cache::ec_split::direct_read_fragment(4097, 4, &untouched));
-  assert(!FarLib::cache::ec_split::direct_read_fragment(4097, 0, nullptr));
+  starfish::cache::ec_split::DirectReadFragment untouched{17, 19};
+  assert(!starfish::cache::ec_split::direct_read_fragment(0, 0, &untouched));
+  assert(!starfish::cache::ec_split::direct_read_fragment(
+      starfish::cache::ec_split::kMaxObjectBytes + 1, 0, &untouched));
+  assert(!starfish::cache::ec_split::direct_read_fragment(4097, 4, &untouched));
+  assert(!starfish::cache::ec_split::direct_read_fragment(4097, 0, nullptr));
 
   std::array<uint8_t, 128> region{};
-  assert(FarLib::cache::ec_split::address_range_within(
+  assert(starfish::cache::ec_split::address_range_within(
       region.data() + 8, 64, region.data(), region.size()));
-  assert(!FarLib::cache::ec_split::address_range_within(
+  assert(!starfish::cache::ec_split::address_range_within(
       region.data() + 8, 121, region.data(), region.size()));
-  assert(!FarLib::cache::ec_split::address_range_within(
+  assert(!starfish::cache::ec_split::address_range_within(
       region.data(), 0, region.data(), region.size()));
   constexpr uintptr_t kMax = std::numeric_limits<uintptr_t>::max();
-  assert(!FarLib::cache::ec_split::address_range_within(
+  assert(!starfish::cache::ec_split::address_range_within(
       reinterpret_cast<const void *>(kMax - 3), 8, region.data(),
       region.size()));
-  assert(!FarLib::cache::ec_split::address_range_within(
+  assert(!starfish::cache::ec_split::address_range_within(
       region.data(), 8, reinterpret_cast<const void *>(kMax - 3), 8));
 }
 

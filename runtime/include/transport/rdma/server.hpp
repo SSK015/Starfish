@@ -13,7 +13,7 @@
 #include "transport/rdma/rdma.hpp"
 #include "lib/debug.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace rdma {
 
 class Server {
@@ -37,7 +37,7 @@ class Server {
   Server(const Configure &config)
       : config(config),
         buffer(
-            std::aligned_alloc(FarLib::PAGE_SIZE, config.server_buffer_size)),
+            std::aligned_alloc(starfish::PAGE_SIZE, config.server_buffer_size)),
         ctx(config),
         pd(ctx),
         mr(pd, buffer, config.server_buffer_size),
@@ -175,4 +175,4 @@ class Server {
 };
 
 }  // namespace rdma
-}  // namespace FarLib
+}  // namespace starfish

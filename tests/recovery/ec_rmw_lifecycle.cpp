@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <cstring>
 
-using namespace FarLib::rdma::ec_rmw;
+using namespace starfish::rdma::ec_rmw;
 static size_t accept_limit = 0;
 static int fake_post(ibv_qp *, ibv_send_wr *wr, ibv_send_wr **bad) {
   size_t accepted = 0;
@@ -117,18 +117,18 @@ int main() {
       const void *inputs[4] = {data[0], data[1], data[2], data[3]};
       void *old_parities[2] = {before[0], before[1]};
       void *new_parities[2] = {expected[0], expected[1]};
-      check(FarLib::cache::small_object_stripe_encode_shards(
+      check(starfish::cache::small_object_stripe_encode_shards(
                 inputs, old_parities, size),
             "old encode");
       for (size_t b = 0; b < size; ++b) {
         replacement[b] = uint8_t(199 + b * 17);
         delta[b] = data[changed][b] ^ replacement[b];
       }
-      check(FarLib::cache::small_object_stripe_encode_parity_delta(
+      check(starfish::cache::small_object_stripe_encode_parity_delta(
                 changed, delta, size, parity_delta[0], parity_delta[1]),
             "delta ISA-L encode");
       std::memcpy(data[changed], replacement, size);
-      check(FarLib::cache::small_object_stripe_encode_shards(
+      check(starfish::cache::small_object_stripe_encode_shards(
                 inputs, new_parities, size),
             "new encode");
       for (size_t p = 0; p < 2; ++p)

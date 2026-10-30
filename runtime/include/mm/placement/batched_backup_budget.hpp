@@ -8,7 +8,7 @@
 #include <mutex>
 #include <vector>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // Strict capacity admission with cached credits. At all times:
 // actual reservations + unused credits = issued <= limit.
@@ -213,4 +213,4 @@ class BatchedBackupBudget {
 // fibre_self(). Both Handle lifetimes may safely extend beyond the Cache.
 BatchedBackupBudget::Handle &current_backup_budget_handle();
 BatchedBackupBudget::Handle &current_backup_thread_handle();
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

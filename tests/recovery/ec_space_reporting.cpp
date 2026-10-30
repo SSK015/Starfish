@@ -12,32 +12,32 @@
 
 // This allocator-only fixture does not enable phased RMW or link its RDMA
 // coordinator. Fail if that unrelated diagnostic setup is ever requested.
-namespace FarLib::cache {
+namespace starfish::cache {
 void prepare_ec_rmw_timing(size_t) {
   assert(false && "phased RMW timing is outside this accounting fixture");
 }
 }
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure test_config;
 const rdma::Configure &get_config() { return test_config; }
 }
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
 }
 
 int main() {
-  auto &c = FarLib::test_config;
+  auto &c = starfish::test_config;
   c.server_count = 6;
   c.server_buffer_size = 4ull * 1024 * 1024;
   c.client_buffer_size = 4ull * 1024 * 1024;
   c.remote_total = c.server_count * c.server_buffer_size;
-  c.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  c.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  c.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  c.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   c.ft_method = "ec_batch";
   c.ft_small_object_cutoff = 4096;
   c.ft_small_stripe_shard_size_bytes =
-      FarLib::cache::SmallObjectStripeShardSize;
+      starfish::cache::SmallObjectStripeShardSize;
   c.ft_ec_data_shards = 4;
   c.ft_ec_parity_shards = 2;
   c.exclusive_cache = true;
@@ -45,10 +45,10 @@ int main() {
   std::ostringstream captured;
   auto *old = std::cout.rdbuf(captured.rdbuf());
   {
-    FarLib::cache::RemoteAllocator allocator(c.remote_total);
+    starfish::cache::RemoteAllocator allocator(c.remote_total);
     auto &manager = allocator.small_object_stripe_manager();
-    auto &heap = FarLib::allocator::remote::remote_global_heap;
-    FarLib::cache::SmallObjectStripeManager::SlotGroupHandle group;
+    auto &heap = starfish::allocator::remote::remote_global_heap;
+    starfish::cache::SmallObjectStripeManager::SlotGroupHandle group;
     assert(manager.allocate_slot_group(4072, &group));
     const uint32_t sizes[4] = {4072, 4000, 3900, 3800};
     assert(manager.seal_slot_group(group.id, 0xf, sizes));
@@ -62,9 +62,9 @@ int main() {
     }
     assert(heap.get_committed_bytes() ==
            heap.get_ec_shard_region_count() *
-               FarLib::allocator::remote::RegionSize);
+               starfish::allocator::remote::RegionSize);
     assert(heap.get_committed_bytes() >=
-           6 * FarLib::cache::SmallObjectStripeShardSize);
+           6 * starfish::cache::SmallObjectStripeShardSize);
     // Existing non-group accounting and the EC supplement must add, not
     // overwrite each other. Use a separate endpoint-mapped fixture address.
     const uint64_t legacy_addr = c.remote_total - 4096;
@@ -77,14 +77,14 @@ int main() {
     // A partial release must not shrink six-slot physical occupancy.
     assert(
         manager.release_group_object(group.segments[0].addr) ==
-        FarLib::cache::SmallObjectStripeManager::kGroupReleaseObjectReleased);
+        starfish::cache::SmallObjectStripeManager::kGroupReleaseObjectReleased);
     assert(heap.get_used_bytes() == 6 * 4096);
-    assert(FarLib::profile::memory_usage_begin_observer);
-    FarLib::profile::memory_usage_begin_observer(
-        FarLib::profile::memory_usage_observer_context);
+    assert(starfish::profile::memory_usage_begin_observer);
+    starfish::profile::memory_usage_begin_observer(
+        starfish::profile::memory_usage_observer_context);
     std::this_thread::sleep_for(std::chrono::milliseconds(230));
-    FarLib::profile::memory_usage_end_observer(
-        FarLib::profile::memory_usage_observer_context);
+    starfish::profile::memory_usage_end_observer(
+        starfish::profile::memory_usage_observer_context);
     heap.print_used_memory();
     assert(manager.mark_dead_group(group.id));
     assert(heap.get_used_bytes() == 0);
@@ -102,23 +102,24 @@ int main() {
         "sealed_space_amplification="}) {
     assert(log.find(key) != std::string::npos);
   }
-  assert(FarLib::profile::memory_usage_observer_context == nullptr);
-  assert(FarLib::profile::memory_usage_begin_observer == nullptr);
-  assert(FarLib::profile::memory_usage_end_observer == nullptr);
+  assert(starfish::profile::memory_usage_observer_context == nullptr);
+  assert(starfish::profile::memory_usage_begin_observer == nullptr);
+  assert(starfish::profile::memory_usage_end_observer == nullptr);
   // Teardown must not hide a leaked live group from the later heap exit log.
   // This fixture deliberately leaves one group allocated; no remote service
   // or real data is involved.
   setenv("FARLIB_EC_SPACE_SAMPLE_MS", "0", 1);
   {
-    FarLib::cache::RemoteAllocator allocator(c.remote_total);
-    FarLib::cache::SmallObjectStripeManager::SlotGroupHandle group;
+    starfish::cache::RemoteAllocator allocator(c.remote_total);
+    starfish::cache::SmallObjectStripeManager::SlotGroupHandle group;
     assert(allocator.small_object_stripe_manager().allocate_slot_group(4072,
                                                                        &group));
   }
-  assert(FarLib::allocator::remote::remote_global_heap.get_used_bytes() ==
+  assert(starfish::allocator::remote::remote_global_heap.get_used_bytes() ==
          6 * 4096);
-  FarLib::allocator::remote::remote_global_heap.register_remote(c.remote_total);
-  assert(FarLib::allocator::remote::remote_global_heap.get_used_bytes() == 0);
+  starfish::allocator::remote::remote_global_heap.register_remote(
+      c.remote_total);
+  assert(starfish::allocator::remote::remote_global_heap.get_used_bytes() == 0);
   std::cout << log << "EC space accounting/reporting integration PASS\n";
 }
 #else

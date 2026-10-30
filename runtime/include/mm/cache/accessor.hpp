@@ -2,11 +2,11 @@
 #include "mm/allocator/region_based_allocator.hpp"
 #include "mm/cache/concurrent_cache.hpp"
 #include "mm/cache/base/scope.hpp"
-namespace FarLib {
+namespace starfish {
 using Cache = cache::ConcurrentArrayCache;
 }
 
-namespace FarLib {
+namespace starfish {
 
 namespace cache {
 
@@ -480,7 +480,7 @@ inline LiteAccessor<void, true> alloc_uninitialized(size_t size,
   return LiteAccessor<void, true>::allocate(size, scope);
 }
 
-}  // namespace FarLib
+}  // namespace starfish
 
 #include "mm/cache/accessor/accessor_impl.hpp"
 #include "mm/cache/accessor/entry_helpers.hpp"

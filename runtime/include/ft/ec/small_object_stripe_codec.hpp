@@ -61,7 +61,7 @@
 #include <erasure_code.h>
 #endif
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // Geometry of the ported code; small_object_stripe.hpp static_asserts that this
 // agrees with its own kSmallObjectStripe* constants.
@@ -765,4 +765,4 @@ inline bool small_object_stripe_rebuild_one(
       plan, missing_shard_idx, sorted_ptrs, dst, byte_count, shard_offset);
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

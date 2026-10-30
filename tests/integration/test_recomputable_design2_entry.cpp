@@ -30,9 +30,9 @@ bool rebuild(void *destination, size_t bytes, const void *opaque,
 }  // namespace
 
 int main() {
-  using FarLib::cache::detail::EntryFrequencyStore;
-  using FarLib::cache::FarObjectEntry;
-  using FarLib::cache::LOCAL;
+  using starfish::cache::detail::EntryFrequencyStore;
+  using starfish::cache::FarObjectEntry;
+  using starfish::cache::LOCAL;
 
   // Recovery's 48B Entry keeps Recomputable in placement bit 2.  D2 heat
   // uses the independent routing byte; frequency remains external.
@@ -42,8 +42,8 @@ int main() {
   Context::destroyed = 0;
 
   auto context = std::make_shared<Context>(40);
-  FarLib::recompute::Inputs inputs =
-      FarLib::recompute::Inputs::immutable_compute_owned(context);
+  starfish::recompute::Inputs inputs =
+      starfish::recompute::Inputs::immutable_compute_owned(context);
 
   FarObjectEntry source;
   source.reset<true>(reinterpret_cast<void *>(0x1000),
@@ -121,8 +121,8 @@ int main() {
   // Legacy fixed-six compatibility uses a lazy, address-keyed sidecar.  It
   // must transfer the non-owning Record pointer with Entry relocation and
   // leave no map node after the destination is freed.
-  using SixBindingStore = FarLib::cache::detail::EntrySixBindingStore;
-  using SixRecord = FarLib::allocator::six_group::Record;
+  using SixBindingStore = starfish::cache::detail::EntrySixBindingStore;
+  using SixRecord = starfish::allocator::six_group::Record;
   FarObjectEntry six_source;
   FarObjectEntry six_destination;
   six_source.reset<true>(reinterpret_cast<void *>(0x3000),

@@ -10,11 +10,11 @@
 
 #include "lib/cpu_cycles.hpp"
 
-#ifndef FARLIB_ENABLE_EVICT_BREAKDOWN
-#define FARLIB_ENABLE_EVICT_BREAKDOWN 0
+#ifndef STARFISH_ENABLE_EVICT_BREAKDOWN
+#define STARFISH_ENABLE_EVICT_BREAKDOWN 0
 #endif
 
-namespace FarLib::profile::evict_breakdown {
+namespace starfish::profile::evict_breakdown {
 
 // Diagnostic extension of the runtime's RDTSCP Work/evacuation profiling.
 // A Worker belongs to a logical eviction invocation, NOT an OS thread. Nested
@@ -56,7 +56,7 @@ inline constexpr size_t MaxRounds = 8192;
 inline std::atomic<uint64_t> work_begin{0}, work_end{0};
 
 inline bool enabled() {
-  if constexpr (!FARLIB_ENABLE_EVICT_BREAKDOWN) return false;
+  if constexpr (!STARFISH_ENABLE_EVICT_BREAKDOWN) return false;
   static const bool on = [] {
     const char *v = std::getenv("FARLIB_EVAC_BREAKDOWN");
     return v && v[0] == '1' && v[1] == '\0';
@@ -101,13 +101,13 @@ struct Scope {
   Worker *worker = nullptr;
   Stage previous = Stage::Other;
   Scope(Worker *p, Stage next) {
-    if constexpr (FARLIB_ENABLE_EVICT_BREAKDOWN) {
+    if constexpr (STARFISH_ENABLE_EVICT_BREAKDOWN) {
       worker = p;
       if (worker) previous = worker->transition(next, get_cycles());
     }
   }
   ~Scope() {
-    if constexpr (FARLIB_ENABLE_EVICT_BREAKDOWN) {
+    if constexpr (STARFISH_ENABLE_EVICT_BREAKDOWN) {
       if (worker) worker->transition(previous, get_cycles());
     }
   }
@@ -214,4 +214,4 @@ inline void report() {
   }
   std::cout.flush();
 }
-}  // namespace FarLib::profile::evict_breakdown
+}  // namespace starfish::profile::evict_breakdown

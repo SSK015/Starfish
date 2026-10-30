@@ -7,7 +7,7 @@
 // Small, allocation-free stage state shared by benchmark drivers and the
 // optional EC-RMW timing extension. This deliberately has no request-level
 // observer, locks, syscall probes, or static record ring.
-namespace FarLib::benchmark_phase {
+namespace starfish::benchmark_phase {
 
 inline std::atomic<uint32_t> stage_ordinal{0};
 inline std::atomic<uint32_t> formal_fibres{0};
@@ -19,4 +19,4 @@ inline void begin_stage(std::size_t fibres) noexcept {
 
 inline void end_stage() noexcept {}
 
-}  // namespace FarLib::benchmark_phase
+}  // namespace starfish::benchmark_phase

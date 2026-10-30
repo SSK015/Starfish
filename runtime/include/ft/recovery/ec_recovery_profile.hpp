@@ -23,7 +23,7 @@
 #include <mutex>
 #include <sstream>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline bool ec_recovery_profile_env_flag(const char *name,
                                          bool default_value) noexcept {
@@ -399,70 +399,70 @@ class EcRecoveryProfile {
       const EcRecoveryProfileSnapshot &before) noexcept {
     EcRecoveryProfileSnapshot out = after;
     out.first_dead_ns = after.first_dead_ns;
-#define FARLIB_EC_PROFILE_SUBTRACT(field)                                      \
+#define STARFISH_EC_PROFILE_SUBTRACT(field)                                      \
         out.field = after.field >= before.field ? after.field - before.field : 0
-    FARLIB_EC_PROFILE_SUBTRACT(endpoint_dead_cas);
-    FARLIB_EC_PROFILE_SUBTRACT(post_attempt_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(post_attempt_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(post_success);
-    FARLIB_EC_PROFILE_SUBTRACT(post_duplicate);
-    FARLIB_EC_PROFILE_SUBTRACT(post_unavailable);
-    FARLIB_EC_PROFILE_SUBTRACT(post_in_flight);
-    FARLIB_EC_PROFILE_SUBTRACT(group_view_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(group_view_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(target_in_flight_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(target_in_flight_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(target_in_flight_true);
-    FARLIB_EC_PROFILE_SUBTRACT(scratch_acquire_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(scratch_acquire_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(scratch_acquire_success);
-    FARLIB_EC_PROFILE_SUBTRACT(token_acquire_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(token_acquire_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(token_acquire_success);
-    FARLIB_EC_PROFILE_SUBTRACT(segment_post_mark_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(segment_post_mark_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(accepted_survivor_segments);
-    FARLIB_EC_PROFILE_SUBTRACT(accepted_survivor_bytes);
-    FARLIB_EC_PROFILE_SUBTRACT(ordinary_read_drain_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(ordinary_read_drain_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(segment_completion_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(segment_completion_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(segment_completion_success);
-    FARLIB_EC_PROFILE_SUBTRACT(segment_completion_failure);
-    FARLIB_EC_PROFILE_SUBTRACT(decode_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(decode_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(verify_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(verify_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(verify_pass);
-    FARLIB_EC_PROFILE_SUBTRACT(verify_fail);
-    FARLIB_EC_PROFILE_SUBTRACT(verify_skips);
-    FARLIB_EC_PROFILE_SUBTRACT(publication_remote_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(publication_remote_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(scratch_release_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(scratch_release_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(token_release_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(token_release_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(recovery_log_format_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(recovery_log_format_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(recovery_log_output_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(recovery_log_output_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(recovery_log_suppressed);
-    FARLIB_EC_PROFILE_SUBTRACT(assist_poll_all_endpoints_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(assist_poll_all_endpoints_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(assist_poll_endpoints);
-    FARLIB_EC_PROFILE_SUBTRACT(winner_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(winner_latency_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(endpoint_dead_cas);
+    STARFISH_EC_PROFILE_SUBTRACT(post_attempt_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(post_attempt_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(post_success);
+    STARFISH_EC_PROFILE_SUBTRACT(post_duplicate);
+    STARFISH_EC_PROFILE_SUBTRACT(post_unavailable);
+    STARFISH_EC_PROFILE_SUBTRACT(post_in_flight);
+    STARFISH_EC_PROFILE_SUBTRACT(group_view_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(group_view_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(target_in_flight_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(target_in_flight_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(target_in_flight_true);
+    STARFISH_EC_PROFILE_SUBTRACT(scratch_acquire_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(scratch_acquire_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(scratch_acquire_success);
+    STARFISH_EC_PROFILE_SUBTRACT(token_acquire_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(token_acquire_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(token_acquire_success);
+    STARFISH_EC_PROFILE_SUBTRACT(segment_post_mark_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(segment_post_mark_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(accepted_survivor_segments);
+    STARFISH_EC_PROFILE_SUBTRACT(accepted_survivor_bytes);
+    STARFISH_EC_PROFILE_SUBTRACT(ordinary_read_drain_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(ordinary_read_drain_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(segment_completion_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(segment_completion_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(segment_completion_success);
+    STARFISH_EC_PROFILE_SUBTRACT(segment_completion_failure);
+    STARFISH_EC_PROFILE_SUBTRACT(decode_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(decode_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(verify_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(verify_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(verify_pass);
+    STARFISH_EC_PROFILE_SUBTRACT(verify_fail);
+    STARFISH_EC_PROFILE_SUBTRACT(verify_skips);
+    STARFISH_EC_PROFILE_SUBTRACT(publication_remote_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(publication_remote_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(scratch_release_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(scratch_release_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(token_release_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(token_release_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(recovery_log_format_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(recovery_log_format_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(recovery_log_output_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(recovery_log_output_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(recovery_log_suppressed);
+    STARFISH_EC_PROFILE_SUBTRACT(assist_poll_all_endpoints_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(assist_poll_all_endpoints_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(assist_poll_endpoints);
+    STARFISH_EC_PROFILE_SUBTRACT(winner_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(winner_latency_ns_sum);
     // max is not additive; keep the after/before-safe maximum from the
     // interval (the caller can interpret it as cumulative if unchanged).
     out.winner_latency_ns_max = after.winner_latency_ns_max;
-    FARLIB_EC_PROFILE_SUBTRACT(recovered_objects);
-    FARLIB_EC_PROFILE_SUBTRACT(recovered_object_bytes);
-    FARLIB_EC_PROFILE_SUBTRACT(token_abandon_latency_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(token_abandon_latency_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(token_mutex_acquire_calls);
-    FARLIB_EC_PROFILE_SUBTRACT(token_mutex_wait_elapsed_ns_sum);
-    FARLIB_EC_PROFILE_SUBTRACT(token_mutex_critical_elapsed_ns_sum);
-#undef FARLIB_EC_PROFILE_SUBTRACT
+    STARFISH_EC_PROFILE_SUBTRACT(recovered_objects);
+    STARFISH_EC_PROFILE_SUBTRACT(recovered_object_bytes);
+    STARFISH_EC_PROFILE_SUBTRACT(token_abandon_latency_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(token_abandon_latency_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(token_mutex_acquire_calls);
+    STARFISH_EC_PROFILE_SUBTRACT(token_mutex_wait_elapsed_ns_sum);
+    STARFISH_EC_PROFILE_SUBTRACT(token_mutex_critical_elapsed_ns_sum);
+#undef STARFISH_EC_PROFILE_SUBTRACT
     return out;
   }
 
@@ -797,4 +797,4 @@ class EcRecoveryTokenMutexGuard {
   bool profile_enabled_ = false;
 };
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

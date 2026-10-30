@@ -1,7 +1,7 @@
 #pragma once
 #include "mm/cache/accessor.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl) {
   return Cache::get_default()->check_fetch(entry, ddl);
@@ -13,4 +13,4 @@ inline bool at_local(far_obj_t obj) {
   return Cache::get_default()->at_local(obj);
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

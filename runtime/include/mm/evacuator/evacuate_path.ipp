@@ -5,7 +5,7 @@
 #include <cstring>
 #include <limits>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // Experimental single-variable restoration. Inclusive never takes this path.
 inline bool exclusive_owned_batch_reclaim_enabled() {
@@ -13,7 +13,7 @@ inline bool exclusive_owned_batch_reclaim_enabled() {
     const char *value = std::getenv("FARLIB_EXCLUSIVE_OWNED_BATCH");
     return value != nullptr && std::strcmp(value, "1") == 0;
   }();
-  return enabled && ::FarLib::get_config().exclusive_cache;
+  return enabled && ::starfish::get_config().exclusive_cache;
 }
 
 inline bool legacy_scan_cursors_enabled() {
@@ -32,7 +32,7 @@ inline bool exclusive_work_alignment_enabled() {
     const char *value = std::getenv("FARLIB_EXCLUSIVE_WORK_ALIGNMENT");
     return value != nullptr && std::strcmp(value, "1") == 0;
   }();
-  return requested && ::FarLib::get_config().optimized_evacuator &&
+  return requested && ::starfish::get_config().optimized_evacuator &&
          exclusive_owned_batch_reclaim_enabled() &&
          legacy_scan_cursors_enabled();
 }
@@ -139,8 +139,8 @@ inline size_t inclusive_scan_visit_limit() {
 }
 
 inline size_t ConcurrentArrayCache::get_mark_worker_count() const {
-  if (!::FarLib::get_config().optimized_evacuator) return 0;
-  size_t configured_mark_workers = ::FarLib::get_config().mark_thread_cnt;
+  if (!::starfish::get_config().optimized_evacuator) return 0;
+  size_t configured_mark_workers = ::starfish::get_config().mark_thread_cnt;
   if (configured_mark_workers == 0) return 0;
   if (configured_mark_workers >= evacuate_thread_cnt) {
     return evacuate_thread_cnt;
@@ -157,7 +157,7 @@ inline ConcurrentArrayCache::FrequencyMarkPassContext
 ConcurrentArrayCache::begin_frequency_mark_pass() {
   FrequencyMarkPassContext context;
   context.ema_mark_interval =
-      ::FarLib::get_config().hybrid_profile_frequency_ema_mark_interval;
+      ::starfish::get_config().hybrid_profile_frequency_ema_mark_interval;
   if (!hybrid_profiling_enabled()) {
     context.update_ema_this_pass = false;
     return context;
@@ -180,7 +180,7 @@ inline void ConcurrentArrayCache::run_streaming_mark_master(
   auto mark_start = get_cycles();
   auto mark_metrics = profile::evac_phase_enter(profile::EvacPhase::Mark);
   if (args->ready_tasks_out != nullptr) {
-    std::vector<std::vector<::FarLib::allocator::EvictTask>> worker_ready(
+    std::vector<std::vector<::starfish::allocator::EvictTask>> worker_ready(
         args->worker_count);
     std::function<void(size_t)> fn_mark =
         [cache = args->cache, timestamp = args->timestamp,
@@ -298,7 +298,7 @@ inline void ConcurrentArrayCache::run_streaming_evict_master(
   auto *breakdown_round =
       profile::evict_breakdown::open_round(evict_start, args->worker_count);
   if (args->ready_tasks_in != nullptr) {
-    std::vector<std::vector<::FarLib::allocator::EvictTask>> worker_deferred(
+    std::vector<std::vector<::starfish::allocator::EvictTask>> worker_deferred(
         args->worker_count);
     std::atomic_size_t next_task_idx{0};
     std::function<void(size_t)> fn_evict =
@@ -335,9 +335,9 @@ inline void ConcurrentArrayCache::run_streaming_evict_master(
         optimized_legacy_exclusive_pipeline_enabled();
     const auto eligibility =
         ignore_safe_epoch && inclusive_legacy_eligibility_enabled() &&
-                !::FarLib::get_config().exclusive_cache
-            ? ::FarLib::allocator::EvacuationEligibility::LegacyConcurrent
-            : ::FarLib::allocator::EvacuationEligibility::All;
+                !::starfish::get_config().exclusive_cache
+            ? ::starfish::allocator::EvacuationEligibility::LegacyConcurrent
+            : ::starfish::allocator::EvacuationEligibility::All;
     const bool owned_reclaim =
         ignore_safe_epoch && exclusive_owned_batch_reclaim_enabled();
     std::function<void(size_t)> fn_evict =
@@ -407,7 +407,7 @@ inline void ConcurrentArrayCache::run_streaming_evict_master(
                                   static_cast<uint64_t>(total_wrs));
   args->cache->log_cache_progress(
       "tail_evict_end_free", kAnyAllocBin, args->evict_timestamp,
-      ::FarLib::allocator::global_heap.get_free_size());
+      ::starfish::allocator::global_heap.get_free_size());
 }
 
 inline void ConcurrentArrayCache::wait_for_eviction_trigger(
@@ -417,8 +417,8 @@ inline void ConcurrentArrayCache::wait_for_eviction_trigger(
   mutator_can_not_allocate.store(false);
   uthread::notify_all_locked(&mutator_cond);
   while (working.load(std::memory_order_acquire) &&
-         !::FarLib::allocator::global_heap.has_async_full_returns() &&
-         !::FarLib::allocator::global_heap.evacuator_should_start() &&
+         !::starfish::allocator::global_heap.has_async_full_returns() &&
+         !::starfish::allocator::global_heap.evacuator_should_start() &&
          !mutator_waiters_need_progress() &&
          eviction_request_seq.load(std::memory_order_acquire) ==
              handled_eviction_request_seq) {
@@ -426,16 +426,16 @@ inline void ConcurrentArrayCache::wait_for_eviction_trigger(
                        handled_eviction_request_seq);
     log_cache_progress(
         "tail_sleep_state", kAnyAllocBin,
-        ::FarLib::allocator::global_heap.get_free_size(),
-        ::FarLib::allocator::global_heap.get_memory_low_water_mark());
+        ::starfish::allocator::global_heap.get_free_size(),
+        ::starfish::allocator::global_heap.get_memory_low_water_mark());
     uthread::wait_locked(&eviction_cond, &eviction_mutex);
     // FredCondition::wait returns without keeping the mutex acquired.
     // Re-acquire it before checking the predicate again.
     uthread::lock(&eviction_mutex);
     log_cache_progress(
         "tail_wake_state", kAnyAllocBin,
-        ::FarLib::allocator::global_heap.get_free_size(),
-        ::FarLib::allocator::global_heap.get_memory_low_water_mark());
+        ::starfish::allocator::global_heap.get_free_size(),
+        ::starfish::allocator::global_heap.get_memory_low_water_mark());
   }
   uthread::unlock(&eviction_mutex);
   log_cache_progress("evac_wait_trigger_exit", kAnyAllocBin,
@@ -460,11 +460,11 @@ inline void ConcurrentArrayCache::evacuate_work() {
   uint32_t pipeline_evict_timestamp = 0;
   uint32_t pipeline_gc_timestamp = 0;
   bool pipeline_has_safe_mark = false;
-  std::vector<::FarLib::allocator::EvictTask> pipeline_ready_tasks;
-  std::vector<std::vector<::FarLib::allocator::EvictTask>>
+  std::vector<::starfish::allocator::EvictTask> pipeline_ready_tasks;
+  std::vector<std::vector<::starfish::allocator::EvictTask>>
       ready_pipeline_worker_ready_tasks;
   const bool optimized_enabled =
-      ::FarLib::get_config().optimized_evacuator && evacuate_thread_cnt > 1;
+      ::starfish::get_config().optimized_evacuator && evacuate_thread_cnt > 1;
   const size_t configured_mark_workers = get_mark_worker_count();
   const size_t evict_workers = get_evict_worker_count(configured_mark_workers);
   const size_t mark_workers = configured_mark_workers;
@@ -497,12 +497,12 @@ inline void ConcurrentArrayCache::evacuate_work() {
   auto requeue_pending_pipeline_tasks = [&] {
     const size_t pending = pipeline_ready_tasks.size();
     for (auto &task : pipeline_ready_tasks) {
-      ::FarLib::allocator::global_heap.requeue_evict_task(task);
+      ::starfish::allocator::global_heap.requeue_evict_task(task);
     }
     pipeline_ready_tasks.clear();
     for (auto &worker_tasks : ready_pipeline_worker_ready_tasks) {
       for (auto &task : worker_tasks) {
-        ::FarLib::allocator::global_heap.requeue_evict_task(task);
+        ::starfish::allocator::global_heap.requeue_evict_task(task);
       }
       worker_tasks.clear();
     }
@@ -526,7 +526,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
       return;
     }
     // Publish ingress without forcing an otherwise unnecessary round.
-    ::FarLib::allocator::global_heap.drain_async_full_returns(512);
+    ::starfish::allocator::global_heap.drain_async_full_returns(512);
     const uint64_t pending_eviction_request_seq =
         eviction_request_seq.load(std::memory_order_acquire);
     const bool explicit_eviction_requested =
@@ -534,7 +534,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
 
     if (optimized_enabled) {
       if (optimized_legacy_exclusive_pipeline_enabled()) {
-        if (!::FarLib::allocator::global_heap.evacuator_should_start() &&
+        if (!::starfish::allocator::global_heap.evacuator_should_start() &&
             !mutator_waiters_need_progress() && !explicit_eviction_requested) {
           wait_for_eviction_trigger(handled_eviction_request_seq);
           continue;
@@ -552,14 +552,14 @@ inline void ConcurrentArrayCache::evacuate_work() {
         std::atomic_int64_t posted_wrs_total{0};
         const bool mark_one_batch_per_worker =
             exclusive_alignment ||
-            (!::FarLib::get_config().exclusive_cache &&
+            (!::starfish::get_config().exclusive_cache &&
              legacy_scan_cursors_enabled() &&
              inclusive_legacy_eligibility_enabled() &&
              inclusive_legacy_cursors_enabled() &&
              inclusive_mark_one_batch_per_worker_enabled());
         const size_t mark_round_limit =
             mark_one_batch_per_worker ? size_t{64} * mark_workers
-            : !::FarLib::get_config().exclusive_cache &&
+            : !::starfish::get_config().exclusive_cache &&
                     legacy_scan_cursors_enabled() &&
                     inclusive_legacy_eligibility_enabled() &&
                     inclusive_legacy_cursors_enabled()
@@ -567,12 +567,12 @@ inline void ConcurrentArrayCache::evacuate_work() {
                 : 0;
         std::atomic_size_t mark_region_budget{mark_round_limit};
         const bool resume_scan =
-            exclusive_alignment ||
-            (mark_round_limit != 0 && !::FarLib::get_config().exclusive_cache &&
-             legacy_scan_cursors_enabled() &&
-             inclusive_legacy_eligibility_enabled() &&
-             inclusive_legacy_cursors_enabled() &&
-             inclusive_resume_scan_enabled());
+            exclusive_alignment || (mark_round_limit != 0 &&
+                                    !::starfish::get_config().exclusive_cache &&
+                                    legacy_scan_cursors_enabled() &&
+                                    inclusive_legacy_eligibility_enabled() &&
+                                    inclusive_legacy_cursors_enabled() &&
+                                    inclusive_resume_scan_enabled());
         const size_t scan_visit_limit = exclusive_alignment ? 4096
                                         : resume_scan
                                             ? inclusive_scan_visit_limit()
@@ -603,7 +603,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
                                             nullptr,       nullptr};
         evict_args.resume_scan = resume_scan ? &scan_round : nullptr;
         const bool stop_evict_after_mark =
-            exclusive_alignment || (!::FarLib::get_config().exclusive_cache &&
+            exclusive_alignment || (!::starfish::get_config().exclusive_cache &&
                                     inclusive_legacy_eligibility_enabled() &&
                                     inclusive_mark_stop_evict_enabled());
         if (stop_evict_after_mark) {
@@ -612,7 +612,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
         }
         const bool stop_mark_after_evict =
             evict_workers != 0 && mark_round_limit != 0 && resume_scan &&
-            !::FarLib::get_config().exclusive_cache &&
+            !::starfish::get_config().exclusive_cache &&
             inclusive_legacy_eligibility_enabled() &&
             inclusive_legacy_cursors_enabled() &&
             inclusive_evict_stop_mark_enabled();
@@ -688,7 +688,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
         continue;
       }
 
-      if (!::FarLib::allocator::global_heap.evacuator_should_start() &&
+      if (!::starfish::allocator::global_heap.evacuator_should_start() &&
           !mutator_waiters_need_progress() && !explicit_eviction_requested &&
           (!optimized_ready_queue_enabled() || pipeline_ready_tasks.empty())) {
         wait_for_eviction_trigger(handled_eviction_request_seq);
@@ -704,7 +704,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
         const size_t ready_mark_limit = optimized_ready_mark_task_limit();
         const bool ready_full_workers = optimized_ready_full_workers_enabled();
         const bool need_new_mark =
-            ::FarLib::allocator::global_heap.evacuator_should_start() ||
+            ::starfish::allocator::global_heap.evacuator_should_start() ||
             mutator_waiters_need_progress() || explicit_eviction_requested;
         if (!need_new_mark && pipeline_ready_tasks.empty()) {
           wait_for_eviction_trigger(handled_eviction_request_seq);
@@ -753,8 +753,8 @@ inline void ConcurrentArrayCache::evacuate_work() {
                           : evacuate_thread_cnt;
 
         std::atomic_int64_t posted_wrs_total{0};
-        std::vector<::FarLib::allocator::EvictTask> mark_ready_tasks;
-        std::vector<::FarLib::allocator::EvictTask> evict_deferred_tasks;
+        std::vector<::starfish::allocator::EvictTask> mark_ready_tasks;
+        std::vector<::starfish::allocator::EvictTask> evict_deferred_tasks;
         std::atomic_size_t overlap_ready_budget{ready_mark_limit};
         const FrequencyMarkPassContext frequency_mark_pass =
             need_new_mark ? begin_frequency_mark_pass()
@@ -813,7 +813,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
           ready_pipeline_nonserialize = true;
           ready_pipeline_worker_ready_tasks.clear();
           ready_pipeline_worker_ready_tasks.resize(evacuate_thread_cnt);
-          std::vector<std::vector<::FarLib::allocator::EvictTask>>
+          std::vector<std::vector<::starfish::allocator::EvictTask>>
               worker_deferred(evacuate_thread_cnt);
           std::atomic_size_t next_task_idx{0};
           std::atomic_int64_t safe_evict_elapsed_max{0};
@@ -893,7 +893,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
 
         if (ready_pipeline_nonserialize && need_new_mark &&
             !mark_ready_tasks.empty()) {
-          std::vector<std::vector<::FarLib::allocator::EvictTask>>
+          std::vector<std::vector<::starfish::allocator::EvictTask>>
               future_worker_deferred(evacuate_thread_cnt);
           std::atomic_size_t future_next_task_idx{0};
           std::atomic_int64_t future_evict_elapsed_max{0};
@@ -941,7 +941,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
           profile::get_tlpd().evac_evict_phase_cycles += evict_elapsed;
         }
 
-        std::vector<::FarLib::allocator::EvictTask> next_ready_tasks;
+        std::vector<::starfish::allocator::EvictTask> next_ready_tasks;
         next_ready_tasks.reserve(evict_deferred_tasks.size() +
                                  mark_ready_tasks.size());
         next_ready_tasks.insert(
@@ -1048,7 +1048,7 @@ inline void ConcurrentArrayCache::evacuate_work() {
       continue;
     }
 
-    if (!::FarLib::allocator::global_heap.evacuator_should_start() &&
+    if (!::starfish::allocator::global_heap.evacuator_should_start() &&
         !mutator_waiters_need_progress() && !explicit_eviction_requested) {
       wait_for_eviction_trigger(handled_eviction_request_seq);
       continue;
@@ -1114,13 +1114,13 @@ inline void ConcurrentArrayCache::mark_phase_to_sink(
   local_frequency_histogram.ema_updated =
       frequency_mark_pass.update_ema_this_pass;
   auto mark = [this, &local_frequency_histogram,
-               frequency_mark_pass](::FarLib::allocator::BlockHead *b) {
+               frequency_mark_pass](::starfish::allocator::BlockHead *b) {
     return this->try_mark(b, &local_frequency_histogram,
                           frequency_mark_pass.update_ema_this_pass);
   };
   int64_t mark_start = profile::start_mark();
-  ::FarLib::allocator::global_heap.mark_to_sink(mark, timestamp, ready_tasks,
-                                                ready_task_budget);
+  ::starfish::allocator::global_heap.mark_to_sink(mark, timestamp, ready_tasks,
+                                                  ready_task_budget);
   profile::end_mark(mark_start);
   if (hybrid_profiling_enabled()) {
     profile::record_frequency_histogram_pass(timestamp,
@@ -1130,7 +1130,7 @@ inline void ConcurrentArrayCache::mark_phase_to_sink(
 
 inline void ConcurrentArrayCache::mark_phase(
     uint32_t timestamp, const FrequencyMarkPassContext &frequency_mark_pass,
-    std::vector<::FarLib::allocator::EvictTask> *ready_tasks,
+    std::vector<::starfish::allocator::EvictTask> *ready_tasks,
     std::atomic_size_t *ready_task_budget, size_t diag_worker_slot,
     std::atomic_size_t *legacy_region_budget,
     std::atomic_bool *mark_stop_after_evict) {
@@ -1149,7 +1149,7 @@ inline void ConcurrentArrayCache::mark_phase(
       frequency_mark_pass.update_ema_this_pass;
   auto mark = [this, &local_frequency_histogram, frequency_mark_pass,
                nq_result_diag,
-               &nq_mark_results](::FarLib::allocator::BlockHead *b) {
+               &nq_mark_results](::starfish::allocator::BlockHead *b) {
     const auto result =
         this->try_mark(b, &local_frequency_histogram,
                        frequency_mark_pass.update_ema_this_pass);
@@ -1158,35 +1158,35 @@ inline void ConcurrentArrayCache::mark_phase(
   };
   int64_t mark_start = profile::start_mark();
   const bool legacy_cursors = legacy_scan_cursors_enabled() &&
-                              ::FarLib::get_config().optimized_evacuator &&
+                              ::starfish::get_config().optimized_evacuator &&
                               optimized_legacy_exclusive_pipeline_enabled() &&
                               ready_tasks == nullptr &&
                               ready_task_budget == nullptr &&
-                              (::FarLib::get_config().exclusive_cache ||
+                              (::starfish::get_config().exclusive_cache ||
                                (inclusive_legacy_eligibility_enabled() &&
                                 inclusive_legacy_cursors_enabled()));
   const auto eligibility =
       inclusive_legacy_eligibility_enabled() &&
-              ::FarLib::get_config().optimized_evacuator &&
-              !::FarLib::get_config().exclusive_cache &&
+              ::starfish::get_config().optimized_evacuator &&
+              !::starfish::get_config().exclusive_cache &&
               optimized_legacy_exclusive_pipeline_enabled() &&
               ready_tasks == nullptr && ready_task_budget == nullptr
-          ? ::FarLib::allocator::EvacuationEligibility::LegacyConcurrent
-          : ::FarLib::allocator::EvacuationEligibility::All;
-  ::FarLib::allocator::MarkBreakdownStats mark_diag;
+          ? ::starfish::allocator::EvacuationEligibility::LegacyConcurrent
+          : ::starfish::allocator::EvacuationEligibility::All;
+  ::starfish::allocator::MarkBreakdownStats mark_diag;
   mark_diag.held_slot = diag_worker_slot;
   mark_diag.segment_enabled = inclusive_reclaim_diag::enabled();
   auto *mark_diag_ptr = mark_diag.segment_enabled ? &mark_diag : nullptr;
   const uint64_t segment_start = mark_diag.segment_enabled ? get_cycles() : 0;
-  ::FarLib::allocator::MarkStopContext mark_stop_context;
+  ::starfish::allocator::MarkStopContext mark_stop_context;
   mark_stop_context.requested = mark_stop_after_evict;
-  ::FarLib::allocator::global_heap.mark(
+  ::starfish::allocator::global_heap.mark(
       mark, timestamp, ready_tasks, ready_task_budget, legacy_cursors,
       eligibility, mark_diag_ptr,
       legacy_cursors &&
               (exclusive_work_alignment_enabled() ||
-               eligibility ==
-                   ::FarLib::allocator::EvacuationEligibility::LegacyConcurrent)
+               eligibility == ::starfish::allocator::EvacuationEligibility::
+                                  LegacyConcurrent)
           ? legacy_region_budget
           : nullptr,
       mark_stop_after_evict == nullptr ? nullptr : &mark_stop_context);
@@ -1243,16 +1243,17 @@ inline void ConcurrentArrayCache::evict_post_phase(uint32_t timestamp) {
   auto &tlpd = profile::get_tlpd();
   int64_t posted_start = tlpd.rdma_write_post_count;
   EvictBufferSet buffer_set;
-  buffer_set.init(::FarLib::get_config().server_count);
+  buffer_set.init(::starfish::get_config().server_count);
 
-  const bool epoch_release_enabled = ::FarLib::get_config().optimized_evacuator;
+  const bool epoch_release_enabled =
+      ::starfish::get_config().optimized_evacuator;
   const uint32_t current_safe_epoch =
       epoch_release_enabled ? safe_epoch.load(std::memory_order_acquire) : 0;
 
   auto evict = [this, &buffer_set,
-                current_safe_epoch](::FarLib::allocator::BlockHead *b) {
+                current_safe_epoch](::starfish::allocator::BlockHead *b) {
     if (current_safe_epoch > 0) {
-      auto *region = ::FarLib::allocator::block_to_region(b);
+      auto *region = ::starfish::allocator::block_to_region(b);
       uint32_t mark_epoch =
           region->last_mark_epoch.load(std::memory_order_relaxed);
       if (mark_epoch > current_safe_epoch) {
@@ -1265,7 +1266,7 @@ inline void ConcurrentArrayCache::evict_post_phase(uint32_t timestamp) {
     }
     return this->try_evict(b, buffer_set);
   };
-  ::FarLib::allocator::global_heap.evict(evict, timestamp);
+  ::starfish::allocator::global_heap.evict(evict, timestamp);
   auto client_idx = rdma::thread_info.thread_id;
 
   auto flush_start = get_cycles();
@@ -1274,7 +1275,7 @@ inline void ConcurrentArrayCache::evict_post_phase(uint32_t timestamp) {
   // batch still owning EVICTING/source-borrowed objects.  Drain the
   // invocation's owner, then flush any fresh-group fallbacks generated
   // by a failed READ-phase update.
-  if (::FarLib::get_config().ft_incremental_one_sided && ec_rmw_workers_ &&
+  if (::starfish::get_config().ft_incremental_one_sided && ec_rmw_workers_ &&
       buffer_set.direct_builder) {
     drain_ec_rmw_worker(buffer_set, client_idx);
     flush_ec_direct_groups(buffer_set, client_idx);
@@ -1297,13 +1298,13 @@ inline void ConcurrentArrayCache::evict_post_phase(uint32_t timestamp) {
 inline void ConcurrentArrayCache::evict_post_worker_logic(
     uint32_t timestamp, std::atomic_int64_t &posted_wrs_total,
     bool ignore_safe_epoch, size_t diag_worker_slot,
-    ::FarLib::allocator::EvacuationEligibility eligibility,
+    ::starfish::allocator::EvacuationEligibility eligibility,
     StreamingEvictMasterArgs::ResumeScanRound *resume_scan,
     std::atomic_bool *evict_stop_after_mark,
     profile::evict_breakdown::Worker *breakdown) {
   EcWorkerActivityGuard ec_worker_guard(this);
   if (ignore_safe_epoch && exclusive_owned_batch_reclaim_enabled()) {
-    std::vector<::FarLib::allocator::EvictTask> collected_tasks;
+    std::vector<::starfish::allocator::EvictTask> collected_tasks;
     // One logical worker owns the same queues across all of its region
     // batches. Each batch still seals/posts its tail before reclaim.
     EvictBufferSet local_buffers;
@@ -1325,7 +1326,7 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
         reusable_buffers_ptr != nullptr ? *reusable_buffers_ptr : local_buffers;
     reusable_buffers.breakdown = breakdown;
     if (reusable_buffers.server_count == 0) {
-      reusable_buffers.init(::FarLib::get_config().server_count);
+      reusable_buffers.init(::starfish::get_config().server_count);
     }
     if (reusable_buffers.ec_builder != nullptr) {
       reusable_buffers.ec_builder->set_breakdown(breakdown);
@@ -1346,13 +1347,13 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
                            timestamp);
         break;
       }
-      std::vector<::FarLib::allocator::EvictTask> owned_tasks;
+      std::vector<::starfish::allocator::EvictTask> owned_tasks;
       {
         profile::evict_breakdown::Scope collect_scope(
             breakdown, profile::evict_breakdown::Stage::CollectAdopt);
         collected_tasks.clear();
         // Keep the current collector eligibility and cursor policy.
-        ::FarLib::allocator::global_heap.collect_evict_tasks(
+        ::starfish::allocator::global_heap.collect_evict_tasks(
             timestamp, collected_tasks, batch_limit, 0,
             legacy_scan_cursors_enabled(), eligibility, nullptr,
             resume_scan == nullptr ? 0 : resume_scan->evict_generation,
@@ -1363,9 +1364,9 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
 
         owned_tasks.reserve(collected_tasks.size());
         for (auto &task : collected_tasks) {
-          if (!::FarLib::allocator::global_heap.adopt_collected_evict_task(
+          if (!::starfish::allocator::global_heap.adopt_collected_evict_task(
                   task)) {
-            ::FarLib::allocator::global_heap.requeue_evict_task(task);
+            ::starfish::allocator::global_heap.requeue_evict_task(task);
             continue;
           }
           owned_tasks.push_back(std::move(task));
@@ -1374,7 +1375,7 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
       if (owned_tasks.empty()) continue;
 
       std::atomic_size_t next_task_idx{0};
-      std::vector<::FarLib::allocator::EvictTask> deferred_tasks;
+      std::vector<::starfish::allocator::EvictTask> deferred_tasks;
       // Preserve legacy epoch=0 semantics. Completion polling is
       // not an all-WR barrier: the ready worker only frees FREE
       // slots, and retains tasks with remaining marked work.
@@ -1383,7 +1384,7 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
       profile::evict_breakdown::Scope requeue_scope(
           breakdown, profile::evict_breakdown::Stage::CollectAdopt);
       for (auto &task : deferred_tasks) {
-        ::FarLib::allocator::global_heap.requeue_evict_task(task);
+        ::starfish::allocator::global_heap.requeue_evict_task(task);
       }
       log_cache_progress("exclusive_owned_batch", kAnyAllocBin, timestamp,
                          owned_tasks.size());
@@ -1408,7 +1409,7 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
       reusable_buffers != nullptr ? *reusable_buffers : local_buffers;
   buffer_set.breakdown = breakdown;
   if (buffer_set.server_count == 0) {
-    buffer_set.init(::FarLib::get_config().server_count);
+    buffer_set.init(::starfish::get_config().server_count);
   }
   if (buffer_set.ec_builder != nullptr) {
     buffer_set.ec_builder->set_breakdown(breakdown);
@@ -1418,17 +1419,17 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
   }
 
   const bool epoch_release_enabled =
-      ::FarLib::get_config().optimized_evacuator && !ignore_safe_epoch;
+      ::starfish::get_config().optimized_evacuator && !ignore_safe_epoch;
   const uint32_t current_safe_epoch =
       epoch_release_enabled ? safe_epoch.load(std::memory_order_acquire) : 0;
   if (epoch_release_enabled && current_safe_epoch == 0) {
     profile::get_tlpd().evac_streaming_safe_epoch_zero_rounds++;
   }
 
-  std::vector<::FarLib::allocator::EvictTask> tasks;
+  std::vector<::starfish::allocator::EvictTask> tasks;
   std::vector<size_t> task_selected_free;
   const size_t batch_limit = 64;
-  ::FarLib::allocator::EvictCollectorDiag evict_diag;
+  ::starfish::allocator::EvictCollectorDiag evict_diag;
   evict_diag.held_slot = diag_worker_slot;
   evict_diag.segment_enabled = inclusive_reclaim_diag::enabled();
   auto *evict_diag_ptr = evict_diag.segment_enabled ? &evict_diag : nullptr;
@@ -1436,11 +1437,11 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
 
   while (true) {
     tasks.clear();
-    ::FarLib::allocator::global_heap.collect_evict_tasks(
+    ::starfish::allocator::global_heap.collect_evict_tasks(
         timestamp, tasks, batch_limit, current_safe_epoch,
         ignore_safe_epoch && legacy_scan_cursors_enabled() &&
-            (::FarLib::get_config().exclusive_cache ||
-             (eligibility == ::FarLib::allocator::EvacuationEligibility::
+            (::starfish::get_config().exclusive_cache ||
+             (eligibility == ::starfish::allocator::EvacuationEligibility::
                                  LegacyConcurrent &&
               inclusive_legacy_cursors_enabled())),
         eligibility, evict_diag_ptr,
@@ -1487,13 +1488,13 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
         continue;
       }
 
-      auto evict = [this, &buffer_set](::FarLib::allocator::BlockHead *b) {
+      auto evict = [this, &buffer_set](::starfish::allocator::BlockHead *b) {
         return this->try_evict(b, buffer_set);
       };
       const uint64_t process_start =
           evict_diag.segment_enabled ? get_cycles() : 0;
-      ::FarLib::allocator::global_heap.process_evict_task(task, evict,
-                                                          evict_diag_ptr);
+      ::starfish::allocator::global_heap.process_evict_task(task, evict,
+                                                            evict_diag_ptr);
       if (evict_diag.segment_enabled) {
         const uint64_t process_cycles = get_cycles() - process_start;
         evict_diag.processing_cycles += process_cycles;
@@ -1510,8 +1511,8 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
       auto client_idx = rdma::thread_info.thread_id;
       auto flush_start = get_cycles();
       buffer_set.flush_all(client_idx, this);
-      if (::FarLib::get_config().ft_incremental_one_sided && ec_rmw_workers_ &&
-          buffer_set.direct_builder) {
+      if (::starfish::get_config().ft_incremental_one_sided &&
+          ec_rmw_workers_ && buffer_set.direct_builder) {
         drain_ec_rmw_worker(buffer_set, client_idx);
         flush_ec_direct_groups(buffer_set, client_idx);
       }
@@ -1547,14 +1548,14 @@ inline void ConcurrentArrayCache::evict_post_worker_logic(
 }
 
 inline void ConcurrentArrayCache::evict_ready_worker_logic(
-    const std::vector<::FarLib::allocator::EvictTask> &ready_tasks,
+    const std::vector<::starfish::allocator::EvictTask> &ready_tasks,
     std::atomic_size_t &next_task_idx, uint32_t current_safe_epoch,
-    std::vector<::FarLib::allocator::EvictTask> &deferred_tasks,
+    std::vector<::starfish::allocator::EvictTask> &deferred_tasks,
     std::atomic_int64_t &posted_wrs_total,
     profile::evict_breakdown::Worker *breakdown,
     EvictBufferSet *reusable_buffers) {
   EcWorkerActivityGuard ec_worker_guard(this);
-  std::vector<::FarLib::allocator::EvictTask> processed_tasks;
+  std::vector<::starfish::allocator::EvictTask> processed_tasks;
   processed_tasks.reserve(ready_tasks.size());
 
   {
@@ -1569,7 +1570,7 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
         reusable_buffers ? *reusable_buffers : local_buffers;
     buffer_set.breakdown = breakdown;
     if (buffer_set.server_count == 0)
-      buffer_set.init(::FarLib::get_config().server_count);
+      buffer_set.init(::starfish::get_config().server_count);
     if (buffer_set.ec_builder != nullptr) {
       buffer_set.ec_builder->set_breakdown(breakdown);
     }
@@ -1586,8 +1587,8 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
       if (region == nullptr) continue;
       if (!task.placement_still_matches() ||
           region->load_placement() ==
-              ::FarLib::allocator::RegionPlacement::Resident) {
-        ::FarLib::allocator::global_heap.requeue_evict_task(task);
+              ::starfish::allocator::RegionPlacement::Resident) {
+        ::starfish::allocator::global_heap.requeue_evict_task(task);
         continue;
       }
 
@@ -1605,14 +1606,14 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
         continue;
       }
       if (region->state.load(std::memory_order::relaxed) ==
-          ::FarLib::allocator::IN_USE) [[unlikely]] {
+          ::starfish::allocator::IN_USE) [[unlikely]] {
         profile::count_evac_evict_region_skipped_in_use();
         task.epoch = region_epoch;
         deferred_tasks.push_back(task);
         continue;
       }
 
-      auto evict = [this, &buffer_set](::FarLib::allocator::BlockHead *b) {
+      auto evict = [this, &buffer_set](::starfish::allocator::BlockHead *b) {
         return this->try_evict(b, buffer_set);
       };
       region->evict(evict);
@@ -1625,8 +1626,8 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
       auto client_idx = rdma::thread_info.thread_id;
       auto flush_start = get_cycles();
       buffer_set.flush_all(client_idx, this);
-      if (::FarLib::get_config().ft_incremental_one_sided && ec_rmw_workers_ &&
-          buffer_set.direct_builder) {
+      if (::starfish::get_config().ft_incremental_one_sided &&
+          ec_rmw_workers_ && buffer_set.direct_builder) {
         drain_ec_rmw_worker(buffer_set, client_idx);
         flush_ec_direct_groups(buffer_set, client_idx);
       }
@@ -1648,7 +1649,7 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
   profile::evict_breakdown::Scope gc_scope(
       breakdown, profile::evict_breakdown::Stage::GcPublish);
 
-  auto gc = [this](::FarLib::allocator::BlockHead *b) {
+  auto gc = [this](::starfish::allocator::BlockHead *b) {
     retry:
       auto obj = b->obj_meta_data.load();
       if (obj.is_null()) return FREE;
@@ -1666,8 +1667,8 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
     if (region == nullptr) continue;
     if (!task.placement_still_matches() ||
         region->load_placement() ==
-            ::FarLib::allocator::RegionPlacement::Resident) {
-      ::FarLib::allocator::global_heap.requeue_evict_task(task);
+            ::starfish::allocator::RegionPlacement::Resident) {
+      ::starfish::allocator::global_heap.requeue_evict_task(task);
       continue;
     }
     uint32_t region_epoch =
@@ -1683,7 +1684,7 @@ inline void ConcurrentArrayCache::evict_ready_worker_logic(
     region->evict(gc);
     if (region->marked_list == nullptr) {
       region->note_evict_drained_epoch(region_epoch);
-      ::FarLib::allocator::global_heap.publish_owned_evict_region(region);
+      ::starfish::allocator::global_heap.publish_owned_evict_region(region);
     } else {
       task.epoch = region_epoch;
       deferred_tasks.push_back(task);
@@ -1709,9 +1710,9 @@ inline void ConcurrentArrayCache::evict_drain_phase() {
 }
 
 inline void ConcurrentArrayCache::drain_eviction_completions_for_shutdown() {
-  using ::FarLib::allocator::BlockHead;
-  using ::FarLib::allocator::RegionHead;
-  using ::FarLib::allocator::RegionSize;
+  using ::starfish::allocator::BlockHead;
+  using ::starfish::allocator::RegionHead;
+  using ::starfish::allocator::RegionSize;
 
   const size_t client_count = rdma::get_client_count();
   std::vector<uint8_t> pending_clients(client_count, 0);
@@ -1723,9 +1724,9 @@ inline void ConcurrentArrayCache::drain_eviction_completions_for_shutdown() {
     std::fill(pending_clients.begin(), pending_clients.end(), 0);
     uint64_t pending_entries = 0;
     const size_t committed =
-        ::FarLib::allocator::global_heap.get_committed_bytes();
+        ::starfish::allocator::global_heap.get_committed_bytes();
     auto *heap =
-        static_cast<char *>(::FarLib::allocator::global_heap.get_heap());
+        static_cast<char *>(::starfish::allocator::global_heap.get_heap());
     for (size_t offset = 0; offset < committed; offset += RegionSize) {
       auto *region = reinterpret_cast<RegionHead *>(heap + offset);
       auto scan_list = [&](BlockHead *block) {
@@ -1780,7 +1781,8 @@ inline void ConcurrentArrayCache::evacuate_phase(uint32_t timestamp) {
   profile::end_evict(evict_start);
 }
 inline void ConcurrentArrayCache::gc_phase(
-    uint32_t timestamp, ::FarLib::allocator::EvacuationEligibility eligibility,
+    uint32_t timestamp,
+    ::starfish::allocator::EvacuationEligibility eligibility,
     StreamingEvictMasterArgs::ResumeScanRound *resume_scan) {
   log_cache_progress("gc_begin", kAnyAllocBin, timestamp);
   uint64_t object_checks = 0;
@@ -1788,7 +1790,7 @@ inline void ConcurrentArrayCache::gc_phase(
   uint64_t object_marked = 0;
   uint64_t object_evicting = 0;
   auto gc = [this, &object_checks, &object_free, &object_marked,
-             &object_evicting](::FarLib::allocator::BlockHead *b) {
+             &object_evicting](::starfish::allocator::BlockHead *b) {
     retry:
       ++object_checks;
       auto obj = b->obj_meta_data.load();
@@ -1811,12 +1813,12 @@ inline void ConcurrentArrayCache::gc_phase(
   };
   const bool require_evict_processed =
       eligibility ==
-          ::FarLib::allocator::EvacuationEligibility::LegacyConcurrent &&
-      !::FarLib::get_config().exclusive_cache &&
+          ::starfish::allocator::EvacuationEligibility::LegacyConcurrent &&
+      !::starfish::get_config().exclusive_cache &&
       inclusive_gc_processed_filter_enabled();
-  ::FarLib::allocator::GcProcessedFilterStats filter_stats;
+  ::starfish::allocator::GcProcessedFilterStats filter_stats;
   int64_t gc_start = profile::start_gc();
-  ::FarLib::allocator::global_heap.evict(
+  ::starfish::allocator::global_heap.evict(
       gc, timestamp, eligibility,
       resume_scan == nullptr ? 0 : resume_scan->gc_generation,
       resume_scan == nullptr ? nullptr : resume_scan->gc_visit_budget,
@@ -1900,7 +1902,7 @@ inline void ConcurrentArrayCache::on_demand_invoke_eviction(size_t alloc_bin) {
     return;
   }
   if (optimized_legacy_exclusive_pipeline_enabled() &&
-      (::FarLib::get_config().exclusive_cache ||
+      (::starfish::get_config().exclusive_cache ||
        (alloc_bin < kAnyAllocBin && inclusive_single_wait_enabled()))) {
     uthread::lock(&eviction_mutex);
     uthread::set_high_priority();
@@ -1924,7 +1926,7 @@ inline void ConcurrentArrayCache::on_demand_invoke_eviction(size_t alloc_bin) {
     log_cache_progress("wait_relocked", alloc_bin,
                        static_cast<uint64_t>(alloc_bin_ready(alloc_bin)),
                        static_cast<uint64_t>(
-                           ::FarLib::allocator::global_heap.get_free_size()));
+                           ::starfish::allocator::global_heap.get_free_size()));
     const bool ready_after_wake =
         condition_wait_diag_active && alloc_bin_ready(alloc_bin);
     if (condition_wait_diag_active) {
@@ -1965,4 +1967,4 @@ inline void ConcurrentArrayCache::on_demand_invoke_eviction(size_t alloc_bin) {
   uthread::unlock(&eviction_mutex);
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

@@ -33,7 +33,7 @@
 #include "profiling/request_interval_diag.hpp"
 
 #define PRESSURE_TEST
-namespace FarLib::allocator {
+namespace starfish::allocator {
 void print_thread_heap_counters_only(const char *phase, size_t fibres);
 }
 // #define MUT_TEST
@@ -62,7 +62,7 @@ struct ObjectSpan {
     Object objects[span_size / object_size];
 };
 
-using namespace FarLib;
+using namespace starfish;
 
 std::vector<UniqueFarPtr<Object>> hot_object_ptr_list;
 std::vector<UniqueFarPtr<ObjectSpan>> cold_object_span_list;
@@ -306,11 +306,11 @@ int main(int argc, const char *argv[]) {
     zipf_skew = std::stod(argv[4]);
     op_duration_ns = std::stoull(argv[5]);
 
-    FarLib::rdma::Configure config;
+    starfish::rdma::Configure config;
     config.from_file(config_path.c_str());
     runtime_init(config);
     scope_diag::inspect_entry=[](uintptr_t address)->uint64_t {
-        auto *entry=reinterpret_cast<::FarLib::cache::FarObjectEntry *>(address);
+        auto *entry=reinterpret_cast<::starfish::cache::FarObjectEntry *>(address);
         const auto state=entry->load_state(std::memory_order_relaxed);
         return static_cast<uint64_t>(state.state) |
                (static_cast<uint64_t>(state.invalid)<<32);
@@ -394,7 +394,7 @@ int main(int argc, const char *argv[]) {
 
     print_cdf(hdr_file);
     hdr_close(hist_latency_total);
-    FarLib::cache::ConcurrentArrayCache::
+    starfish::cache::ConcurrentArrayCache::
         stop_default_read_supply_timeline_for_diagnostics();
     request_interval_diag::dump();
     hot_object_ptr_list.clear();

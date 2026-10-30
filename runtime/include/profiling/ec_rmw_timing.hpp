@@ -10,18 +10,18 @@
 #include "profiling/ec_rmw_prepare_trace.hpp"
 #include "profiling/benchmark_phase.hpp"
 
-#ifndef FARLIB_ENABLE_EC_RMW_TIMING
-#define FARLIB_ENABLE_EC_RMW_TIMING 0
+#ifndef STARFISH_ENABLE_EC_RMW_TIMING
+#define STARFISH_ENABLE_EC_RMW_TIMING 0
 #endif
 
 // RMW extension of the native runtime TSC profiler. One private record per
 // existing in-flight slot; no WR callback hooks, shared updates or hot malloc.
-namespace FarLib::profile::ec_rmw_timing {
+namespace starfish::profile::ec_rmw_timing {
 // Object timing is intentionally sampled to keep the private per-owner
 // history bounded.  Keep this contract in the producer as well as in parser
 // output; sampled sums must never be presented as exhaustive timing.
 inline constexpr uint64_t SampleEvery = 64;
-inline constexpr bool CompileEnabled = FARLIB_ENABLE_EC_RMW_TIMING != 0;
+inline constexpr bool CompileEnabled = STARFISH_ENABLE_EC_RMW_TIMING != 0;
 inline bool enabled() {
   if constexpr (!CompileEnabled) {
     return false;
@@ -363,4 +363,4 @@ inline Owner *owner(size_t index, size_t count) {
     return &history.owners[index];
   }
 }
-}  // namespace FarLib::profile::ec_rmw_timing
+}  // namespace starfish::profile::ec_rmw_timing

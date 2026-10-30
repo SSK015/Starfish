@@ -21,22 +21,22 @@
 #endif
 
 #if __has_include(<infiniband/verbs.h>)
-namespace FarLib {
+namespace starfish {
 rdma::Configure g_behavior_group_runtime_config;
 const rdma::Configure &get_config() { return g_behavior_group_runtime_config; }
-}  // namespace FarLib
+}  // namespace starfish
 #endif
 
 #if __has_include(<infiniband/verbs.h>)
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 #endif
 
 namespace {
 
-using FarLib::cache::ec_backup_policy::backup_endpoint_is_dead;
-using FarLib::cache::ec_backup_policy::can_reuse_clean_backup;
+using starfish::cache::ec_backup_policy::backup_endpoint_is_dead;
+using starfish::cache::ec_backup_policy::can_reuse_clean_backup;
 
 struct Checks {
   int count = 0;
@@ -69,10 +69,10 @@ struct Checks {
 #if __has_include(<infiniband/verbs.h>)
 
 void test_runtime_switch(Checks &checks) {
-  auto &config = FarLib::g_behavior_group_runtime_config;
+  auto &config = starfish::g_behavior_group_runtime_config;
   config.behavior_group = false;
-  FarLib::behavior_group_runtime::configure(false);
-  checks.check(!FarLib::behavior_group_runtime::enabled(),
+  starfish::behavior_group_runtime::configure(false);
+  checks.check(!starfish::behavior_group_runtime::enabled(),
                "behavior-group runtime defaults disabled");
 
   // This test is intentionally an env-free control.  If a caller injects a
@@ -90,64 +90,64 @@ void test_runtime_switch(Checks &checks) {
       std::getenv("FARLIB_FIXED_SIX_GROUPS") == nullptr;
   checks.check(env_free, "semantic-six control has no environment override");
   if (env_free) {
-    checks.check(!FarLib::simple_region_budget::six_enabled(),
+    checks.check(!starfish::simple_region_budget::six_enabled(),
                  "semantic-six remains two-way when the flag is off");
-    checks.equal(FarLib::simple_region_budget::classes(), size_t{2},
+    checks.equal(starfish::simple_region_budget::classes(), size_t{2},
                  "default-off budget exposes two legacy classes");
-    checks.check(!FarLib::simple_region_budget::enabled(),
+    checks.check(!starfish::simple_region_budget::enabled(),
                  "default-off budget controller is disabled");
-    checks.check(!FarLib::simple_region_heat::enabled(),
+    checks.check(!starfish::simple_region_heat::enabled(),
                  "default-off region heat is disabled");
-    checks.check(!FarLib::simple_region_heat::grouping_enabled(),
+    checks.check(!starfish::simple_region_heat::grouping_enabled(),
                  "default-off heat grouping is disabled");
-    checks.check(!FarLib::simple_region_heat::relink_enabled(),
+    checks.check(!starfish::simple_region_heat::relink_enabled(),
                  "default-off heat relinking is disabled");
-    checks.check(!FarLib::simple_region_heat::local_routing_enabled(),
+    checks.check(!starfish::simple_region_heat::local_routing_enabled(),
                  "default-off local routing is disabled");
-    checks.check(!FarLib::simple_region_heat::remote_grouping_enabled(),
+    checks.check(!starfish::simple_region_heat::remote_grouping_enabled(),
                  "default-off remote grouping is disabled");
-    checks.check(!FarLib::allocator::six_group::list_only_six::enabled(),
+    checks.check(!starfish::allocator::six_group::list_only_six::enabled(),
                  "default-off list-only six mode is disabled");
   }
 
   config.behavior_group = true;
-  FarLib::behavior_group_runtime::configure(config.behavior_group);
-  checks.check(FarLib::behavior_group_runtime::enabled(),
+  starfish::behavior_group_runtime::configure(config.behavior_group);
+  checks.check(starfish::behavior_group_runtime::enabled(),
                "one behavior-group flag enables runtime mode");
   checks.check(config.is_ec_batch_mode(),
                "the same flag selects the EC batch family");
-  checks.check(FarLib::simple_region_budget::six_enabled(),
+  checks.check(starfish::simple_region_budget::six_enabled(),
                "behavior-group mode enables semantic six groups");
-  checks.equal(FarLib::simple_region_budget::classes(), size_t{6},
+  checks.equal(starfish::simple_region_budget::classes(), size_t{6},
                "behavior-group mode exposes six semantic classes");
-  checks.check(FarLib::simple_region_budget::enabled(),
+  checks.check(starfish::simple_region_budget::enabled(),
                "behavior-group mode enables adaptive budget");
-  checks.check(FarLib::simple_region_budget::mode() ==
-                   FarLib::simple_region_budget::Mode::Adaptive,
+  checks.check(starfish::simple_region_budget::mode() ==
+                   starfish::simple_region_budget::Mode::Adaptive,
                "behavior-group mode selects adaptive budget");
-  checks.check(FarLib::simple_region_budget::local_resident_enabled(),
+  checks.check(starfish::simple_region_budget::local_resident_enabled(),
                "behavior-group mode enables local-resident semantics");
-  checks.check(FarLib::simple_region_heat::enabled(),
+  checks.check(starfish::simple_region_heat::enabled(),
                "behavior-group mode enables region heat");
-  checks.check(FarLib::simple_region_heat::grouping_enabled(),
+  checks.check(starfish::simple_region_heat::grouping_enabled(),
                "behavior-group mode enables heat grouping");
-  checks.check(FarLib::simple_region_heat::relink_enabled(),
+  checks.check(starfish::simple_region_heat::relink_enabled(),
                "behavior-group mode enables heat relinking");
-  checks.check(FarLib::simple_region_heat::local_routing_enabled(),
+  checks.check(starfish::simple_region_heat::local_routing_enabled(),
                "behavior-group mode enables local routing");
-  checks.check(FarLib::simple_region_heat::remote_grouping_enabled(),
+  checks.check(starfish::simple_region_heat::remote_grouping_enabled(),
                "behavior-group mode enables remote grouping");
-  checks.check(FarLib::allocator::six_group::list_only_six::enabled(),
+  checks.check(starfish::allocator::six_group::list_only_six::enabled(),
                "behavior-group mode enables six-list compatibility");
 
   config.behavior_group = false;
-  FarLib::behavior_group_runtime::configure(false);
+  starfish::behavior_group_runtime::configure(false);
 }
 
 void test_size_boundary(Checks &checks) {
-  auto &config = FarLib::g_behavior_group_runtime_config;
+  auto &config = starfish::g_behavior_group_runtime_config;
   config.behavior_group = false;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.ft_small_object_cutoff = 4096;
   checks.check(config.ft_small_object(4095),
@@ -183,7 +183,7 @@ void test_size_boundary(Checks &checks) {
                "legacy 4096-byte object remains whole");
   checks.check(config.ec_object_uses_split(4097),
                "legacy 4097-byte object avoids fixed staging");
-  config.ft_method_type = FarLib::rdma::Configure::FT_NONE;
+  config.ft_method_type = starfish::rdma::Configure::FT_NONE;
   config.ft_method = "none";
 }
 
@@ -205,37 +205,37 @@ void test_clean_backup_guard(Checks &checks) {
 #if __has_include(<infiniband/verbs.h>)
 
 bool configure_manager_fixture() {
-  auto &config = FarLib::g_behavior_group_runtime_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_behavior_group_runtime_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.behavior_group = true;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   config.server_buffer_size = 4ull * 1024 * 1024;
   config.client_buffer_size = 4ull * 1024 * 1024;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_NONE;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_NONE;
   config.ft_method = "none";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
 
 void test_group_endpoint_contract(Checks &checks) {
-  using Manager = FarLib::cache::SmallObjectStripeManager;
+  using Manager = starfish::cache::SmallObjectStripeManager;
   checks.check(configure_manager_fixture(),
                "behavior-group manager fixture selects EC mode");
 
-  const auto &config = FarLib::g_behavior_group_runtime_config;
+  const auto &config = starfish::g_behavior_group_runtime_config;
   Manager manager;
   manager.init(config.remote_total,
-               FarLib::rdma::Configure::ft_ec_shard_size_bytes);
+               starfish::rdma::Configure::ft_ec_shard_size_bytes);
   checks.check(manager.enabled(), "production stripe manager initialized");
 
   constexpr size_t kWholeBytes = 4096;

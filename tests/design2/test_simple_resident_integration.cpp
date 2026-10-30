@@ -21,9 +21,9 @@
 #include "async/parallel.hpp"
 #include "profiling/stats.hpp"
 
-using namespace FarLib;
-using namespace FarLib::cache;
-using namespace FarLib::rdma;
+using namespace starfish;
+using namespace starfish::cache;
+using namespace starfish::rdma;
 using namespace std::chrono_literals;
 
 namespace {
@@ -36,7 +36,7 @@ constexpr size_t kThreadCount = 2;
 // could remain local while only the unchecked pressure cohort was evicted.
 constexpr size_t kObjectCount = 2048;
 constexpr size_t kPressureCount = 1536;
-constexpr size_t kRegionBytes = FarLib::allocator::RegionSize;
+constexpr size_t kRegionBytes = starfish::allocator::RegionSize;
 
 struct Object {
   UniqueFarPtr<void> ptr;
@@ -413,7 +413,7 @@ int main(int argc, char **argv) {
     set_default_external_config(argv[1], port);
   }
 
-  FarLib::runtime_init(config);
+  starfish::runtime_init(config);
   std::jthread reporter([](std::stop_token stop) {
     if (std::getenv("INTEGRATION_PROGRESS") == nullptr) return;
     while (!stop.stop_requested()) {
@@ -439,6 +439,6 @@ int main(int argc, char **argv) {
   run_test();
   reporter.request_stop();
   reporter.join();
-  FarLib::runtime_destroy();
+  starfish::runtime_destroy();
   return 0;
 }

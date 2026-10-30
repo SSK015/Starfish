@@ -35,8 +35,8 @@
 // ----------------------------------------------------------------------------
 // Transformer model
 
-using namespace FarLib;
-using namespace FarLib::rdma;
+using namespace starfish;
+using namespace starfish::rdma;
 using namespace std::chrono_literals;
 static constexpr size_t UTHREAD_FACTOR = 1;
 static inline size_t get_thread_count() {
@@ -1487,8 +1487,8 @@ int main(int argc, char* argv[]) {
               << static_cast<double>(config.client_buffer_size) / (1 << 30)
               << "G" << std::endl;
     std::cout << "core count: " << config.max_thread_cnt << std::endl;
-    FarLib::runtime_init(config);
-    FarLib::perf_init();
+    starfish::runtime_init(config);
+    starfish::perf_init();
     // build the Transformer via the model .bin file
     Transformer transformer;
     build_transformer(&transformer, checkpoint_path);
@@ -1522,7 +1522,7 @@ int main(int argc, char* argv[]) {
     profile::begin_allocation_wait_diagnostics(get_thread_count());
     profile::start_work();
     profile::thread_start_work();
-    FarLib::perf_profile([&] {
+    starfish::perf_profile([&] {
         auto start = get_cycles();
         if (strcmp(mode, "generate") == 0) {
             generate(&transformer, &tokenizer, &sampler, prompt, steps);
@@ -1576,7 +1576,7 @@ int main(int argc, char* argv[]) {
     free_sampler(&sampler);
     free_tokenizer(&tokenizer);
     free_transformer(&transformer);
-    FarLib::runtime_destroy();
+    starfish::runtime_destroy();
 #ifdef STANDALONE
     server_thread.join();
 #endif

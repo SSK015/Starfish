@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace FarLib::cache::design2::behavior_group {
+namespace starfish::cache::design2::behavior_group {
 
 // The behavior class is a dense six-way identity used for routing and
 // accounting.  It is deliberately independent from ProtectionDecision:
@@ -189,4 +189,4 @@ constexpr const char *to_string(ObjectLayout layout) noexcept {
   return "unknown";
 }
 
-}  // namespace FarLib::cache::design2::behavior_group
+}  // namespace starfish::cache::design2::behavior_group

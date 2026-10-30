@@ -41,7 +41,7 @@ void emulate_virtual_failed_write(FakeEntry &entry) {
   --entry.refs;
   assert(entry.refs == 0);
   entry.state = State::REMOTE;
-  const bool consumed = FarLib::design2::consume_six_pending_evict_once(
+  const bool consumed = starfish::design2::consume_six_pending_evict_once(
       [&entry] { return entry.take_six_pending_evict(); },
       [&entry](bool dirty) { entry.six_commit_evict(dirty); }, true);
   assert(consumed);
@@ -55,11 +55,11 @@ void emulate_failed_write_to_local(FakeEntry &entry, bool had_remote_slot) {
   entry.state = State::LOCAL;
   entry.dirty = true;
   if (entry.refs == 0 && had_remote_slot) {
-    const bool consumed = FarLib::design2::discard_six_pending_evict_once(
+    const bool consumed = starfish::design2::discard_six_pending_evict_once(
         [&entry] { return entry.take_six_pending_evict(); });
     assert(consumed);
   } else if (entry.refs == 0) {
-    const bool consumed = FarLib::design2::discard_six_pending_evict_once(
+    const bool consumed = starfish::design2::discard_six_pending_evict_once(
         [&entry] { return entry.take_six_pending_evict(); });
     assert(consumed);
   }
@@ -76,7 +76,7 @@ int run() {
     assert(entry.pending == 0);
     assert(entry.commit_count == 1);
     assert(entry.committed_dirty);
-    assert(!FarLib::design2::consume_six_pending_evict_once(
+    assert(!starfish::design2::consume_six_pending_evict_once(
         [&entry] { return entry.take_six_pending_evict(); },
         [&entry](bool dirty) { entry.six_commit_evict(dirty); }, true));
     assert(entry.commit_count == 1);

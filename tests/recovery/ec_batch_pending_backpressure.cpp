@@ -22,22 +22,22 @@
 #include "ft/ec/small_object_stripe.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure g_ec_pending_config;
 const rdma::Configure &get_config() { return g_ec_pending_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 
 namespace {
 
-using FarLib::cache::SmallObjectStripeManager;
-using FarLib::cache::ec_batch::EcBatchTokenTable;
-using FarLib::cache::ec_batch::EcGroupBuilder;
-using FarLib::cache::ec_batch::EcStagingGroupSlot;
-using FarLib::cache::ec_batch::EcStagingPool;
+using starfish::cache::SmallObjectStripeManager;
+using starfish::cache::ec_batch::EcBatchTokenTable;
+using starfish::cache::ec_batch::EcGroupBuilder;
+using starfish::cache::ec_batch::EcStagingGroupSlot;
+using starfish::cache::ec_batch::EcStagingPool;
 
 struct Checks {
   int count = 0;
@@ -68,34 +68,35 @@ struct Checks {
 };
 
 bool configure_remote_fixture() {
-  auto &config = FarLib::g_ec_pending_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_ec_pending_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   config.server_buffer_size = 4ull * 1024 * 1024;
   config.client_buffer_size = 4ull * 1024 * 1024;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
 
 bool complete_and_release(EcBatchTokenTable &tokens, uint64_t token_id) {
-  FarLib::cache::ec_batch::EcBatchToken *last = nullptr;
+  starfish::cache::ec_batch::EcBatchToken *last = nullptr;
   for (size_t segment = 0;
-       segment < FarLib::cache::ec_batch::kEcBatchSegmentsPerGroup; ++segment) {
+       segment < starfish::cache::ec_batch::kEcBatchSegmentsPerGroup;
+       ++segment) {
     auto *finished =
         tokens.complete_segment(token_id, static_cast<uint8_t>(segment));
-    if (segment + 1 == FarLib::cache::ec_batch::kEcBatchSegmentsPerGroup) {
+    if (segment + 1 == starfish::cache::ec_batch::kEcBatchSegmentsPerGroup) {
       last = finished;
     } else if (finished != nullptr) {
       return false;
@@ -108,8 +109,8 @@ int run() {
   Checks checks;
   checks.check(configure_remote_fixture(), "ec_batch fixture configured");
 
-  const auto &config = FarLib::g_ec_pending_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  const auto &config = starfish::g_ec_pending_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   SmallObjectStripeManager manager;
   manager.init(config.remote_total, shard_size);
   checks.check(manager.enabled(), "stripe manager enabled");
@@ -127,7 +128,7 @@ int run() {
   checks.check(builder.valid(), "group builder initialized");
 
   std::array<std::array<uint8_t, kObjectBytes>,
-             FarLib::cache::ec_batch::kEcBatchDataSlots>
+             starfish::cache::ec_batch::kEcBatchDataSlots>
       objects{};
   for (size_t i = 0; i < objects.size(); ++i) {
     std::memset(objects[i].data(), static_cast<int>(0x10 + i),
@@ -136,7 +137,7 @@ int run() {
         builder.add_object(objects[i].data(), objects[i].size());
     checks.equal(
         static_cast<unsigned>(status),
-        static_cast<unsigned>(FarLib::cache::ec_batch::EcBatchStatus::kOk),
+        static_cast<unsigned>(starfish::cache::ec_batch::EcBatchStatus::kOk),
         "small object staged/sealed");
   }
   checks.equal(builder.pending_count(), size_t{1},
@@ -161,12 +162,12 @@ int run() {
   std::array<uint64_t, kTokenCapacity> token_ids{};
   for (size_t i = 0; i < kTokenCapacity; ++i) {
     const size_t owner =
-        i / FarLib::cache::ec_batch::EcBatchTokenTable::owner_capacity();
-    FarLib::cache::ec_batch::EcBatchToken *entry = nullptr;
+        i / starfish::cache::ec_batch::EcBatchTokenTable::owner_capacity();
+    starfish::cache::ec_batch::EcBatchToken *entry = nullptr;
     checks.check(
         tokens.acquire(pending, &token_ids[i], &entry, owner) &&
             entry != nullptr &&
-            owner < FarLib::cache::ec_batch::EcBatchTokenTable::owner_count(),
+            owner < starfish::cache::ec_batch::EcBatchTokenTable::owner_count(),
         "competing producer acquires token");
   }
   checks.equal(tokens.available(), size_t{0},
@@ -175,7 +176,7 @@ int run() {
   // A post attempt now fails only at acquire().  The pending record and the
   // staging lease must still be present; an old pop-before-acquire sender
   // would have made pending_count() zero here and stranded the lease.
-  FarLib::cache::ec_batch::EcBatchToken *blocked_entry = nullptr;
+  starfish::cache::ec_batch::EcBatchToken *blocked_entry = nullptr;
   uint64_t blocked_id = 0;
   checks.check(!tokens.acquire(pending, &blocked_id, &blocked_entry),
                "token acquisition fails under backpressure");
@@ -190,7 +191,7 @@ int run() {
                "one token becomes available again");
 
   uint64_t retry_id = 0;
-  FarLib::cache::ec_batch::EcBatchToken *retry_entry = nullptr;
+  starfish::cache::ec_batch::EcBatchToken *retry_entry = nullptr;
   checks.check(tokens.acquire(pending, &retry_id, &retry_entry) &&
                    retry_entry != nullptr,
                "pending group acquires token after CQE release");

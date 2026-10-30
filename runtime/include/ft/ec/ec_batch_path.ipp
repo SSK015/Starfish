@@ -24,7 +24,7 @@
 
 #include "mm/cache/concurrent_cache.hpp"
 
-namespace FarLib::cache::ec_batch {
+namespace starfish::cache::ec_batch {
 
 // Local source of segment `segment` inside the record's staging slot: the four
 // data slots first, then the two parity slots - the order of group.segments.
@@ -99,7 +99,7 @@ inline bool ec_batch_record_is_postable(const EcGroupSendRecord &record,
   for (size_t segment = 0; segment < kEcBatchSegmentsPerGroup; segment++) {
     const auto &seg = record.group.segments[segment];
     if (seg.endpoint_idx >= server_count) return false;
-    if (seg.addr == ::FarLib::allocator::remote::InvalidRemoteAddr) {
+    if (seg.addr == ::starfish::allocator::remote::InvalidRemoteAddr) {
       return false;
     }
     if (seg.slot_size != record.slot_size) return false;
@@ -111,9 +111,9 @@ inline bool ec_batch_record_is_postable(const EcGroupSendRecord &record,
   return true;
 }
 
-}  // namespace FarLib::cache::ec_batch
+}  // namespace starfish::cache::ec_batch
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 // There is no cache-wide stage guard: each EvictBufferSet has one producer.
 
@@ -140,7 +140,7 @@ inline size_t ec_split_write_batch_limit() {
 inline size_t ec_split_group_batch_limit() {
   if (!ec_split::mg_optimizations_enabled) return 0;
   static const size_t limit = [] {
-    if (::FarLib::get_config().ft_background_rebuild) return size_t{0};
+    if (::starfish::get_config().ft_background_rebuild) return size_t{0};
     const char *value = std::getenv("FARLIB_EC_SPLIT_GROUP_BATCH");
     if (value == nullptr || *value == '\0') return size_t{0};
     char *end = nullptr;
@@ -206,7 +206,7 @@ inline uint64_t ConcurrentArrayCache::ec_batch_diag_pending_groups() {
 //  staging_in_use=K ..." - one flushed line per teardown step, only in
 // ft_method=ec_batch.
 inline void ConcurrentArrayCache::ec_batch_diag_step(const char *step) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   const uint64_t sealed_groups =
       ec_worker_sealed_groups_.load(std::memory_order_relaxed) +
       ec_split_groups_staged_.load(std::memory_order_relaxed);
@@ -258,7 +258,7 @@ inline constexpr uint64_t kEcBatchShutdownDrainTimeoutMs = 2000;
 // Groups whose completion is still outstanding: posted tokens in flight plus
 // sealed groups that have not been posted yet.  Diagnostics/decisions only.
 inline size_t ConcurrentArrayCache::ec_batch_in_flight_group_count() {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return 0;
+  if (!::starfish::get_config().is_ec_batch_mode()) return 0;
   size_t in_flight = ec_batch_tokens_.in_use() +
                      (ec_direct_bank_ ? ec_direct_bank_->in_use() : 0);
   // Active owners may still hold private, unpublished groups. Their normal
@@ -290,7 +290,7 @@ inline size_t ConcurrentArrayCache::ec_batch_poll_all_cqs_once() {
 
 inline void
 ConcurrentArrayCache::drain_ec_batch_in_flight_groups_for_shutdown() {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   const auto start = std::chrono::steady_clock::now();
   flush_ec_batch_groups(rdma::thread_info.thread_id);
   ec_batch_diag_step("ec_batch_shutdown_drain_begin");
@@ -325,7 +325,7 @@ ConcurrentArrayCache::drain_ec_batch_in_flight_groups_for_shutdown() {
 // completion or recycle staging while the NIC might still use it.
 inline size_t ConcurrentArrayCache::settle_ec_batch_in_flight_groups(
     const char *reason) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return 0;
+  if (!::starfish::get_config().is_ec_batch_mode()) return 0;
   if (working.load(std::memory_order_acquire)) return 0;
   if (working.load(std::memory_order_acquire)) return 0;
   const size_t remaining = ec_batch_in_flight_group_count();
@@ -338,7 +338,7 @@ inline size_t ConcurrentArrayCache::settle_ec_batch_in_flight_groups(
 
 // The whole counter set, printed once per call site; only in ft_method=ec_batch.
 inline void ConcurrentArrayCache::ec_batch_diag_report(const char *where) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   auto ld = [](const auto &value) {
     return value.load(std::memory_order_relaxed);
   };
@@ -472,7 +472,7 @@ inline void ConcurrentArrayCache::ec_batch_diag_report(const char *where) {
 // Reserves the resident ec_batch staging range inside the client MR and returns
 // the heap size the object allocator may use.  The range is taken from the tail
 // of the registered buffer (rounded up to whole allocator regions) and is *not*
-// handed to ::FarLib::allocator::global_heap::register_heap(), so the cache can
+// handed to ::starfish::allocator::global_heap::register_heap(), so the cache can
 // never distribute it as object memory.  The lkey of that memory is the client
 // MR's lkey, i.e. exactly what build_send_wr() puts into the sge of the six
 // writes.  Returns local_buf_size unchanged (staging disabled) unless
@@ -481,7 +481,7 @@ inline size_t ConcurrentArrayCache::init_ec_batch_staging(
     void *local_buf, size_t local_buf_size) {
   ec_staging_reserved_bytes_ = 0;
   ec_staging_slot_size_ = 0;
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode()) return local_buf_size;
   if (local_buf == nullptr || local_buf_size == 0) return local_buf_size;
 
@@ -489,15 +489,15 @@ inline size_t ConcurrentArrayCache::init_ec_batch_staging(
   // object cutoff.  Objects are only group-allocated while they are small
   // (ft_small_object()), so this covers every group; the pool's hard ceiling
   // still applies.
-  size_t slot_size = ::FarLib::allocator::MaxBinSize;
+  size_t slot_size = ::starfish::allocator::MaxBinSize;
   const size_t cutoff =
       config.behavior_group
           ? rdma::Configure::behavior_group_max_whole_object_bytes
           : config.ft_small_object_cutoff;
-  if (cutoff > 0 && cutoff < ::FarLib::allocator::MaxBinSize) {
-    slot_size =
-        ::FarLib::allocator::get_bin_size(::FarLib::allocator::bin_from_wsize(
-            ::FarLib::allocator::wsize_from_size(cutoff)));
+  if (cutoff > 0 && cutoff < ::starfish::allocator::MaxBinSize) {
+    slot_size = ::starfish::allocator::get_bin_size(
+        ::starfish::allocator::bin_from_wsize(
+            ::starfish::allocator::wsize_from_size(cutoff)));
   }
   if (slot_size > ec_batch::kEcBatchStagingMaxSlotSize) {
     slot_size = ec_batch::kEcBatchStagingMaxSlotSize;
@@ -505,7 +505,7 @@ inline size_t ConcurrentArrayCache::init_ec_batch_staging(
   const size_t depth = ec_batch::kEcBatchStagingDefaultDepth;
   const size_t required =
       ec_batch::EcStagingPool::required_bytes(slot_size, depth);
-  const size_t region = ::FarLib::allocator::RegionSize;
+  const size_t region = ::starfish::allocator::RegionSize;
   const size_t reserve = ((required + region - 1) / region) * region;
   if (reserve == 0 || reserve + region > local_buf_size) {
     std::cerr << "ec_batch staging: client MR too small (bytes="
@@ -550,7 +550,7 @@ inline bool ConcurrentArrayCache::post_ec_batch_group(
   if (!ec_batch::EcBatchTokenTable::valid_owner(client_idx)) {
     ERROR("ec_batch: RDMA client index exceeds token owner capacity");
   }
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   const bool staging_valid = (record.split_object || record.size_class_staging)
                                  ? ec_split_buffers_.valid()
                                  : ec_staging_pool_.valid();
@@ -709,7 +709,7 @@ inline size_t ConcurrentArrayCache::post_ec_pending_impl(
     ERROR("ec_batch: RDMA client index exceeds token owner capacity");
   }
   auto *client = rdma::get_client(client_idx);
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!buffers.ec_writes) {
     buffers.ec_writes.reset(
         new EvictBufferSet::EcEndpointWrites[buffers.server_count]);
@@ -872,7 +872,7 @@ inline void ConcurrentArrayCache::handle_ec_batch_write_complete(uint64_t wr_id,
     ERROR(
         "ec_batch: fewer than four durable segments; refusing false write completion");
   }
-  const int standby = ::FarLib::get_config().ft_standby_endpoint;
+  const int standby = ::starfish::get_config().ft_standby_endpoint;
   if (standby >= 0) {
     for (size_t s = 0; s < record.group.segments.size(); ++s) {
       if (record.group.segments[s].endpoint_idx ==
@@ -897,16 +897,16 @@ inline void ConcurrentArrayCache::handle_ec_batch_write_complete(uint64_t wr_id,
               << std::endl;
   }
   ec_diag_complete_last_.fetch_add(1, std::memory_order_relaxed);
-  if (::FarLib::get_config().ft_incremental_update)
+  if (::starfish::get_config().ft_incremental_update)
     remote_allocator.small_object_stripe_manager().mark_slot_group_durable(
         record.group.id);
   for (size_t i = 0; i < ec_batch::kEcBatchDataSlots; i++) {
     if (record.objects[i] != nullptr) {
       if (record.source_mode == ec_batch::EcGroupSourceMode::kSplitDirect) {
-        auto *block = static_cast<::FarLib::allocator::BlockHead *>(
+        auto *block = static_cast<::starfish::allocator::BlockHead *>(
                           const_cast<void *>(record.objects[i])) -
                       1;
-        ::FarLib::allocator::release_ec_write_source(block);
+        ::starfish::allocator::release_ec_write_source(block);
         ec_split_direct_write_borrowed_.fetch_sub(1, std::memory_order_relaxed);
         ec_split_direct_write_completed_.fetch_add(1,
                                                    std::memory_order_relaxed);
@@ -942,7 +942,8 @@ inline void ConcurrentArrayCache::handle_ec_batch_write_complete(uint64_t wr_id,
 inline constexpr uint64_t kEcBatchStageRetryTimeoutMs = 30000;
 
 inline bool ConcurrentArrayCache::ec_batch_staging_ready() {
-  return ::FarLib::get_config().is_ec_batch_mode() && ec_staging_pool_.valid();
+  return ::starfish::get_config().is_ec_batch_mode() &&
+         ec_staging_pool_.valid();
 }
 
 inline bool ConcurrentArrayCache::stage_ec_batch_object(
@@ -954,14 +955,14 @@ inline bool ConcurrentArrayCache::stage_ec_batch_object(
                                  behavior_group, true);
   }
   // Route once on admission; already-started batches keep their protocol.
-  if (::FarLib::ec_benchmark_phase::enabled() && !ec_batch_uses_split(size) &&
+  if (::starfish::ec_benchmark_phase::enabled() && !ec_batch_uses_split(size) &&
       size <= rdma::ec_rmw::kMaxBytes) {
     if (!buffers.direct_builder ||
-        !::FarLib::allocator::ec_write_source_borrowed(
-            static_cast<::FarLib::allocator::BlockHead *>(local_addr) - 1))
+        !::starfish::allocator::ec_write_source_borrowed(
+            static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1))
       ERROR(
           "ec_benchmark_phase: small eviction lacks private builder/source ownership");
-    if (!::FarLib::ec_benchmark_phase::steady())
+    if (!::starfish::ec_benchmark_phase::steady())
       return stage_ec_direct_object(buffers, local_addr, size, entry,
                                     behavior_group);
     if (!stage_ec_rmw_object(buffers, local_addr, size, entry, behavior_group))
@@ -969,17 +970,17 @@ inline bool ConcurrentArrayCache::stage_ec_batch_object(
           "ec_benchmark_phase: incremental admission rejected after first Work");
     return true;
   }
-  if (::FarLib::get_config().ft_incremental_one_sided &&
+  if (::starfish::get_config().ft_incremental_one_sided &&
       stage_ec_rmw_object(buffers, local_addr, size, entry, behavior_group))
     return true;
-  if (::FarLib::get_config().ft_incremental_update &&
-      !::FarLib::get_config().ft_incremental_one_sided &&
+  if (::starfish::get_config().ft_incremental_update &&
+      !::starfish::get_config().ft_incremental_one_sided &&
       stage_ec_incremental_object(buffers, local_addr, size, entry,
                                   behavior_group))
     return true;
   if (buffers.direct_builder &&
-      ::FarLib::allocator::ec_write_source_borrowed(
-          static_cast<::FarLib::allocator::BlockHead *>(local_addr) - 1))
+      ::starfish::allocator::ec_write_source_borrowed(
+          static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1))
     return stage_ec_direct_object(buffers, local_addr, size, entry,
                                   behavior_group);
   profile::evict_breakdown::Scope stage_scope(
@@ -991,7 +992,7 @@ inline bool ConcurrentArrayCache::stage_ec_batch_object(
   if (ec_batch_uses_split(size))
     return stage_ec_split_object(buffers, local_addr, size, entry,
                                  behavior_group);
-  if (::FarLib::get_config().behavior_group)
+  if (::starfish::get_config().behavior_group)
     return stage_ec_size_class_object(buffers, local_addr, size, entry,
                                       behavior_group);
   if (!ec_batch_staging_ready()) {
@@ -1043,13 +1044,13 @@ inline bool ConcurrentArrayCache::stage_ec_batch_object(
       progress();
       continue;
     }
-    uint64_t addr = ::FarLib::allocator::remote::InvalidRemoteAddr;
+    uint64_t addr = ::starfish::allocator::remote::InvalidRemoteAddr;
     const auto status =
         builder.add_object(local_addr, size, &addr, behavior_group);
     ec_batch_diag_note_status(status);
     if (status == ec_batch::EcBatchStatus::kOk ||
         status == ec_batch::EcBatchStatus::kPendingQueueFull) {
-      ASSERT(addr != ::FarLib::allocator::remote::InvalidRemoteAddr);
+      ASSERT(addr != ::starfish::allocator::remote::InvalidRemoteAddr);
       // Even the fourth object's address is published BEFORE exposing
       // its sealed group to this worker's endpoint submission batches.
       entry->set_remote_addr(addr);
@@ -1119,12 +1120,12 @@ inline bool ConcurrentArrayCache::stage_ec_size_class_object(
   };
   bool consumed = false;
   while (true) {
-    uint64_t address = ::FarLib::allocator::remote::InvalidRemoteAddr;
+    uint64_t address = ::starfish::allocator::remote::InvalidRemoteAddr;
     const auto status = consumed ? builder.flush()
                                  : builder.add_object(local_addr, size,
                                                       &address, behavior_group);
     if (!consumed &&
-        address != ::FarLib::allocator::remote::InvalidRemoteAddr) {
+        address != ::starfish::allocator::remote::InvalidRemoteAddr) {
       entry->set_remote_addr(address);
       consumed = true;
     }
@@ -1158,8 +1159,9 @@ inline bool ConcurrentArrayCache::stage_ec_split_object(
       ec_split::mg_optimizations_enabled ? buffers.breakdown : nullptr;
   const auto release_direct_source = [&] {
     if (!direct_split_write || local_addr == nullptr) return;
-    auto *block = static_cast<::FarLib::allocator::BlockHead *>(local_addr) - 1;
-    ::FarLib::allocator::release_ec_write_source(block);
+    auto *block =
+        static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
+    ::starfish::allocator::release_ec_write_source(block);
     ec_split_direct_write_borrowed_.fetch_sub(1, std::memory_order_relaxed);
   };
   if (local_addr == nullptr || entry == nullptr || size == 0 ||
@@ -1229,10 +1231,10 @@ inline bool ConcurrentArrayCache::stage_ec_split_object(
       while (!manager.allocate_slot_group(fragment_bytes, &group)) progress();
     } else {
       auto &batch = buffers.ec_split_group_batch;
-      const size_t bin = ::FarLib::allocator::bin_from_wsize(
-          ::FarLib::allocator::wsize_from_size(fragment_bytes));
+      const size_t bin = ::starfish::allocator::bin_from_wsize(
+          ::starfish::allocator::wsize_from_size(fragment_bytes));
       const uint32_t expected_slot_size =
-          static_cast<uint32_t>(::FarLib::allocator::get_bin_size(bin));
+          static_cast<uint32_t>(::starfish::allocator::get_bin_size(bin));
       if (batch.count != 0 &&
           (batch.groups[0].bin != bin ||
            batch.groups[0].slot_size != expected_slot_size)) {
@@ -1510,7 +1512,7 @@ inline void ConcurrentArrayCache::release_ec_split_group_batch(
 inline void ConcurrentArrayCache::ec_batch_report_stuck_spin(
     FarObjectEntry &entry, uint64_t spin, uint64_t harvested, const char *where,
     bool damp_enter_report) {
-  if (!::FarLib::get_config().is_ec_batch_mode()) return;
+  if (!::starfish::get_config().is_ec_batch_mode()) return;
   if (damp_enter_report) {
     static std::atomic<uint64_t> enter_reports{0};
     if ((enter_reports.fetch_add(1, std::memory_order_relaxed) & 0xffull) !=
@@ -1631,4 +1633,4 @@ inline void ConcurrentArrayCache::ec_batch_report_stuck_spin(
             << std::endl;
   std::cout << "INFO: ec_stuck end where=" << where << std::endl;
 }
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

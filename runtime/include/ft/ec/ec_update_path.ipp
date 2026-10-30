@@ -1,10 +1,10 @@
 #pragma once
 #include "mm/cache/concurrent_cache.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 bool ConcurrentArrayCache::handle_ec_incremental_complete(const ibv_wc &wc) {
-  if (!::FarLib::get_config().ft_incremental_update) return false;
+  if (!::starfish::get_config().ft_incremental_update) return false;
   auto *transport = rdma::ClientControl::get_default()->ec_update_transport();
   if (!transport || !transport->handle(wc)) return false;
   if (wc.status != IBV_WC_SUCCESS) note_ec_recovery_error_wc(wc);
@@ -19,8 +19,8 @@ bool ConcurrentArrayCache::stage_ec_incremental_object(EvictBufferSet &buffers,
   if (!ec_update_workers_ || !buffers.direct_builder ||
       ec_batch_uses_split(size))
     return false;
-  auto *block = static_cast<::FarLib::allocator::BlockHead *>(source) - 1;
-  if (!::FarLib::allocator::ec_write_source_borrowed(block)) return false;
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(source) - 1;
+  if (!::starfish::allocator::ec_write_source_borrowed(block)) return false;
   // Failure is monotone in this runtime. Once degraded reads can exist, do
   // not start new in-place updates; use the existing fresh-group writer.
   for (size_t ep = 0; ep < ec_recovery_endpoint_count(); ++ep)
@@ -66,7 +66,7 @@ void ConcurrentArrayCache::flush_ec_incremental_objects(EvictBufferSet &buffers,
   auto *client = rdma::get_client(client_idx);
   if (!transport || !client) ERROR("ec_update: missing transport/client");
   const size_t qp_idx = client->get_qp_idx();
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   auto &manager = remote_allocator.small_object_stripe_manager();
   auto segment =
       [&](size_t i,
@@ -237,14 +237,16 @@ void ConcurrentArrayCache::flush_ec_incremental_objects(EvictBufferSet &buffers,
         ERROR("ec_update: stale commit reservation");
       ++worker.committed;
       worker.payload_bytes += t.reservation.size;
-      auto *block = static_cast<::FarLib::allocator::BlockHead *>(t.source) - 1;
-      ::FarLib::allocator::release_ec_write_source(block);
+      auto *block =
+          static_cast<::starfish::allocator::BlockHead *>(t.source) - 1;
+      ::starfish::allocator::release_ec_write_source(block);
       complete_evict_writeback(t.source);
     } else {
       if (!manager.abort_slot_reuse(t.reservation))
         ERROR("ec_update: stale abort reservation");
       ++worker.aborted;
-      auto *block = static_cast<::FarLib::allocator::BlockHead *>(t.source) - 1;
+      auto *block =
+          static_cast<::starfish::allocator::BlockHead *>(t.source) - 1;
       const auto object = block->obj_meta_data.load(std::memory_order_acquire);
       if (object.is_null())
         ERROR("ec_update: source lost while write ref held");
@@ -259,4 +261,4 @@ void ConcurrentArrayCache::flush_ec_incremental_objects(EvictBufferSet &buffers,
   }
   worker.count = 0;
 }
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

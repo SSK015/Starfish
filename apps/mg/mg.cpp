@@ -62,8 +62,8 @@ Authors of the C++ code:
 #include "async/parallel.hpp"
 #include "profiling/stats.hpp"
 
-using namespace FarLib;
-using namespace FarLib::rdma;
+using namespace starfish;
+using namespace starfish::rdma;
 #ifndef MG_UTHREAD_COUNT
 #define MG_UTHREAD_COUNT 24
 #endif
@@ -381,7 +381,7 @@ static void comm3_caller(DoubleVec& u, int n1, int n2, int n3, int offset) {
     }
 }
 
-void vranlc_farlib(int n, double* x_seed, double a, DoubleVec& y_vec,
+void vranlc_starfish(int n, double* x_seed, double a, DoubleVec& y_vec,
                    size_t y_offset, DereferenceScope& scope) {
     int i;
     double x, t1, t2, t3, t4, a1, a2, x1, x2, z;
@@ -426,7 +426,7 @@ void vranlc_farlib(int n, double* x_seed, double a, DoubleVec& y_vec,
     *x_seed = x;
 }
 
-static void alloc_farlib(DoubleVec& z, int length) { z.resize(length); }
+static void alloc_starfish(DoubleVec& z, int length) { z.resize(length); }
 
 static void zero3_caller(DoubleVec& z, int n1, int n2, int n3, int off) {
     _fork_join(id, 0, n3, int64_t, i3_start, i3_end) {
@@ -479,7 +479,7 @@ static void zran3_caller(DoubleVec& z, int n1, int n2, int n3, int nx, int ny,
             double x1 = plane_seed;
             for (int i2 = 1; i2 < e2; i2++) {
                 double xx = x1;
-                vranlc_farlib(
+                vranlc_starfish(
                     d1, &xx, A, z,
                     calculate_offset(1, i2, i3, n1, n2, n3), scope);
                 randlc(&x1, a1);
@@ -1683,7 +1683,7 @@ void do_work(void* /* arg */) {
         timer_clear(i);
     }
 
-    FarLib::profile::prepare_frequency_output_scope("MG benchmark");
+    starfish::profile::prepare_frequency_output_scope("MG benchmark");
     timer_start(T_INIT);
 
     /*
@@ -1797,9 +1797,9 @@ void do_work(void* /* arg */) {
 
     setup(&n1, &n2, &n3, k);
     // vec_u_zero3(n1, n2, n3);
-    alloc_farlib(u_vec, NR);
-    alloc_farlib(v_vec, NV);
-    alloc_farlib(r_vec, NR);
+    alloc_starfish(u_vec, NR);
+    alloc_starfish(v_vec, NV);
+    alloc_starfish(r_vec, NR);
     zran3_caller(v_vec, n1, n2, n3, nx[lt], ny[lt], k);
     norm2u3_caller(v_vec, n1, n2, n3, &rnm2, &rnmu, nx[lt], ny[lt], nz[lt], 0);
 
@@ -1850,15 +1850,15 @@ void do_work(void* /* arg */) {
     }
     timer_start(T_BENCH);
     // Keep the work/sampling boundaries used by the runtime planners.
-    FarLib::profile::reset_all();
-    FarLib::profile::start_work();
+    starfish::profile::reset_all();
+    starfish::profile::start_work();
 #ifndef NO_REMOTE
-    FarLib::profile::thread_start_work();
-    FarLib::Cache::get_default()->begin_resident_profile_window();
+    starfish::profile::thread_start_work();
+    starfish::Cache::get_default()->begin_resident_profile_window();
 #endif
-    FarLib::profile::begin_frequency_output_scope();
+    starfish::profile::begin_frequency_output_scope();
     const auto work_start = std::chrono::steady_clock::now();
-#ifdef FARLIB_STARFISH_MG
+#ifdef STARFISH_MG_RUNTIME
     const auto work_start_tsc = get_cycles();
 #endif
     if (timeron) {
@@ -1891,11 +1891,11 @@ void do_work(void* /* arg */) {
         if (phase_replan &&
             static_cast<size_t>(it) <= phase_replan_iterations) {
 #ifndef NO_REMOTE
-            FarLib::Cache::get_default()->publish_resident_group_plan_now(true);
+            starfish::Cache::get_default()->publish_resident_group_plan_now(true);
 #endif
         } else if (it == 1) {
 #ifndef NO_REMOTE
-            FarLib::Cache::get_default()->publish_resident_profile_plan_now();
+            starfish::Cache::get_default()->publish_resident_profile_plan_now();
 #endif
         }
         if (phase_replan &&
@@ -1903,34 +1903,34 @@ void do_work(void* /* arg */) {
             !phase_placement_frozen) {
 #ifndef NO_REMOTE
             phase_placement_frozen =
-                FarLib::Cache::get_default()->freeze_resident_group_plan_now();
+                starfish::Cache::get_default()->freeze_resident_group_plan_now();
 #endif
         }
     }
     norm2u3_caller(r_vec, n1, n2, n3, &rnm2, &rnmu, nx[lt], ny[lt], nz[lt], 0);
-#ifdef FARLIB_STARFISH_MG
+#ifdef STARFISH_MG_RUNTIME
     const auto work_tsc_ticks = get_cycles() - work_start_tsc;
 #endif
     const double work_ms = std::chrono::duration<double, std::milli>(
                                std::chrono::steady_clock::now() - work_start)
                                .count();
     printf("perf result\nruntime: %.6f ms\n", work_ms);
-    FarLib::profile::end_frequency_output_scope();
+    starfish::profile::end_frequency_output_scope();
 
 #ifndef NO_REMOTE
-    FarLib::profile::thread_end_work();
+    starfish::profile::thread_end_work();
 #endif
-    FarLib::profile::end_work();
-#ifdef FARLIB_STARFISH_MG
-    if (FarLib::profile::evac_phase_metrics_enabled()) {
+    starfish::profile::end_work();
+#ifdef STARFISH_MG_RUNTIME
+    if (starfish::profile::evac_phase_metrics_enabled()) {
         printf("MG_PROFILE_CLOCK native_work_ms=%.9f native_work_tsc_ticks=%llu\n",
                work_ms, static_cast<unsigned long long>(work_tsc_ticks));
-        FarLib::profile::print_profile_data();
+        starfish::profile::print_profile_data();
     }
 #endif
     printf("rdma read bytes %lld\nrdma write bytes %lld\n",
-           static_cast<long long>(FarLib::profile::collect_rdma_read_post_bytes()),
-           static_cast<long long>(FarLib::profile::collect_rdma_write_post_bytes()));
+           static_cast<long long>(starfish::profile::collect_rdma_read_post_bytes()),
+           static_cast<long long>(starfish::profile::collect_rdma_write_post_bytes()));
 
     timer_stop(T_BENCH);
     t = timer_read(T_BENCH);
@@ -2154,11 +2154,11 @@ static void setup(int* n1, int* n2, int* n3, int k) {
 }
 
 int main(int argc, char** argv) {
-#ifdef FARLIB_STARFISH_MG
+#ifdef STARFISH_MG_RUNTIME
     // Set once before any runtime/server workers start, never via environment.
-    FarLib::cache::ec_split::mg_optimizations_enabled = true;
+    starfish::cache::ec_split::mg_optimizations_enabled = true;
 #endif
-    FarLib::rdma::Configure config;
+    starfish::rdma::Configure config;
 #ifndef STANDALONE
     if (argc != 2) {
         std::cout << "usage: " << argv[0] << " <configure file>" << std::endl;
@@ -2177,19 +2177,19 @@ int main(int argc, char** argv) {
 #endif
     printf("MG_PARALLELISM fibres=%zu configured_app_workers=%u\n",
            UthreadCount, static_cast<unsigned>(config.max_thread_cnt));
-#ifdef FARLIB_STARFISH_MG
+#ifdef STARFISH_MG_RUNTIME
     printf("MG_OBJECT_LAYOUT allocation_bytes=%zu payload_bytes=%zu elements=%zu\n",
            DoubleVec::GROUP_SIZE * sizeof(double) + allocator::BlockHeadSize,
            DoubleVec::GROUP_SIZE * sizeof(double), DoubleVec::GROUP_SIZE);
 #endif
-    FarLib::runtime_init(config);
+    starfish::runtime_init(config);
     do_work(nullptr);
     fflush(stdout);
-    FarLib::runtime_quiesce_cache();
+    starfish::runtime_quiesce_cache();
     u_vec.clear();
     v_vec.clear();
     r_vec.clear();
-    FarLib::runtime_destroy();
+    starfish::runtime_destroy();
 #ifdef STANDALONE
     server_thread.join();
 #endif

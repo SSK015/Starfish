@@ -1,9 +1,9 @@
 #pragma once
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline void ConcurrentArrayCache::init_ec_direct_writes() {
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode() || !config.exclusive_cache) return;
 #ifdef ASSERT_ALL_LOCAL
   return;  // This debug mode bypasses the mutable-access slow path.
@@ -78,13 +78,13 @@ inline void ConcurrentArrayCache::wait_ec_write_source(FarObjectEntry &entry) {
     return;
   auto *address = entry.local_addr();
   if (!address) return;
-  auto *block = static_cast<::FarLib::allocator::BlockHead *>(address) - 1;
-  if (!::FarLib::allocator::ec_write_source_borrowed(block)) return;
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(address) - 1;
+  if (!::starfish::allocator::ec_write_source_borrowed(block)) return;
   ec_direct_write_waits_.fetch_add(1, std::memory_order_relaxed);
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(30);
   size_t passes = 0;
-  while (::FarLib::allocator::ec_write_source_borrowed(block)) {
+  while (::starfish::allocator::ec_write_source_borrowed(block)) {
     auto state = entry.load_state(std::memory_order_acquire);
     if (!state.invalid && state.state == EVICTING) {
       auto rescued = state;
@@ -122,7 +122,7 @@ inline bool ConcurrentArrayCache::stage_ec_direct_object(
   if (!client) ERROR("ec_direct: missing client");
   const size_t qp_idx = client->get_qp_idx();
   if (recovery_fallback) {
-    const auto &config = ::FarLib::get_config();
+    const auto &config = ::starfish::get_config();
     if (!config.ft_rmw_read_failure_fallback ||
         !config.ft_incremental_one_sided)
       ERROR("ec_direct: recovery admission is disabled");
@@ -154,18 +154,18 @@ inline bool ConcurrentArrayCache::stage_ec_direct_object(
     uthread::yield();
   };
   while (true) {
-    uint64_t address = ::FarLib::allocator::remote::InvalidRemoteAddr;
+    uint64_t address = ::starfish::allocator::remote::InvalidRemoteAddr;
     const auto status =
         consumed ? builder.flush()
                  : builder.add_object(data, size, &address, behavior_group,
                                       recovery_fallback);
     if (allow_no_capacity && !consumed &&
-        address == ::FarLib::allocator::remote::InvalidRemoteAddr &&
+        address == ::starfish::allocator::remote::InvalidRemoteAddr &&
         status == ec_batch::EcBatchStatus::kManagerRejected)
       return false;
     if (!consumed &&
-        address != ::FarLib::allocator::remote::InvalidRemoteAddr) {
-      if (::FarLib::get_config().ft_incremental_one_sided) {
+        address != ::starfish::allocator::remote::InvalidRemoteAddr) {
+      if (::starfish::get_config().ft_incremental_one_sided) {
         // Deferred sources may have moved to a new FarObjectEntry.
         // Address publication must precede every possible WRITE post.
         while (!try_publish_ec_rmw_address(data, address, client_idx)) {
@@ -210,7 +210,7 @@ inline size_t ConcurrentArrayCache::post_ec_direct_pending(
       buffers.breakdown, profile::evict_breakdown::Stage::SendPrepare);
   auto &builder = *buffers.direct_builder;
   auto *client = rdma::get_client(client_idx);
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   for (size_t ep = 0; ep < buffers.server_count; ++ep)
     ASSERT(buffers.ec_writes[ep].count == 0);
   size_t groups = 0;
@@ -346,7 +346,7 @@ inline void ConcurrentArrayCache::complete_ec_direct_write(uint64_t token,
   }
   if (!entry->recoverable())
     ERROR("ec_direct: fewer than four durable segments");
-  const int standby = ::FarLib::get_config().ft_standby_endpoint;
+  const int standby = ::starfish::get_config().ft_standby_endpoint;
   if (standby >= 0) {
     for (size_t s = 0; s < 6; ++s) {
       if (entry->record.group.segments[s].endpoint_idx ==
@@ -367,13 +367,13 @@ inline void ConcurrentArrayCache::complete_ec_direct_write(uint64_t token,
               << " failed_mask=" << static_cast<unsigned>(entry->failed)
               << std::endl;
   ec_diag_complete_last_.fetch_add(1, std::memory_order_relaxed);
-  if (::FarLib::get_config().ft_incremental_update)
+  if (::starfish::get_config().ft_incremental_update)
     remote_allocator.small_object_stripe_manager().mark_slot_group_durable(
         entry->record.group.id);
   for (size_t i = 0; i < 4; ++i) {
     if (auto *object = const_cast<void *>(entry->record.objects[i])) {
-      auto *block = static_cast<::FarLib::allocator::BlockHead *>(object) - 1;
-      ::FarLib::allocator::release_ec_write_source(block);
+      auto *block = static_cast<::starfish::allocator::BlockHead *>(object) - 1;
+      ::starfish::allocator::release_ec_write_source(block);
       // Resolve the CURRENT entry via the block; FarPtr moves can change
       // its metadata owner while the original data address stays pinned.
       complete_evict_writeback(object);
@@ -383,4 +383,4 @@ inline void ConcurrentArrayCache::complete_ec_direct_write(uint64_t token,
     ERROR("ec_direct: terminal token release failed");
   ec_batch_groups_completed_.fetch_add(1, std::memory_order_relaxed);
 }
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

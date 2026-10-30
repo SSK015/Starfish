@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace FarLib {
+namespace starfish {
 // Owns pointers, not intrusive links. No callback, allocation or yielding while
 // the ingress lock is held. A successful take transfers sole ownership to the
 // consumer until it calls complete() after synchronous list publication.

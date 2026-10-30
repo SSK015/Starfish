@@ -7,7 +7,7 @@
 
 namespace {
 
-namespace policy = FarLib::cache::design2::behavior_group;
+namespace policy = starfish::cache::design2::behavior_group;
 
 #define CHECK(condition)                                                       \
     do {                                                                       \

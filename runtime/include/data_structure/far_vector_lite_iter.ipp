@@ -5,7 +5,7 @@
 #define FORCE_INLINE inline __attribute__((always_inline))
 // #define FORCE_INLINE
 #endif
-namespace FarLib {
+namespace starfish {
 template <VecElementType T, size_t GroupSize>
 template <bool Mut>
 class FarVector<T, GroupSize>::LiteIterator : public GenericIterator<Mut> {
@@ -555,4 +555,4 @@ class FarVector<T, GroupSize>::LiteIterator : public GenericIterator<Mut> {
     return lite_accessor;
   }
 };
-}  // namespace FarLib
+}  // namespace starfish

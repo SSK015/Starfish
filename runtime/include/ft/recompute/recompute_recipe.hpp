@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace FarLib::recompute {
+namespace starfish::recompute {
 
 // A recipe callback rebuilds an immutable object into destination.  Returning
 // false reports that the callback could not produce the requested bytes.
@@ -138,4 +138,4 @@ struct Binding {
 static_assert(sizeof(Binding) == 16);
 static_assert(std::is_trivially_destructible_v<Binding>);
 
-}  // namespace FarLib::recompute
+}  // namespace starfish::recompute

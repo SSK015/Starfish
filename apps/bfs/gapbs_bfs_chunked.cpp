@@ -23,7 +23,7 @@
 #include "lib/timer.hpp"
 #include "async/uthreads.hpp"
 
-using namespace FarLib;
+using namespace starfish;
 
 using Graph = ChunkedGraph<false>;
 using vertex_t = Graph::vertex_t;
@@ -874,7 +874,7 @@ int main(int argc, char *argv[]) {
     // Preserve taskset/cgroup restrictions before runtime_init narrows each
     // fibre worker to one CPU. Only native read/fill threads use this snapshot.
     const GraphLoadAffinity loader_affinity;
-    FarLib::rdma::Configure config;
+    starfish::rdma::Configure config;
     config.from_file(config_path.c_str());
     runtime_init(config);
     perf_init();

@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace FarLib::profile {
+namespace starfish::profile {
 
 // A phase bit is published only at the mark/evict window boundaries.  RDMA
 // hooks sample the mask and update their thread-local shard; they never
@@ -140,4 +140,4 @@ void reset_evac_phase_metrics_state() noexcept;
 void begin_evac_phase_metrics_window() noexcept;
 void end_evac_phase_metrics_window() noexcept;
 
-}  // namespace FarLib::profile
+}  // namespace starfish::profile

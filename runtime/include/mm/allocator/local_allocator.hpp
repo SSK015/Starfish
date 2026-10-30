@@ -10,7 +10,7 @@
 
 #include "mm/allocator/region_based_allocator.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace cache {
 
@@ -67,14 +67,14 @@ class LocalAllocator {
 };
 
 }  // namespace cache
-}  // namespace FarLib
+}  // namespace starfish
 
 #else
 
 #include <boost/interprocess/allocators/allocator.hpp>
 #include <boost/interprocess/managed_external_buffer.hpp>
 
-namespace FarLib {
+namespace starfish {
 
 namespace cache {
 
@@ -112,6 +112,6 @@ class LocalAllocator {
 
 }  // namespace cache
 
-}  // namespace FarLib
+}  // namespace starfish
 
 #endif

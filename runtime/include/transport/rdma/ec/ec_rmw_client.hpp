@@ -13,7 +13,7 @@
 #include "lib/debug.hpp"
 #include "lib/cpu_cycles.hpp"
 
-namespace FarLib::rdma::ec_rmw {
+namespace starfish::rdma::ec_rmw {
 
 // One bounded incremental-EC round consists of four batches, with one entry
 // for every object and three participants (old data/diff, parity 0, parity 1).
@@ -457,4 +457,4 @@ class ClientTransport {
   }
 };
 
-}  // namespace FarLib::rdma::ec_rmw
+}  // namespace starfish::rdma::ec_rmw

@@ -2,7 +2,7 @@
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
-namespace FarLib::ec_benchmark_phase {
+namespace starfish::ec_benchmark_phase {
 // Runtime-only experimental policy; not a Configure field.
 inline bool enabled() {
   static const bool value = [] {

@@ -11,7 +11,7 @@
 #include "profiling/scope_diag.hpp"
 #include "profiling/stats.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace uthread {
 
@@ -192,4 +192,4 @@ inline void set_high_priority() {
 
 using uthread::UThread;
 
-}  // namespace FarLib
+}  // namespace starfish

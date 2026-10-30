@@ -8,7 +8,7 @@
 #include "mm/placement/entry_frequency.hpp"
 #include "ft/recompute/recompute_recipe.hpp"
 
-namespace FarLib {
+namespace starfish {
 namespace allocator::six_group {
 struct Record;
 }
@@ -625,4 +625,4 @@ class DereferenceScope;
 
 }  // namespace cache
 
-}  // namespace FarLib
+}  // namespace starfish

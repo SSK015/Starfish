@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace FarLib::cache {
+namespace starfish::cache {
 
 inline constexpr size_t kEcDirectDataShards = 4;
 inline constexpr size_t kEcDirectParityShards = 2;
@@ -132,4 +132,4 @@ inline bool ec_direct_encode_4(const void *const data[kEcDirectDataShards],
   return encode_direct_shards(data, sizes, parity, slot_size, zero_pad);
 }
 
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

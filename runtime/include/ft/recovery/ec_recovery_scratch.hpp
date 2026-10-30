@@ -14,7 +14,7 @@
 
 #include "ft/ec/ec_batch_staging.hpp"
 
-namespace FarLib::cache::ec_read_recovery {
+namespace starfish::cache::ec_read_recovery {
 
 // The adapter owns allocation and MR registration. Keeping verbs outside this
 // class permits CPU tests to inject registration failure and track ownership.
@@ -31,7 +31,7 @@ struct RecoveryScratchChunk {
 // pushing a stable node onto that owner's lock-free MPSC return stack.  The
 // next borrow by the owner drains that stack under only its own mutex.
 class WorkerTempBufferPool final
-    : public ::FarLib::cache::WorkerTempBufferProvider {
+    : public ::starfish::cache::WorkerTempBufferProvider {
  private:
   struct OwnerState;
   struct Node;
@@ -460,4 +460,4 @@ class WorkerTempBufferPool final
 // Keep the production name and all old callback/API call sites unchanged.
 using EcRecoveryScratchPool = WorkerTempBufferPool;
 
-}  // namespace FarLib::cache::ec_read_recovery
+}  // namespace starfish::cache::ec_read_recovery

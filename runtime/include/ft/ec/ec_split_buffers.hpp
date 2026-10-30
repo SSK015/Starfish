@@ -13,10 +13,10 @@
 
 #if __has_include(<infiniband/verbs.h>)
 #include "mm/allocator/region_based_allocator.hpp"
-#define FARLIB_EC_SPLIT_HAS_ALLOCATOR_BINS 1
+#define STARFISH_EC_SPLIT_HAS_ALLOCATOR_BINS 1
 #endif
 
-namespace FarLib::cache::ec_split {
+namespace starfish::cache::ec_split {
 
 using WorkerTempBufferPool = ec_read_recovery::WorkerTempBufferPool;
 
@@ -25,11 +25,11 @@ inline constexpr size_t kMaxSplitSlotSize = 64 * 1024;
 // pulls in the RDMA verbs headers.  A full build uses the allocator's own
 // physical bin table; the fallback below is the same table (BinSize[] entries
 // multiplied by sizeof(void *)) for a standalone test build without verbs.
-#if defined(FARLIB_EC_SPLIT_HAS_ALLOCATOR_BINS)
+#if defined(STARFISH_EC_SPLIT_HAS_ALLOCATOR_BINS)
 inline constexpr size_t kSplitPoolClassCount =
-    ::FarLib::allocator::RegionBinCount;
+    ::starfish::allocator::RegionBinCount;
 inline size_t split_bin_size(size_t bin) {
-  return ::FarLib::allocator::get_bin_size(bin);
+  return ::starfish::allocator::get_bin_size(bin);
 }
 #else
 inline constexpr std::array<size_t, 56> kSplitBinSizes = {
@@ -205,8 +205,8 @@ class BufferPools final {
   std::array<PoolCookie, kSplitPoolClassCount> cookies_{};
 };
 
-}  // namespace FarLib::cache::ec_split
+}  // namespace starfish::cache::ec_split
 
-#if defined(FARLIB_EC_SPLIT_HAS_ALLOCATOR_BINS)
-#undef FARLIB_EC_SPLIT_HAS_ALLOCATOR_BINS
+#if defined(STARFISH_EC_SPLIT_HAS_ALLOCATOR_BINS)
+#undef STARFISH_EC_SPLIT_HAS_ALLOCATOR_BINS
 #endif

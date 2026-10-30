@@ -13,7 +13,7 @@
 
 #include "dyn_sized_object.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 template <typename T, size_t ChunkSizeInByte = 4096 - allocator::BlockHeadSize>
 class SmallVector {
@@ -173,4 +173,4 @@ class SmallVector {
   }
 };
 
-}  // namespace FarLib
+}  // namespace starfish

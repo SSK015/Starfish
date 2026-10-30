@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace FarLib::alloc_reclaim_rate_diag {
+namespace starfish::alloc_reclaim_rate_diag {
 
 inline bool enabled() {
   static const bool value = [] {
@@ -126,4 +126,4 @@ inline Snapshot snapshot() {
   return result;
 }
 
-}  // namespace FarLib::alloc_reclaim_rate_diag
+}  // namespace starfish::alloc_reclaim_rate_diag

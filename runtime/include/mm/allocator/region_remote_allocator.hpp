@@ -26,7 +26,7 @@
 #include "async/uthreads.hpp"
 #include "profiling/runtime_metadata.hpp"
 
-namespace FarLib {
+namespace starfish {
 
 namespace allocator {
 
@@ -46,12 +46,12 @@ inline std::vector<RemoteThreadHeap *> &remote_thread_heap_registry() {
 }
 
 constexpr size_t RegionSize = 512 * 1024;
-using FarLib::allocator::BinSize;
-using FarLib::allocator::RegionBinCount;
+using starfish::allocator::BinSize;
+using starfish::allocator::RegionBinCount;
 
-using FarLib::allocator::bin_from_wsize;
-using FarLib::allocator::get_bin_size;
-using FarLib::allocator::wsize_from_size;
+using starfish::allocator::bin_from_wsize;
+using starfish::allocator::get_bin_size;
+using starfish::allocator::wsize_from_size;
 
 constexpr uint64_t InvalidRemoteAddr = std::numeric_limits<uint64_t>::max();
 // definition is the same as RegionHead
@@ -149,7 +149,7 @@ class RemoteRegionHead : public DoubleLinkedListHead {
   void init(uint64_t base_addr, uint32_t bin) {
     this->base_addr = base_addr;
     this->endpoint_idx = static_cast<uint32_t>(
-        FarLib::get_config().map_remote_addr(base_addr).first);
+        starfish::get_config().map_remote_addr(base_addr).first);
     reset<true>(bin);
   }
 
@@ -774,18 +774,18 @@ class RemoteGlobalHeap {
   // global heap's later exit log cannot silently omit leaked live groups.
   std::vector<uint64_t> detached_ec_usage_;
 
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
   std::atomic<uint64_t> dbg_double_free_detected{0};
   std::atomic<uint64_t> dbg_invalid_free_detected{0};
 #endif
 
   // --- EC shard reservation (fault-tolerance path) ------------------------
-  // An EC shard is one FarLib::allocator::RegionSize (256 KiB) extent, i.e.
+  // An EC shard is one starfish::allocator::RegionSize (256 KiB) extent, i.e.
   // two shard units share one remote region (remote::RegionSize == 512 KiB).
   // The stripe allocator claims whole regions exclusively and the regular bin
   // allocator skips them, so a shard can never overlap a bin allocation.
   // Every member below stays empty while ft_method == none (the default).
-  static constexpr size_t EcShardUnitSize = FarLib::allocator::RegionSize;
+  static constexpr size_t EcShardUnitSize = starfish::allocator::RegionSize;
   static constexpr size_t EcShardUnitsPerRegion = RegionSize / EcShardUnitSize;
   std::unique_ptr<std::atomic<uint8_t>[]> ec_region_claimed;  // per region
   std::unique_ptr<std::atomic<size_t>[]> ec_endpoint_cursor;  // per endpoint
@@ -961,14 +961,14 @@ class RemoteGlobalHeap {
               << std::endl;
     std::cout << "remote.exact_allocated_bytes: " << total << std::endl;
     if (server_used_bytes) {
-      size_t server_count = FarLib::get_config().server_count;
+      size_t server_count = starfish::get_config().server_count;
       for (size_t i = 0; i < server_count; i++) {
         std::cout << "remote.server[" << i
                   << "].used_bytes: " << endpoint_bytes[i] << std::endl;
       }
     }
     std::cout << "remote.capacity_bytes: " << get_capacity_bytes() << std::endl;
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     std::cout << "remote.dbg_double_free_detected: "
               << dbg_double_free_detected.load(std::memory_order::relaxed)
               << std::endl;
@@ -1012,7 +1012,8 @@ class RemoteGlobalHeap {
   }
 
   std::vector<uint64_t> get_endpoint_used_bytes() const {
-    const size_t count = static_cast<size_t>(FarLib::get_config().server_count);
+    const size_t count =
+        static_cast<size_t>(starfish::get_config().server_count);
     std::vector<uint64_t> result(count, 0);
     if (sharded_usage) {
       result = sharded_usage->snapshot();
@@ -1036,7 +1037,8 @@ class RemoteGlobalHeap {
   // supplement, which is collected through the stripe observer accessor;
   // the exact get_endpoint_used_bytes() path above retains its locks.
   std::vector<uint64_t> get_endpoint_used_bytes_observer() const {
-    const size_t count = static_cast<size_t>(FarLib::get_config().server_count);
+    const size_t count =
+        static_cast<size_t>(starfish::get_config().server_count);
     std::vector<uint64_t> result(count, 0);
     if (sharded_usage) {
       result = sharded_usage->snapshot_observer();
@@ -1049,25 +1051,25 @@ class RemoteGlobalHeap {
 
   void inc_used_bytes(size_t bytes, uint64_t addr) {
     if (sharded_usage) {
-      auto [ep, _] = FarLib::get_config().map_remote_addr(addr);
+      auto [ep, _] = starfish::get_config().map_remote_addr(addr);
       sharded_usage->add(ep, bytes);
       return;
     }
     used_bytes.fetch_add(bytes);
     if (server_used_bytes) {
-      auto [ep, _] = FarLib::get_config().map_remote_addr(addr);
+      auto [ep, _] = starfish::get_config().map_remote_addr(addr);
       server_used_bytes[ep].fetch_add(bytes);
     }
   }
   void dec_used_bytes(size_t bytes, uint64_t addr) {
     if (sharded_usage) {
-      auto [ep, _] = FarLib::get_config().map_remote_addr(addr);
+      auto [ep, _] = starfish::get_config().map_remote_addr(addr);
       sharded_usage->subtract(ep, bytes);
       return;
     }
     used_bytes.fetch_sub(bytes);
     if (server_used_bytes) {
-      auto [ep, _] = FarLib::get_config().map_remote_addr(addr);
+      auto [ep, _] = starfish::get_config().map_remote_addr(addr);
       server_used_bytes[ep].fetch_sub(bytes);
     }
   }
@@ -1091,7 +1093,7 @@ class RemoteGlobalHeap {
     }
     regions_size = size / RegionSize;
     total_capacity_bytes = size;
-    const auto &config = FarLib::get_config();
+    const auto &config = starfish::get_config();
     endpoint_count_ =
         config.server_count > 0 ? static_cast<size_t>(config.server_count) : 0;
     endpoint_liveness_enabled_ =
@@ -1115,7 +1117,7 @@ class RemoteGlobalHeap {
     used_bytes.store(0);
 
     // Initialize per-server counters
-    size_t server_count = FarLib::get_config().server_count;
+    size_t server_count = starfish::get_config().server_count;
     server_used_bytes.reset(new std::atomic<uint64_t>[server_count]());
     for (size_t i = 0; i < server_count; i++) {
       server_used_bytes[i].store(0);
@@ -1130,7 +1132,7 @@ class RemoteGlobalHeap {
     // EC shard pools are only materialized when ft_method != none; with the
     // default ft_method=none the arrays stay null and none of the
     // fault-tolerance code below can execute.
-    if (FarLib::get_config().ft_enabled()) {
+    if (starfish::get_config().ft_enabled()) {
       ec_region_claimed.reset(new std::atomic<uint8_t>[regions_size]());
       for (size_t i = 0; i < regions_size; i++) {
         ec_region_claimed[i].store(0, std::memory_order_relaxed);
@@ -1329,12 +1331,12 @@ class RemoteGlobalHeap {
   }
 
   // Fault-tolerance path: hand out one whole EC shard, i.e. one
-  // EcShardUnitSize (== FarLib::allocator::RegionSize) extent that lives on
+  // EcShardUnitSize (== starfish::allocator::RegionSize) extent that lives on
   // `endpoint_idx`.  Returns InvalidRemoteAddr when ft_method == none or the
   // capacity is exhausted.  Nothing calls this while ft_method == none.
   uint64_t allocate_whole_region_on_endpoint(size_t endpoint_idx) {
     if (ec_region_claimed == nullptr) return InvalidRemoteAddr;
-    const auto &config = FarLib::get_config();
+    const auto &config = starfish::get_config();
     if (endpoint_idx >= static_cast<size_t>(config.server_count)) {
       return InvalidRemoteAddr;
     }
@@ -1435,7 +1437,7 @@ class RemoteGlobalHeap {
     }
     if (server_used_bytes != nullptr) {
       const size_t server_count =
-          static_cast<size_t>(FarLib::get_config().server_count);
+          static_cast<size_t>(starfish::get_config().server_count);
       // Per-endpoint usage accounting is reporting-only; it is not an
       // ownership bitmap or an allocator placement structure.
       snapshot.measurement_aux_bytes +=
@@ -1452,7 +1454,7 @@ class RemoteGlobalHeap {
     }
     if (ec_endpoint_cursor != nullptr) {
       const size_t server_count =
-          static_cast<size_t>(FarLib::get_config().server_count);
+          static_cast<size_t>(starfish::get_config().server_count);
       snapshot.mapping_bytes += server_count * sizeof(std::atomic<size_t>);
     }
     // Preserved EC usage is a reporting snapshot, not allocation state.
@@ -1625,7 +1627,7 @@ class RemoteGlobalHeap {
     auto total_start = get_cycles();
     // Catch sentinel / out-of-range frees early: they would otherwise index
     // outside `regions` and corrupt accounting.
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     if (addr == InvalidRemoteAddr || addr >= regions_size * RegionSize) {
       dbg_invalid_free_detected.fetch_add(1, std::memory_order::relaxed);
     }
@@ -1710,7 +1712,7 @@ class RemoteGlobalHeap {
     if (bitmap_cycles_out) {
       *bitmap_cycles_out = (int64_t)(step1_end - step1_start);
     }
-#ifdef FARLIB_ALLOC_DEBUG
+#ifdef STARFISH_ALLOC_DEBUG
     if (!freed) {
       dbg_double_free_detected.fetch_add(1, std::memory_order::relaxed);
     }
@@ -2134,4 +2136,4 @@ extern thread_local RemoteThreadHeap remote_thread_heap;
 
 }  // namespace remote
 }  // namespace allocator
-}  // namespace FarLib
+}  // namespace starfish

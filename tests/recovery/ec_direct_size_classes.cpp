@@ -17,21 +17,21 @@
 #include "ft/ec/small_object_stripe_codec.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure g_ec_direct_size_class_config;
 const rdma::Configure &get_config() { return g_ec_direct_size_class_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 
 namespace {
 
-using FarLib::cache::SmallObjectStripeManager;
-using FarLib::cache::ec_batch::EcBatchStatus;
-using FarLib::cache::ec_batch::EcDirectGroupBuilder;
-using FarLib::cache::ec_batch::EcDirectWriteBank;
+using starfish::cache::SmallObjectStripeManager;
+using starfish::cache::ec_batch::EcBatchStatus;
+using starfish::cache::ec_batch::EcDirectGroupBuilder;
+using starfish::cache::ec_batch::EcDirectWriteBank;
 
 struct Checks {
   int count = 0;
@@ -81,31 +81,31 @@ void host_bank_free(void *, EcDirectWriteBank::RegisteredBank &bank) {
 }
 
 bool configure_fixture() {
-  auto &config = FarLib::g_ec_direct_size_class_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_ec_direct_size_class_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   // The bank-exhaustion case deliberately opens 128 groups over many bins.
   config.server_buffer_size = 16ull * 1024 * 1024;
   config.client_buffer_size = config.server_buffer_size;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
 
 size_t allocator_bin(size_t size) {
-  return ::FarLib::allocator::bin_from_wsize(
-      ::FarLib::allocator::wsize_from_size(size));
+  return ::starfish::allocator::bin_from_wsize(
+      ::starfish::allocator::wsize_from_size(size));
 }
 
 bool parity_and_rebuild_match(const EcDirectWriteBank::Entry &entry) {
@@ -127,8 +127,8 @@ bool parity_and_rebuild_match(const EcDirectWriteBank::Entry &entry) {
 
   std::array<std::array<uint8_t, 4096>, 2> expected{};
   void *expected_parity[2] = {expected[0].data(), expected[1].data()};
-  if (!FarLib::cache::small_object_stripe_encode_shards(data, expected_parity,
-                                                        slot_size, 0)) {
+  if (!starfish::cache::small_object_stripe_encode_shards(data, expected_parity,
+                                                          slot_size, 0)) {
     return false;
   }
   for (size_t i = 0; i < 2; ++i) {
@@ -147,8 +147,8 @@ bool parity_and_rebuild_match(const EcDirectWriteBank::Entry &entry) {
   std::memset(work[4].data(), 0, slot_size);
   const uint8_t alive =
       static_cast<uint8_t>(0x3f & ~(uint8_t{1u << 1} | uint8_t{1u << 4}));
-  if (!FarLib::cache::small_object_stripe_rebuild_shards(alive, shards,
-                                                         slot_size, 0)) {
+  if (!starfish::cache::small_object_stripe_rebuild_shards(alive, shards,
+                                                           slot_size, 0)) {
     return false;
   }
   return std::memcmp(work[1].data(), original[1].data(), slot_size) == 0 &&
@@ -170,10 +170,10 @@ bool finish_group(EcDirectWriteBank &bank, SmallObjectStripeManager &manager,
 
 bool add_one(EcDirectGroupBuilder &builder, const void *object, size_t size,
              size_t behavior, Checks &checks, const char *label) {
-  uint64_t address = ::FarLib::allocator::remote::InvalidRemoteAddr;
+  uint64_t address = ::starfish::allocator::remote::InvalidRemoteAddr;
   const auto status = builder.add_object(object, size, &address, behavior);
   checks.check(status == EcBatchStatus::kOk, label);
-  checks.check(address != ::FarLib::allocator::remote::InvalidRemoteAddr,
+  checks.check(address != ::starfish::allocator::remote::InvalidRemoteAddr,
                "accepted direct object has a published address");
   return status == EcBatchStatus::kOk;
 }
@@ -227,7 +227,7 @@ void test_size_classed_groups(SmallObjectStripeManager &manager,
   checks.check(builder.size_classed(),
                "size-class constructor enables bin keys");
   const size_t sizes[] = {64, 128, 512, 4080};
-  std::array<std::array<size_t, ::FarLib::allocator::RegionBinCount>, 6>
+  std::array<std::array<size_t, ::starfish::allocator::RegionBinCount>, 6>
       expected_sizes{};
   std::array<std::vector<uint8_t>, 4> objects;
   for (size_t i = 0; i < 4; ++i) {
@@ -259,12 +259,12 @@ void test_size_classed_groups(SmallObjectStripeManager &manager,
     auto *entry = bank.get(token);
     const bool metadata_in_range =
         metadata.behavior_group < 6 &&
-        metadata.allocator_bin < ::FarLib::allocator::RegionBinCount;
+        metadata.allocator_bin < ::starfish::allocator::RegionBinCount;
     checks.check(
         entry != nullptr && metadata_in_range &&
             entry->record.live_count == 1 &&
             entry->record.slot_size ==
-                ::FarLib::allocator::get_bin_size(metadata.allocator_bin) &&
+                ::starfish::allocator::get_bin_size(metadata.allocator_bin) &&
             entry->record.object_sizes[0] != 0 &&
             expected_sizes[metadata.behavior_group][metadata.allocator_bin] ==
                 entry->record.object_sizes[0],
@@ -297,7 +297,7 @@ void test_size_classed_groups(SmallObjectStripeManager &manager,
 void test_bank_exhaustion(SmallObjectStripeManager &manager,
                           EcDirectWriteBank &bank, Checks &checks) {
   EcDirectGroupBuilder builder(&manager, &bank, 0, true);
-  std::array<std::array<bool, ::FarLib::allocator::RegionBinCount>, 6> used{};
+  std::array<std::array<bool, ::starfish::allocator::RegionBinCount>, 6> used{};
   std::vector<std::vector<uint8_t>> sources;
   sources.reserve(EcDirectWriteBank::kSlotsPerOwner + 1);
   size_t opened = 0;
@@ -355,10 +355,10 @@ void test_bank_exhaustion(SmallObjectStripeManager &manager,
 int run() {
   Checks checks;
   checks.check(configure_fixture(), "size-class fixture configured");
-  const auto &config = FarLib::g_ec_direct_size_class_config;
+  const auto &config = starfish::g_ec_direct_size_class_config;
   SmallObjectStripeManager manager;
   manager.init(config.remote_total,
-               FarLib::rdma::Configure::ft_ec_shard_size_bytes);
+               starfish::rdma::Configure::ft_ec_shard_size_bytes);
   checks.check(manager.enabled(),
                "stripe manager initialized for size classes");
   if (manager.enabled()) {

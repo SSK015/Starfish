@@ -7,7 +7,7 @@
 #include "lib/debug.hpp"
 #include "async/parallel.hpp"
 #include "profiling/stats.hpp"
-namespace FarLib {
+namespace starfish {
 
 /* lite sort */
 template <VecElementType T, size_t GroupSize>
@@ -68,14 +68,14 @@ void FarVector<T, GroupSize>::merge_sort_inrecursive(in_iterator_t *begin_group,
   {
     in_iterator_t *lim = end_idx > 0 ? end_group + 1 : end_group;
     size_t n = end_group - begin_group + (end_idx > 0 ? 1 : 0);
-    FarLib::uthread::parallel_for_with_scope<1>(
+    starfish::uthread::parallel_for_with_scope<1>(
         (Alg == UTHREAD_LITE_SORT ? uthread::get_thread_count() * UTHREAD_FACTOR
                                   : uthread::get_thread_count()),
         n, [&](size_t i, DereferenceScope &scope) {
           in_iterator_t *group_uptr = begin_group + i;
           ON_MISS_BEGIN
           if constexpr (Alg == UTHREAD_LITE_SORT) {
-            FarLib::uthread::yield();
+            starfish::uthread::yield();
           } else if constexpr (Alg == OOO_LITE_SORT) {
             cache::OnMissScope oms(__entry__, &scope);
             for (in_iterator_t *uptr = group_uptr + 1; uptr < lim; uptr++) {
@@ -114,7 +114,7 @@ void FarVector<T, GroupSize>::sort_merge(in_iterator_t *begin_group,
   size_t n = end_group - begin_group + (end_idx > 0 ? 1 : 0);
   for (size_t gap = 1; gap < n; gap *= 2) {
     size_t uth_n = (n + 2 * gap - 1) / (2 * gap);
-    FarLib::uthread::parallel_for_with_scope<1>(
+    starfish::uthread::parallel_for_with_scope<1>(
         (Alg == UTHREAD_LITE_SORT ? uthread::get_thread_count() * UTHREAD_FACTOR
                                   : uthread::get_thread_count()),
         uth_n, [&](size_t i, DereferenceScope &scope) {
@@ -174,7 +174,7 @@ void FarVector<T, GroupSize>::inc_group_idx(in_iterator_t *&group,
         }
       }
     } else if constexpr (Alg == SortAlgorithm::UTHREAD_LITE_SORT) {
-      FarLib::uthread::yield();
+      starfish::uthread::yield();
     }
     ON_MISS_END
     lite_acc = group < lim
@@ -310,7 +310,7 @@ void FarVector<T, GroupSize>::merge_sort_recursive(
         }
       }
     } else if constexpr (Alg == UTHREAD_LITE_SORT) {
-      FarLib::uthread::yield();
+      starfish::uthread::yield();
     }
     ON_MISS_END
     LiteAccessor<Group, true> group_acc(*begin, __on_miss__, root_scope);
@@ -352,7 +352,7 @@ void FarVector<T, GroupSize>::merge_sort_recursive_uth(
   if (begin == latter_begin) {
     RootDereferenceScope root_scope;
     ON_MISS_BEGIN
-    FarLib::uthread::yield();
+    starfish::uthread::yield();
     ON_MISS_END
     LiteAccessor<Group, true> group_acc(*begin, __on_miss__, root_scope);
     if (begin == begin_group) [[unlikely]] {
@@ -377,7 +377,7 @@ void FarVector<T, GroupSize>::merge_sort_recursive_uth(
             latter_begin, end, begin_group, begin_idx, end_group, end_idx, cmp,
             aux, scope);
       };
-      FarLib::uthread::spawn(fn);
+      starfish::uthread::spawn(fn);
       merge_sort_recursive_uth<Alg, UthreadCount / 2>(
           begin, latter_begin, begin_group, begin_idx, end_group, end_idx, cmp,
           aux, scope);
@@ -662,4 +662,4 @@ FarVector<T, GroupSize> FarVector<T, GroupSize>::copy_data_by_idx(
   // std::cout << "copy data by idx: " << ssend - sstart << std::endl;
   return vec;
 }
-}  // namespace FarLib
+}  // namespace starfish

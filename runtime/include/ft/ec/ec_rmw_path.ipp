@@ -4,7 +4,7 @@
 #include "profiling/ec_rmw_timing.hpp"
 #include "ft/ec/ec_rmw_fallback_policy.hpp"
 
-namespace FarLib::cache {
+namespace starfish::cache {
 void prepare_ec_rmw_timing(size_t owners) {
   (void)profile::ec_rmw_timing::owner(0, owners);
 }
@@ -47,7 +47,7 @@ inline void collect(rdma::ec_rmw::ClientTransport &transport, size_t owner,
 }  // namespace ec_rmw_detail
 
 bool ConcurrentArrayCache::handle_ec_rmw_complete(const ibv_wc &wc) {
-  if (!::FarLib::get_config().ft_incremental_one_sided ||
+  if (!::starfish::get_config().ft_incremental_one_sided ||
       !rdma::ec_rmw::ClientTransport::is_wr_id(wc.wr_id))
     return false;
   auto *transport = rdma::ClientControl::get_default()->ec_rmw_transport();
@@ -60,7 +60,7 @@ bool ConcurrentArrayCache::handle_ec_rmw_complete(const ibv_wc &wc) {
 bool ConcurrentArrayCache::try_publish_ec_rmw_address(
     void *source, uint64_t address, size_t client_idx,
     const uint64_t *expected_old) {
-  auto *block = static_cast<::FarLib::allocator::BlockHead *>(source) - 1;
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(source) - 1;
   const auto obj = block->obj_meta_data.load(std::memory_order_acquire);
   if (obj.is_null()) ERROR("ec_rmw: object disappeared while source borrowed");
   auto *entry = obj.get_entry_ptr();
@@ -92,14 +92,14 @@ bool ConcurrentArrayCache::stage_ec_rmw_object(EvictBufferSet &buffers,
                                                uint32_t behavior) {
   // Consume the per-object handoff exactly once; persistent buffers must
   // not carry eligibility into another object or non-exclusive path.
-  const bool repair_eligible =
-      ::FarLib::get_config().exclusive_cache && buffers.staging_repair_eligible;
+  const bool repair_eligible = ::starfish::get_config().exclusive_cache &&
+                               buffers.staging_repair_eligible;
   buffers.staging_repair_eligible = false;
   if (!ec_rmw_workers_ || !buffers.direct_builder || !source || !entry ||
       ec_batch_uses_split(size) || size == 0 ||
       size > rdma::ec_rmw::kMaxBytes ||
-      !::FarLib::allocator::ec_write_source_borrowed(
-          static_cast<::FarLib::allocator::BlockHead *>(source) - 1))
+      !::starfish::allocator::ec_write_source_borrowed(
+          static_cast<::starfish::allocator::BlockHead *>(source) - 1))
     return false;
   const size_t owner = buffers.direct_owner;
   if (owner >= ec_persistent_owner_count_)
@@ -118,7 +118,7 @@ bool ConcurrentArrayCache::stage_ec_rmw_object(EvictBufferSet &buffers,
     // Do not pin every eviction OS worker in a tight retry loop while the
     // repair fibres sharing this cluster need to finish reconstruction.
     if (ec_rmw_runtime::allow_background_bank_yield(
-            ::FarLib::get_config().ft_background_rebuild,
+            ::starfish::get_config().ft_background_rebuild,
             ec_recovery_dead_endpoints_.load(std::memory_order_acquire) != 0,
             batch != nullptr))
       uthread::yield();
@@ -135,7 +135,7 @@ bool ConcurrentArrayCache::stage_ec_rmw_object(EvictBufferSet &buffers,
   const uint64_t stage_begin = timing ? get_cycles() : 0;
   auto &t = batch->transactions[batch->count++];
   t.source = source;
-  t.block = static_cast<::FarLib::allocator::BlockHead *>(source) - 1;
+  t.block = static_cast<::starfish::allocator::BlockHead *>(source) - 1;
   t.original_remote = original;
   t.repair_eligible = repair_eligible;
   t.size = uint32_t(size);
@@ -173,7 +173,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
   auto *transport = control->ec_rmw_transport();
   if (!transport) ERROR("ec_rmw: transport unavailable");
   auto &manager = remote_allocator.small_object_stripe_manager();
-  const auto &config = ::FarLib::get_config();
+  const auto &config = ::starfish::get_config();
   auto *timing_owner =
       profile::ec_rmw_timing::owner(owner, ec_persistent_owner_count_);
   ++worker.polls;
@@ -225,7 +225,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
                        config.ft_rmw_read_failure_fallback,
                        config.ft_incremental_one_sided, t.read_error,
                        t.read_terminal, t.writes_decided);
-      if (::FarLib::ec_benchmark_phase::enabled() && !fault_fallback)
+      if (::starfish::ec_benchmark_phase::enabled() && !fault_fallback)
         ERROR(
             "ec_benchmark_phase: fresh fallback prohibited after first Work; failed READ requires recovery");
       if (abort && (t.read_terminal != All || t.read_error == 0))
@@ -282,7 +282,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
           t.repair_eligible ||
           manager.data_address_needs_replacement(t.original_remote);
       const bool background_rebuild =
-          ::FarLib::get_config().ft_background_rebuild &&
+          ::starfish::get_config().ft_background_rebuild &&
           background_rebuild_state_.fully_rebuilt.load(
               std::memory_order_acquire);
       if (!ec_rmw_runtime::allow_capacity_replacement(
@@ -313,7 +313,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
       t.clear();
       return true;
     };
-    const bool bulk_reuse = ::FarLib::ec_benchmark_phase::enabled();
+    const bool bulk_reuse = ::starfish::ec_benchmark_phase::enabled();
     if (timing) timing->bulk_allocator = bulk_reuse;
     // Add each newly-ready participant exactly once.  The request is
     // armed later, inside submit(), so this organization pass does not
@@ -482,7 +482,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
                 buffers.breakdown,
                 profile::evict_breakdown::Stage::GroupAllocate);
             acquired =
-                ::FarLib::ec_benchmark_phase::enabled()
+                ::starfish::ec_benchmark_phase::enabled()
                     ? manager.begin_slot_reuse_indexed(
                           t.size, t.behavior_group, &t.reservation, &busy,
                           timing ? &timing->object[i].prepare_trace : nullptr)
@@ -490,7 +490,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
                                                &t.reservation, &busy);
             if (timing)
               timing->object[i].prepare_same_group += get_cycles() - before;
-            if (::FarLib::ec_benchmark_phase::enabled() && !acquired) {
+            if (::starfish::ec_benchmark_phase::enabled() && !acquired) {
               const uint64_t other_begin = timing ? get_cycles() : 0;
               // Heat/dirty labels are placement preferences, not
               // different EC protection levels. The fixed initialized
@@ -525,7 +525,7 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
               p.busy_end = now;
           }
           if (!acquired) {
-            if (::FarLib::ec_benchmark_phase::enabled()) {
+            if (::starfish::ec_benchmark_phase::enabled()) {
               ++worker.deferred;
               continue;
             }
@@ -843,8 +843,8 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
             }
             if (!manager.commit_slot_reuse(t.reservation))
               ERROR("ec_rmw: stale stripe reservation");
-            ::FarLib::allocator::release_ec_write_source(
-                static_cast<::FarLib::allocator::BlockHead *>(t.block));
+            ::starfish::allocator::release_ec_write_source(
+                static_cast<::starfish::allocator::BlockHead *>(t.block));
             complete_evict_writeback(t.source);
             ++worker.committed;
             worker.payload_bytes += t.size;
@@ -876,8 +876,8 @@ void ConcurrentArrayCache::flush_ec_rmw_objects(EvictBufferSet &buffers,
         const size_t i = completed_indices[n];
         auto &t = batch.transactions[i];
         const uint64_t release_begin = timing ? get_cycles() : 0;
-        ::FarLib::allocator::release_ec_write_source(
-            static_cast<::FarLib::allocator::BlockHead *>(t.block));
+        ::starfish::allocator::release_ec_write_source(
+            static_cast<::starfish::allocator::BlockHead *>(t.block));
         complete_evict_writeback(t.source);
         ++worker.committed;
         worker.payload_bytes += t.size;
@@ -902,4 +902,4 @@ void ConcurrentArrayCache::drain_ec_rmw_worker(EvictBufferSet &buffers,
   while (ec_rmw_workers_[buffers.direct_owner].pending_count() != 0)
     flush_ec_rmw_objects(buffers, client_idx);
 }
-}  // namespace FarLib::cache
+}  // namespace starfish::cache

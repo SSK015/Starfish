@@ -8,7 +8,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace FarLib::rdma::ec_update {
+namespace starfish::rdma::ec_update {
 
 // The participant is deliberately single-threaded.  The owner of the data
 // receive CQ calls handle() and is also the only code that touches the
@@ -341,4 +341,4 @@ class Participant {
   size_t prepared_entry_count() const { return entries_.size(); }
 };
 
-}  // namespace FarLib::rdma::ec_update
+}  // namespace starfish::rdma::ec_update

@@ -19,21 +19,21 @@
 #include "ft/ec/small_object_stripe.hpp"
 #include "transport/rdma/config.hpp"
 
-namespace FarLib {
+namespace starfish {
 static rdma::Configure g_ec_behavior_config;
 const rdma::Configure &get_config() { return g_ec_behavior_config; }
-}  // namespace FarLib
+}  // namespace starfish
 
-namespace FarLib::allocator::remote {
+namespace starfish::allocator::remote {
 RemoteGlobalHeap remote_global_heap;
-}  // namespace FarLib::allocator::remote
+}  // namespace starfish::allocator::remote
 
 namespace {
 
-using FarLib::cache::SmallObjectStripeManager;
-using FarLib::cache::ec_batch::EcBatchStatus;
-using FarLib::cache::ec_batch::EcGroupBuilder;
-using FarLib::cache::ec_batch::EcStagingPool;
+using starfish::cache::SmallObjectStripeManager;
+using starfish::cache::ec_batch::EcBatchStatus;
+using starfish::cache::ec_batch::EcGroupBuilder;
+using starfish::cache::ec_batch::EcStagingPool;
 
 struct Checks {
   int count = 0;
@@ -64,23 +64,23 @@ struct Checks {
 };
 
 bool configure_fixture() {
-  auto &config = FarLib::g_ec_behavior_config;
-  const size_t shard_size = FarLib::rdma::Configure::ft_ec_shard_size_bytes;
+  auto &config = starfish::g_ec_behavior_config;
+  const size_t shard_size = starfish::rdma::Configure::ft_ec_shard_size_bytes;
   config.server_count =
-      static_cast<int>(FarLib::rdma::Configure::ft_ec_batch_endpoint_count);
+      static_cast<int>(starfish::rdma::Configure::ft_ec_batch_endpoint_count);
   config.server_buffer_size = 4ull * 1024 * 1024;
   config.client_buffer_size = 4ull * 1024 * 1024;
   config.remote_total =
       config.server_buffer_size * static_cast<size_t>(config.server_count);
-  config.mapping_type = FarLib::rdma::Configure::MAPPING_RANGE;
-  config.ft_method_type = FarLib::rdma::Configure::FT_EC_BATCH;
+  config.mapping_type = starfish::rdma::Configure::MAPPING_RANGE;
+  config.ft_method_type = starfish::rdma::Configure::FT_EC_BATCH;
   config.ft_method = "ec_batch";
   config.exclusive_cache = true;
   config.ft_ec_data_shards = 4;
   config.ft_ec_parity_shards = 2;
   config.ft_small_object_cutoff = 4096;
   config.ft_small_stripe_shard_size_bytes = shard_size;
-  ::FarLib::allocator::remote::remote_global_heap.register_remote(
+  ::starfish::allocator::remote::remote_global_heap.register_remote(
       config.remote_total);
   return config.is_ec_batch_mode();
 }
@@ -95,10 +95,10 @@ int run() {
   Checks checks;
   checks.check(configure_fixture(), "ec_batch behavior fixture configured");
 
-  const auto &config = FarLib::g_ec_behavior_config;
+  const auto &config = starfish::g_ec_behavior_config;
   SmallObjectStripeManager manager;
   manager.init(config.remote_total,
-               FarLib::rdma::Configure::ft_ec_shard_size_bytes);
+               starfish::rdma::Configure::ft_ec_shard_size_bytes);
   checks.check(manager.enabled(), "stripe manager initialized");
 
   constexpr size_t kSlotSize = 4096;

@@ -4,7 +4,7 @@
 #include <initializer_list>
 
 int main() {
-  using namespace FarLib::cache;
+  using namespace starfish::cache;
   // The annotation consumes an existing placement flag, not extra metadata.
   static_assert(sizeof(FarObjectEntry) == 48);
   FarObjectEntry a, b;

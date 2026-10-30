@@ -15,7 +15,7 @@
 
 // #define PROFILE_STREAM_RUNNER_SCHEDULE
 
-namespace FarLib {
+namespace starfish {
 namespace async {
 
 enum class StreamState { READY, WAITING, FINISHED };
@@ -451,4 +451,4 @@ inline void process_pararoutine_stream(Stream &&stream,
       .run();
 }
 
-}  // namespace FarLib
+}  // namespace starfish
