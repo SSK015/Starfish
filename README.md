@@ -153,7 +153,7 @@ variable alone does not select an external checkout. See
 
 | Source directory | Executable targets |
 | --- | --- |
-| `apps/llama/` | `run_chat_far` |
+| [Llama 2 chat demo](apps/llama/README.md) (`apps/llama/`) | `run_chat_far` |
 | `apps/bfs/` | `gapbs_bfs_chunked` |
 | `apps/mg/` | `mg` |
 | `apps/wordcount/` | `wordcount_far`, `wordcount_native`, `word_length_stats` |

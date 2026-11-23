@@ -12,7 +12,10 @@
 #include <x86intrin.h>
 
 #include <chrono>
+#include <iostream>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "mm/cache/accessor.hpp"
 #include "mm/allocator/region_based_allocator.hpp"
@@ -329,9 +332,8 @@ void read_checkpoint(const char* checkpoint, Config* config,
         fprintf(stderr, "mmap failed!\n");
         exit(EXIT_FAILURE);
     }
-    float* ptr = (float*)(malloc(*file_size));
-    memmove(ptr, *data, *file_size);
-    float* weights_ptr = ptr + sizeof(Config) / sizeof(float);
+    // assign_all copies each tensor into Starfish before the mapping is released.
+    float* weights_ptr = *data + sizeof(Config) / sizeof(float);
     memory_map_weights(weights, config, weights_ptr, shared_weights);
     if (munmap(*data, *file_size)) {
         fprintf(stderr, "mmap failed!\n");
@@ -1215,94 +1217,54 @@ void generate(Transformer* transformer, Tokenizer* tokenizer, Sampler* sampler,
     free(prompt_tokens);
 }
 
-void read_stdin(const char* guide, char* buffer, size_t bufsize) {
-    // read a line from stdin, up to but not including \n
-    printf("%s", guide);
-    if (fgets(buffer, bufsize, stdin) != NULL) {
-        size_t len = strlen(buffer);
-        if (len > 0 && buffer[len - 1] == '\n') {
-            buffer[len - 1] = '\0';  // strip newline
-        }
-    }
+bool read_chat_line(const char* prompt, std::string& line) {
+    std::cout << prompt << std::flush;
+    return static_cast<bool>(std::getline(std::cin, line));
 }
 
-// ----------------------------------------------------------------------------
-// chat loop
-// I manually inspected the tokens for a few chat conversations compared to
-// python reference and that seemed ok, but this was not thoroughly tested and
-// is not safely implemented, it's more a proof of concept atm.
-
-#define SYSTEM_PROMPT_SIZE (512)
-#define USER_PROMPT_SIZE (512)
-#define RENDERED_PROMPT_SIZE (1152)
-#define SYSTEM_PROMPT_MEM_SIZE (SYSTEM_PROMPT_SIZE * sizeof(char))
-#define USER_PROMPT_MEM_SIZE (USER_PROMPT_SIZE * sizeof(char))
-#define RENDERED_PROMPT_MEM_SIZE (RENDERED_PROMPT_SIZE * sizeof(char))
-#define PROMPT_TOKENS_SIZE (1152)
-#define PROMPT_TOKENS_MEM_SIZE (PROMPT_TOKENS_SIZE * sizeof(int))
 void chat(Transformer* transformer, Tokenizer* tokenizer, Sampler* sampler,
           char* cli_user_prompt, char* cli_system_prompt, int steps) {
     FILE* capture_file = nullptr;
     if (const char* capture_path = std::getenv("FARLIB_CAPTURE_CHAT_OUTPUT")) {
         capture_file = std::fopen(capture_path, "wb");
     }
-    // buffers for reading the system prompt and user prompt from stdin
-    // you'll notice they are soomewhat haphazardly and unsafely set atm
-    char system_prompt[SYSTEM_PROMPT_SIZE];
-    char user_prompt[USER_PROMPT_SIZE];
-    char rendered_prompt[RENDERED_PROMPT_SIZE];
+    std::string system_prompt = cli_system_prompt ? cli_system_prompt : "";
+    std::string user_prompt;
+    std::vector<int> prompt_tokens;
     int num_prompt_tokens = 0;
-    int* prompt_tokens = (int*)malloc(PROMPT_TOKENS_MEM_SIZE);
     int user_idx;
 
     // start the main loop
     int8_t user_turn = 1;  // user starts
     int next;              // will store the next token in the sequence
     int token;  // stores the current token to feed into the transformer
-    int prev_token;
     int pos = 0;  // position in the sequence
     size_t assistant_t = 0;
     size_t assistant_tokens = 0;
     while (pos < steps) {
         // when it is the user's turn to contribute tokens to the dialog...
         if (user_turn) {
-            // get the (optional) system prompt at position 0
-            if (pos == 0) {
-                // at position 0, the user can also contribute a system prompt
-                if (cli_system_prompt == NULL) {
-                    // system prompt was not passed in, attempt to get it from
-                    // stdin
-                    read_stdin("Enter system prompt (optional): ",
-                               system_prompt, sizeof(system_prompt));
-                } else {
-                    // system prompt was passed in, use it
-                    strcpy(system_prompt, cli_system_prompt);
-                }
-            }
-            // get the user prompt
-            if (pos == 0 && cli_user_prompt != NULL) {
-                // user prompt for position 0 was passed in, use it
-                strcpy(user_prompt, cli_user_prompt);
-            } else {
-                // otherwise get user prompt from stdin
-                read_stdin("User: ", user_prompt, sizeof(user_prompt));
-            }
-            if (!strcmp(user_prompt, "<end>")) {
+            if (pos == 0 && !cli_system_prompt &&
+                !read_chat_line("Enter system prompt (optional): ", system_prompt)) {
                 break;
             }
-            // render user/system prompts into the Llama 2 Chat schema
-            if (pos == 0 && system_prompt[0] != '\0') {
-                char system_template[] =
-                    "[INST] <<SYS>>\n%s\n<</SYS>>\n\n%s [/INST]";
-                sprintf(rendered_prompt, system_template, system_prompt,
-                        user_prompt);
-            } else {
-                char user_template[] = "[INST] %s [/INST]";
-                sprintf(rendered_prompt, user_template, user_prompt);
+            if (pos == 0 && cli_user_prompt) {
+                user_prompt = cli_user_prompt;
+            } else if (!read_chat_line("User: ", user_prompt)) {
+                break;
             }
+            if (user_prompt == "<end>") {
+                break;
+            }
+            std::string rendered_prompt = "[INST] ";
+            if (pos == 0 && !system_prompt.empty()) {
+                rendered_prompt += "<<SYS>>\n" + system_prompt + "\n<</SYS>>\n\n";
+            }
+            rendered_prompt += user_prompt + " [/INST]";
             auto start = get_cycles();
-            // encode the rendered prompt into tokens
-            encode(tokenizer, rendered_prompt, 1, 0, prompt_tokens,
+            // At most one token per input byte, plus BOS and the dummy prefix.
+            prompt_tokens.resize(rendered_prompt.size() + 2);
+            encode(tokenizer, rendered_prompt.data(), 1, 0, prompt_tokens.data(),
                    &num_prompt_tokens);
             auto end = get_cycles();
             // printf("encode: %lu\n", end - start);
@@ -1310,6 +1272,7 @@ void chat(Transformer* transformer, Tokenizer* tokenizer, Sampler* sampler,
             user_idx = 0;  // reset the user index
             user_turn = 0;
             printf("Assistant: ");
+            fflush(stdout);
         }
         auto start = get_cycles();
         // determine the token to pass into the transformer next
@@ -1338,7 +1301,7 @@ void chat(Transformer* transformer, Tokenizer* tokenizer, Sampler* sampler,
         // printf("sample: %lu\n", send - sstart);
         pos++;
 
-        if (user_idx >= num_prompt_tokens && next != 2) {
+        if (!user_turn && user_idx >= num_prompt_tokens && next != 2) {
             // the Assistant is responding, so print its output
             auto dstart = get_cycles();
             char* piece = decode(tokenizer, token, next);
@@ -1360,20 +1323,21 @@ void chat(Transformer* transformer, Tokenizer* tokenizer, Sampler* sampler,
             }
             fflush(stdout);
         }
-        if (next == 2) {
+        if (!user_turn && user_idx >= num_prompt_tokens && next == 2) {
             printf("\n");
         }
         auto end = get_cycles();
         assistant_t += end - start;
     }
     printf("\n");
-    printf("achieved tok/s: %lf\n",
-           static_cast<double>(assistant_tokens) /
-               (static_cast<double>(assistant_t) / 2.8 / 1e9));
+    if (assistant_t > 0) {
+        printf("achieved tok/s: %lf\n",
+               static_cast<double>(assistant_tokens) /
+                   (static_cast<double>(assistant_t) / 2.8 / 1e9));
+    }
     if (capture_file != nullptr) {
         std::fclose(capture_file);
     }
-    free(prompt_tokens);
 }
 
 // ----------------------------------------------------------------------------
@@ -1386,14 +1350,17 @@ void error_usage(int argc, char* argv[]) {
         fprintf(stderr, "%s ", argv[i]);
     }
     fprintf(stderr, "\n");
-    fprintf(stderr, "Usage:   run <checkpoint> [options]\n");
-    fprintf(stderr, "Example: run model.bin -n 256 -i \"Once upon a time\"\n");
+#ifdef STANDALONE
+    fprintf(stderr, "Usage: %s <checkpoint> [options]\n", argv[0]);
+#else
+    fprintf(stderr, "Usage: %s <config> <checkpoint> [options]\n", argv[0]);
+#endif
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  -t <float>  temperature in [0,inf], default 1.0\n");
     fprintf(stderr,
             "  -p <float>  p value in top-p (nucleus) sampling in [0,1] "
             "default 0.9\n");
-    fprintf(stderr, "  -s <int>    random seed, default time(NULL)\n");
+    fprintf(stderr, "  -s <int>    random seed, default 1\n");
     fprintf(stderr,
             "  -n <int>    number of steps to run for, default 256. 0 = "
             "max_seq_len\n");
@@ -1419,6 +1386,7 @@ int main(int argc, char* argv[]) {
     std::this_thread::sleep_for(1s);
 #else
     constexpr size_t FAR_ARGC = 1;
+    if (argc < 3) error_usage(argc, argv);
     config.from_file(argv[1]);
 #endif
     // default parameters

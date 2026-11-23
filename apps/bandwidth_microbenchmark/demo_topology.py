@@ -37,8 +37,11 @@ def get_port(device=None, port=None):
     return name, index, node, float(rate[1])
 
 
-def choose_cpus(numa_node, allow_cross_numa=False):
-    """Reserve ten contiguous NIC-local CPU IDs for the runtime background pool."""
+def choose_cpus(numa_node, allow_cross_numa=False, app_count=24, background_count=10):
+    """Reserve configurable application and contiguous background CPU pools."""
+    if app_count < 1 or background_count < 1:
+        raise ValueError("application and background core counts must be positive")
+    required_cores = app_count + background_count
     cpus = Path("/sys/devices/system/cpu")
     local, other = [], []
     cores = {}
@@ -50,15 +53,15 @@ def choose_cpus(numa_node, allow_cross_numa=False):
 
     local_set = set(local)
     local_cores = len({cores[c] for c in local})
-    if local_cores < 34 and not allow_cross_numa:
+    if local_cores < required_cores and not allow_cross_numa:
         raise ValueError(f"NIC NUMA node {numa_node} has {local_cores} allowed physical cores; "
-                         "34 needed. Use --allow-cross-numa to place remaining application workers on other nodes.")
+                         f"{required_cores} needed. Use --allow-cross-numa to place remaining application workers on other nodes.")
     app_candidates = local + (other if allow_cross_numa else [])
     # Prefer the lowest local cores for application work, then the lowest
     # eligible background interval. Core IDs can be noncontiguous in a cpuset.
     best = None
     for start in local:
-        bg = list(range(start, start + 10))
+        bg = list(range(start, start + background_count))
         if not local_set.issuperset(bg):
             continue
         used = {cores[c] for c in bg}
@@ -69,13 +72,13 @@ def choose_cpus(numa_node, allow_cross_numa=False):
             if cores[cpu] not in used:
                 used.add(cores[cpu])
                 app.append(cpu)
-                if len(app) == 24:
+                if len(app) == app_count:
                     break
-        if len(app) == 24:
+        if len(app) == app_count:
             rank = (sum(c not in local_set for c in app), app, start)
             if best is None or rank < best[0]:
                 best = (rank, app, bg)
     if best is None:
-        raise ValueError("need 24 distinct application cores and 10 consecutive NIC-local CPU IDs "
-                         "on separate physical cores; check lscpu -e and the current CPU affinity")
+        raise ValueError(f"need {app_count} distinct application cores and {background_count} consecutive "
+                         "NIC-local CPU IDs on separate physical cores; check lscpu -e and the current CPU affinity")
     return best[1], best[2]
