@@ -7,9 +7,9 @@
 </h2>
 
 <p align="center">
+  <a href="#demos"><strong>Demos</strong></a> |
   <a href="#quick-start"><strong>Quickstart</strong></a> |
   <a href="docs/DEPLOYMENT.md"><strong>Documentation</strong></a> |
-  <a href="apps/bandwidth_microbenchmark/README.md"><strong>NIC bandwidth demo</strong></a> |
   <a href="#benchmarks"><strong>Benchmarks</strong></a> |
   <a href="#roadmap"><strong>Roadmap</strong></a> |
   <a href="docs/starfish-atc-2026.pdf"><strong>Paper</strong></a> |
@@ -33,6 +33,23 @@
 <p align="center">
   <sub>Available · Functional · Reproduced — awarded to the ATC 2026 paper artifact</sub>
 </p>
+
+## Demos
+
+### Llama 2 7B Chat
+
+Starfish runs Llama 2 7B Chat with just 6 GiB of local cache.
+[Run the chat demo](apps/llama/README.md).
+
+[![19-second terminal recording of a two-turn Llama 2 chat](assets/llama-chat-demo.gif)](assets/llama-chat-demo.mp4?raw=1)
+
+### NIC bandwidth
+
+At 48 fibres, Starfish reaches 94.47 Gbps of RDMA READ payload throughput,
+nearly saturating a single 100 Gbps InfiniBand NIC.
+[Run the bandwidth demo](apps/bandwidth_microbenchmark/README.md).
+
+[![19-second client terminal recording of the NIC bandwidth demo](assets/nic-bandwidth-demo.gif)](assets/nic-bandwidth-demo.mp4?raw=1)
 
 ## About
 
@@ -151,10 +168,6 @@ variable alone does not select an external checkout. See
 
 ## Applications
 
-Starfish runs Llama 2 7B Chat with just 6 GiB of local cache.
-
-[![19-second terminal recording of a two-turn Llama 2 chat](assets/llama-chat-demo.gif)](assets/llama-chat-demo.mp4?raw=1)
-
 | Source directory | Executable targets |
 | --- | --- |
 | [Llama 2 chat demo](apps/llama/README.md) (`apps/llama/`) | `run_chat_far` |
@@ -201,10 +214,6 @@ physical-failure testing boundaries, see the
 The [NIC bandwidth demo](apps/bandwidth_microbenchmark/README.md) runs a 16 GiB
 random-access workload on one compute host and one memory host. It reports
 single-direction RDMA payload bandwidth as a percentage of the NIC link rate.
-At 48 fibres, Starfish reaches 94.47 Gbps of RDMA READ payload throughput,
-nearly saturating a single 100 Gbps InfiniBand NIC.
-
-[![19-second client terminal recording of the NIC bandwidth demo](assets/nic-bandwidth-demo.gif)](assets/nic-bandwidth-demo.mp4?raw=1)
 
 The [paper](docs/starfish-atc-2026.pdf) reports Starfish's fault-tolerant evaluation.
 For the complete baselines, workload inputs, site configuration, and reproduction
