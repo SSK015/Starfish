@@ -9,6 +9,7 @@
 <p align="center">
   <a href="#quick-start"><strong>Quickstart</strong></a> |
   <a href="docs/DEPLOYMENT.md"><strong>Documentation</strong></a> |
+  <a href="apps/bandwidth_microbenchmark/README.md"><strong>NIC bandwidth demo</strong></a> |
   <a href="#benchmarks"><strong>Benchmarks</strong></a> |
   <a href="#roadmap"><strong>Roadmap</strong></a> |
   <a href="docs/starfish-atc-2026.pdf"><strong>Paper</strong></a> |
@@ -192,6 +193,11 @@ physical-failure testing boundaries, see the
 [deployment guide](docs/DEPLOYMENT.md).
 
 ## Benchmarks
+
+The [NIC bandwidth demo](apps/bandwidth_microbenchmark/README.md) runs a 16 GiB
+random-access workload on one compute host and one memory host. It reports
+single-direction RDMA payload bandwidth as a percentage of the NIC link rate.
+Our 100 Gbit/s InfiniBand reference run reached 94.32 Gbit/s at 48 fibres.
 
 The [paper](docs/starfish-atc-2026.pdf) reports Starfish's fault-tolerant evaluation.
 For the complete baselines, workload inputs, site configuration, and reproduction
