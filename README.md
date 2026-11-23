@@ -197,7 +197,10 @@ physical-failure testing boundaries, see the
 The [NIC bandwidth demo](apps/bandwidth_microbenchmark/README.md) runs a 16 GiB
 random-access workload on one compute host and one memory host. It reports
 single-direction RDMA payload bandwidth as a percentage of the NIC link rate.
-Our 100 Gbit/s InfiniBand reference run reached 94.32 Gbit/s at 48 fibres.
+At 48 fibres, Starfish reaches 94.47 Gbps of RDMA READ payload throughput,
+nearly saturating a single 100 Gbps InfiniBand NIC.
+
+[![19-second client terminal recording of the NIC bandwidth demo](assets/nic-bandwidth-demo.gif)](assets/nic-bandwidth-demo.mp4?raw=1)
 
 The [paper](docs/starfish-atc-2026.pdf) reports Starfish's fault-tolerant evaluation.
 For the complete baselines, workload inputs, site configuration, and reproduction
