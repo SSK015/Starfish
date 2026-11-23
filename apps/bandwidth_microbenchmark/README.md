@@ -6,6 +6,11 @@ node with fault tolerance off. A reference run on two 100 Gbit/s hosts reached
 **94.32 Gbit/s of RDMA READ payload** at 48 application fibres (two rounds).
 The client reports the result for your hardware.
 
+[Watch a 19-second client terminal recording](../../assets/nic-bandwidth-demo.mp4)
+from a separate run on the same two hosts. The recording abbreviates the
+run directory to `build/bandwidth-client/`. Each invocation prints its own
+directory for the logs and `summary.json`.
+
 ## Run on two hosts
 
 Use two Linux x86-64 hosts on the same InfiniBand fabric. On **both** hosts:
