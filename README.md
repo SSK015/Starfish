@@ -151,6 +151,10 @@ variable alone does not select an external checkout. See
 
 ## Applications
 
+Starfish runs Llama 2 7B Chat with just 6 GiB of local cache.
+
+[![19-second terminal recording of a two-turn Llama 2 chat](assets/llama-chat-demo.gif)](assets/llama-chat-demo.mp4?raw=1)
+
 | Source directory | Executable targets |
 | --- | --- |
 | [Llama 2 chat demo](apps/llama/README.md) (`apps/llama/`) | `run_chat_far` |
