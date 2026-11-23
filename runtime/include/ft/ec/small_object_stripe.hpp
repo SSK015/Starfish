@@ -2,33 +2,13 @@
 
 // Erasure-coded (EC) stripe layout for small remote objects.
 //
-// Ported from the design-3 "sponge" prototype
-// (starfish-design3-20260824/include/cache/alloc/small_object_stripe.hpp) with
-// two deliberate adaptations:
+// The layout originated in the design-3 "sponge" prototype. A stripe has four
+// data shards and two parity shards. Each shard occupies one 256 KiB allocator
+// region. The manager maps object addresses back to their stripe and slot so
+// eviction and recovery can locate the corresponding data and parity.
 //
-//   1. The shard size is generalized to the region size of *this* tree
-//      (::starfish::allocator::RegionSize == 256 KiB, see
-//      include/cache/region_based_allocator.hpp) instead of the prototype's
-//      hard-coded 512 KiB.  A stripe is 4 data shards + 2 parity shards and
-//      every shard occupies one whole region.
-//   2. The old-runtime dependencies (mailbox/mutex profiling scaffolding,
-//      FABRIC_* helpers, the prototype's region size) are dropped.  The
-//      address reverse mapping (binding_for_addr / get_slot_layout) is kept
-//      verbatim in spirit, because entry.hpp must stay untouched this phase and
-//      therefore every object address has to identify its own shard/stripe
-//      position.
-//
-// Phase 1 scope: layout, geometry, address decoding and the allocator-side
-// dispatch hooks.  Phase 2 added the RS(4,2) parity codec
-// (include/cache/alloc/small_object_stripe_codec.hpp) and the shard-level
-// SmallObjectStripeEncoder at the bottom of this file: encode() produces the two
-// parity shards from the four data shards, rebuild()/rebuild_one() recover any 1
-// or 2 missing shards from the surviving four.  The write path and the ACK path
-// are still NOT wired: nothing in the runtime calls the encoder yet.
-//
-// Nothing in this file runs while ft_method == none (the default): the stripe
-// manager is only initialized by RemoteAllocator when ft_enabled() is true, and
-// every public entry point short-circuits on enabled().
+// SmallObjectStripeEncoder provides shard encoding and reconstruction. The
+// background rebuild workers use it to reconstruct missing shard data.
 //
 // ec_batch may configure one connected standby endpoint
 // (Configure::ft_standby_endpoint).  It is excluded from new stripe/group
@@ -556,7 +536,6 @@ class SmallObjectStripeManager {
 
  public:
   // Everything needed to locate one small object and its parity peers.
-  // Phase 2 (parity encoding) consumes this; phase 1 only exposes it.
   struct SlotLayout {
     uint64_t stripe_id = kInvalidStripeId;
     uint16_t bin = 0;
@@ -2702,7 +2681,7 @@ class SmallObjectStripeManager {
   }
 
   // Removes a small object from its stripe slot and re-queues the stripe if it
-  // regained capacity.  Phase 2 will also schedule the parity update here.
+  // regained capacity.
   bool mark_dead(uint64_t addr) {
     DecodedBinding binding;
     if (!binding_for_addr(addr, &binding)) return false;
@@ -4340,12 +4319,10 @@ class SmallObjectStripeManager {
 };
 
 // ---------------------------------------------------------------------------
-// RS(4,2) parity encoder / shard rebuild (phase 2).
+// RS(4,2) parity encoder and shard reconstruction.
 //
-// The GF(2^8) core (primitive polynomial 0x1d, G1's generator matrix, G1's
-// 8/16-bit parity LUTs and G1's byte loops) lives in
-// include/cache/alloc/small_object_stripe_codec.hpp.  This class is the
-// shard-level facade the stripe manager and the self-check use.
+// The field arithmetic and parity lookup tables live in
+// ft/ec/small_object_stripe_codec.hpp.
 //
 // Shard representation: one shard is one SmallObjectStripeShardSize
 // (== RegionSize, 256 KiB) contiguous buffer, i.e. exactly what
@@ -4353,9 +4330,6 @@ class SmallObjectStripeManager {
 // describe for remote memory.  Every entry point takes a (shard_offset,
 // byte_count) window, so only the dirty / missing part of a shard has to be
 // touched instead of rewriting whole shards.
-//
-// The write path and the ACK path are still not wired to this class: nothing in
-// the runtime calls it yet, so ft_method == none is unaffected.
 // ---------------------------------------------------------------------------
 class SmallObjectStripeEncoder {
  public:
@@ -4368,8 +4342,6 @@ class SmallObjectStripeEncoder {
                     kStripeCodecParityShards == kSmallObjectStripeParityShards,
                 "the codec geometry and the stripe geometry must agree");
 
-  // Parity encoding and shard rebuild are implemented (phase 2); the write
-  // path/ACK that would consume them is still phase 3.
   static constexpr bool implemented() { return true; }
 
   // Encode the two parity shards of one stripe from its four data shards:

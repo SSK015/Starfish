@@ -27,20 +27,13 @@ CONFIG(size_t, stripe_size_bytes, 0)
 // ---------------------------------------------------------------------------
 // Fault-tolerance / erasure-coding (EC) layout configuration.
 //
-// Phase 1 (this build): ft_method defaults to "none".  "none", "sponge" and
-// "ec_batch" are the only accepted values; an illegal combination (no
-// exclusive_cache, too few servers, not exactly 4+2, a shard size other than
-// the region size, a zero cutoff, an unknown method) fails fast in
-// Configure::self_check() with a clear message and a non-zero exit status.  A
-// *legal* ft_method != none combination is accepted.
-//   sponge   the ported single-object EC stripe layout; the write path and the
-//            ACK are NOT implemented yet.
-//   ec_batch the batched group path: eviction gathers four objects <= the
-//            small-object cutoff, the client encodes RS(4,2) locally with the
-//            ported GF(2^8) codec and writes the six segments to six distinct
-//            endpoints -> server_count >= 6 is required (or >= 7 when
-//            ft_standby_endpoint is enabled). The client-side staging pool
-//            batches objects and tracks completion of all segment writes.
+// ft_method selects the small-object write path:
+//   none      No EC by default. The behavior_group switch selects the
+//             size-class EC path independently.
+//   sponge    Eviction commits a data slot and its parity updates. The data
+//             server acknowledges the commit.
+//   ec_batch  The client encodes four data segments and two parity segments,
+//             writes them to six distinct endpoints, and tracks completions.
 // ---------------------------------------------------------------------------
 CONFIG(std::string, ft_method, "none")  // none | sponge | ec_batch
 // Opt-in semantic-six, size-class whole-object RS(4,2) backend. One feature
@@ -62,10 +55,8 @@ CONFIG(size_t, ft_background_rebuild_failures, 1)
 // Decimal MB/s cap independently applied to repair READ and WRITE bytes.
 CONFIG(size_t, ft_rebuild_bandwidth_mbps, 2500)
 CONFIG(size_t, ft_small_object_cutoff, 4096)
-// Shard size of one EC shard.  Must equal the library's region size
-// (include/cache/region_based_allocator.hpp: RegionSize == 256 KiB); the
-// equality is enforced by a static_assert in
-// include/cache/alloc/small_object_stripe.hpp.
+// Each remote shard has the same size as a local allocator region (256 KiB).
+// See the static assertion in ft/ec/small_object_stripe.hpp.
 CONFIG(size_t, ft_small_stripe_shard_size_bytes, 256 * 1024)
 CONFIG(size_t, ft_ec_data_shards, 4)
 CONFIG(size_t, ft_ec_parity_shards, 2)

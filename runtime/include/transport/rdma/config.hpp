@@ -77,13 +77,8 @@ struct Configure {
   enum MappingType { MAPPING_RANGE, MAPPING_STRIPE };
   MappingType mapping_type = MAPPING_RANGE;
 
-  // Fault-tolerance method selection (ft_method).  FT_SPONGE is the ported
-  // single-object EC stripe layout.  FT_EC_BATCH is the batched group path:
-  // eviction collects four small objects, the client-side RS(4,2) codec
-  // encodes two parity slots and the six segments are written to six
-  // distinct endpoints.  A legal ft_method != none combination is accepted by
-  // self_check(); only illegal combinations fail fast, and the RDMA write
-  // path / ACK are not wired yet.
+  // Configured write method. behavior_group selects the size-class EC path
+  // independently; is_ec_batch_mode() includes both forms of batched EC.
   enum FaultToleranceMethod { FT_NONE, FT_SPONGE, FT_EC_BATCH };
   FaultToleranceMethod ft_method_type = FT_NONE;
 
@@ -98,7 +93,7 @@ struct Configure {
       ft_ec_batch_endpoint_count + 1;
 
   // Canonical EC shard size.  This must stay equal to the library's region
-  // size; cache/alloc/small_object_stripe.hpp static_asserts that it matches
+  // size; ft/ec/small_object_stripe.hpp static_asserts that it matches
   // ::starfish::allocator::RegionSize, so the two cannot drift apart.
   static constexpr size_t ft_ec_shard_size_bytes = 256 * 1024;
   static constexpr size_t behavior_group_max_whole_object_bytes = 4096;
@@ -552,14 +547,6 @@ struct Configure {
             std::to_string(ft_ec_shard_size_bytes) + "), got " +
             std::to_string(ft_small_stripe_shard_size_bytes));
       }
-      // The keys above are *validated* here and nowhere else: a legal
-      // ft_method != none combination is accepted, an illegal one fails
-      // fast above.  Note that the EC stripe layout, the allocator-side
-      // dispatch and the address reverse-mapping are the only parts that
-      // are ported so far; parity encoding, the write path and the ACK
-      // path are not wired yet, so such a run is only usable up to the
-      // point where the write path is needed.  This is informational, not
-      // an error - the configuration itself is legal.
       if (behavior_group) {
         std::cout << "behavior_group enabled=1 classes=6"
                      " small=whole_size_class max_whole_bytes=4096"
@@ -567,17 +554,6 @@ struct Configure {
                      " incremental_server_parity="
                   << (ft_incremental_update && !ft_incremental_one_sided)
                   << " incremental_worker_rmw=" << ft_incremental_one_sided
-                  << std::endl;
-      } else if (is_ec_batch_mode()) {
-        std::cerr << "Warning: ft_method=" << ft_method
-                  << " accepted (client-side group staging + RS(4,2) parity "
-                     "only: the RDMA write path and the ACK are not wired "
-                     "yet)"
-                  << std::endl;
-      } else {
-        std::cerr << "Warning: ft_method=" << ft_method
-                  << " accepted (EC layout only: parity encoding, "
-                     "write path and ACK are not implemented yet)"
                   << std::endl;
       }
     }
