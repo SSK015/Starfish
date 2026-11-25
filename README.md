@@ -41,7 +41,9 @@
 Starfish runs Llama 2 7B Chat with just 6 GiB of local cache.
 [Run the chat demo](apps/llama/README.md).
 
-[![19-second terminal recording of a two-turn Llama 2 chat](assets/llama-chat-demo.gif)](assets/llama-chat-demo.mp4?raw=1)
+[![Play the 19-second Llama 2 7B Chat demo](assets/llama-chat-demo-poster.png)](https://cdn.jsdelivr.net/gh/SSK015/Starfish@31cffffaa402551f4cc95b5782e248e62aebb9be/assets/llama-chat-demo.mp4)
+
+[Download MP4](assets/llama-chat-demo.mp4?raw=1)
 
 ### NIC bandwidth
 
@@ -49,7 +51,9 @@ At 48 fibres, Starfish reaches 94.47 Gbps of RDMA READ payload throughput,
 nearly saturating a single 100 Gbps InfiniBand NIC.
 [Run the bandwidth demo](apps/bandwidth_microbenchmark/README.md).
 
-[![19-second client terminal recording of the NIC bandwidth demo](assets/nic-bandwidth-demo.gif)](assets/nic-bandwidth-demo.mp4?raw=1)
+[![Play the 19-second NIC bandwidth demo](assets/nic-bandwidth-demo-poster.png)](https://cdn.jsdelivr.net/gh/SSK015/Starfish@31cffffaa402551f4cc95b5782e248e62aebb9be/assets/nic-bandwidth-demo.mp4)
+
+[Download MP4](assets/nic-bandwidth-demo.mp4?raw=1)
 
 ## About
 
