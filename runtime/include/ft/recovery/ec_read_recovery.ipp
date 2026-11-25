@@ -1075,14 +1075,14 @@ inline void ConcurrentArrayCache::ec_recovery_verify_rebuild(
 // every endpoint of this client (the selected four reads may span any of the
 // six endpoints).  Returns true when the caller should skip its own one-endpoint
 // poll for this round; false leaves the legacy wait unchanged.
-inline bool ConcurrentArrayCache::ec_recovery_assist_wait(FarObjectEntry *entry,
-                                                          size_t qp_idx,
-                                                          size_t client_idx) {
+inline bool ConcurrentArrayCache::ec_recovery_assist_wait(
+    FarObjectEntry *entry, size_t qp_idx, size_t client_idx,
+    DereferenceScope *scope) {
   // Recipe objects use a single immutable-input callback rather than an EC
   // survivor round.  Dispatch before the EC mode gate so the callback also
   // owns the known-dead flat-object case in ec_batch.
   if (entry != nullptr && entry->has_recompute_recipe()) {
-    return recompute_recipe_assist_wait(entry, qp_idx, client_idx);
+    return recompute_recipe_assist_wait(entry, qp_idx, client_idx, scope);
   }
   const auto &config = ::starfish::get_config();
   if (!config.is_ec_batch_mode()) return false;

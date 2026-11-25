@@ -142,8 +142,9 @@ struct BlockHead {
   // Close new ordinary READ acquisition during recovery. Place the flag in
   // the existing tail padding so the x86-64 header remains 24 bytes.
   // Bit 0 closes ordinary READ admission; bit 1 pins this block for the
-  // single degraded-read owner. Bit 2 borrows the source for direct EC WRITE.
-  // All fit in the existing byte; object/header sizes do not change.
+  // single degraded-read owner. Bit 2 borrows the source for direct EC WRITE;
+  // bit 3 marks an outstanding flat recompute-recipe WRITE. All fit in the
+  // existing byte; object/header sizes do not change.
   std::atomic<uint8_t> normal_read_recovery_active{0};
 
   void *get_object_ptr() { return static_cast<void *>(this + 1); }
@@ -223,6 +224,30 @@ inline bool ec_write_source_borrowed(const BlockHead *block) {
   return (block->normal_read_recovery_active.load(std::memory_order_acquire) &
           4u) != 0;
 }
+inline bool recompute_flat_write_pending(const BlockHead *block) {
+  return (block->normal_read_recovery_active.load(std::memory_order_acquire) &
+          8u) != 0;
+}
+inline bool try_begin_recompute_flat_write(BlockHead *block) {
+  if (block->rdma_read_pin_lock.test_and_set(std::memory_order_acquire)) {
+    return false;
+  }
+  const uint8_t flags =
+      block->normal_read_recovery_active.load(std::memory_order_relaxed);
+  const bool accepted =
+      block->pending_rdma_reads.load(std::memory_order_acquire) == 0 &&
+      (flags & uint8_t{14}) == 0;
+  if (accepted) {
+    block->normal_read_recovery_active.store(flags | uint8_t{8},
+                                             std::memory_order_release);
+  }
+  block->rdma_read_pin_lock.clear(std::memory_order_release);
+  return accepted;
+}
+inline void end_recompute_flat_write(BlockHead *block) {
+  block->normal_read_recovery_active.fetch_and(
+      static_cast<uint8_t>(~uint8_t{8}), std::memory_order_release);
+}
 inline bool try_borrow_ec_write_source(BlockHead *block,
                                        bool allow_closed_read_gate = false) {
   // Reuse the existing per-block READ admission gate. Contention takes the
@@ -251,7 +276,7 @@ inline void release_ec_write_source(BlockHead *block) {
 
 inline bool block_has_completion_owner(const BlockHead *block) {
   return (block->normal_read_recovery_active.load(std::memory_order_acquire) &
-          6u) != 0;
+          14u) != 0;
 }
 
 inline bool degraded_read_owned(const BlockHead *block) {

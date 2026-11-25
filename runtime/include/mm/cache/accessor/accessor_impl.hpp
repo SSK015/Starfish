@@ -430,6 +430,9 @@ inline bool LiteAccessor<T, Mut>::async_fetch(far_obj_t obj,
                                               DereferenceScope &scope) {
   auto entry = obj.get_entry_ptr();
   bool fast = entry->load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_access(
         *entry,
@@ -448,6 +451,9 @@ inline bool LiteAccessor<T, Mut>::async_fetch_no_profile(
     far_obj_t obj, DereferenceScope &scope) {
   auto entry = obj.get_entry_ptr();
   bool fast = entry->load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_reference(
         *entry,
@@ -471,6 +477,9 @@ template <typename T, bool Mut>
 inline bool LiteAccessor<T, Mut>::async_fetch(const UniqueFarPtr<T> &uptr,
                                               DereferenceScope &scope) {
   bool fast = uptr.get_entry().load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (uptr.get_entry().has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_access(
         uptr.get_entry(),
@@ -488,6 +497,9 @@ template <typename T, bool Mut>
 inline bool LiteAccessor<T, Mut>::async_fetch_no_profile(
     const UniqueFarPtr<T> &uptr, DereferenceScope &scope) {
   bool fast = uptr.get_entry().load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (uptr.get_entry().has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_reference(
         uptr.get_entry(),
@@ -558,6 +570,9 @@ inline bool LiteAccessor<void, Mut>::async_fetch(far_obj_t obj,
                                                  DereferenceScope &scope) {
   auto entry = obj.get_entry_ptr();
   bool fast = entry->load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_access(
         *entry,
@@ -576,6 +591,9 @@ inline bool LiteAccessor<void, Mut>::async_fetch_no_profile(
     far_obj_t obj, DereferenceScope &scope) {
   auto entry = obj.get_entry_ptr();
   bool fast = entry->load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_reference(
         *entry,
@@ -599,6 +617,9 @@ template <bool Mut>
 inline bool LiteAccessor<void, Mut>::async_fetch(const UniqueFarPtr<void> &uptr,
                                                  DereferenceScope &scope) {
   bool fast = uptr.get_entry().load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (uptr.get_entry().has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_access(
         uptr.get_entry(),
@@ -616,6 +637,9 @@ template <bool Mut>
 inline bool LiteAccessor<void, Mut>::async_fetch_no_profile(
     const UniqueFarPtr<void> &uptr, DereferenceScope &scope) {
   bool fast = uptr.get_entry().load_state().template is_deref_fast_path<Mut>();
+  if constexpr (Mut) {
+    if (uptr.get_entry().has_recompute_recipe()) fast = false;
+  }
   if (fast) [[likely]] {
     Cache::get_default()->record_local_fast_path_reference(
         uptr.get_entry(),

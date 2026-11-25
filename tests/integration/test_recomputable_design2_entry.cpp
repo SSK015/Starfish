@@ -100,6 +100,83 @@ int main() {
   assert(Context::destroyed == 1);
   source.set_free();
 
+  // An asynchronous FETCHING epoch has not published usable local bytes, so
+  // mutation may not detach its recipe. Once local storage is pinned, the
+  // move-locked transition must complete even with an ordinary outstanding
+  // reference; that reference is not an in-flight flat WRITE.
+  auto transition_context = std::make_shared<Context>(55);
+  starfish::recompute::Inputs transition_inputs =
+      starfish::recompute::Inputs::immutable_compute_owned(
+          transition_context);
+  FarObjectEntry transition;
+  transition.reset<true>(reinterpret_cast<void *>(0x1800),
+                         FarObjectEntry::RemoteAddrInvalid48, sizeof(int));
+  assert(transition.try_bind_recompute_recipe(transition_inputs, rebuild, 1));
+  auto transition_state = transition.load_state();
+  transition_state.state = starfish::cache::FETCHING;
+  transition.set_state(transition_state);
+  auto transition_lock = transition_state;
+  transition_lock.invalid = 1;
+  assert(transition.cas_state_strong(transition_state, transition_lock));
+  assert(!transition_lock.is_deref_fast_path<true>());
+  assert(transition.detach_recompute_recipe_locked() == nullptr);
+  transition_state = transition_lock;
+  transition_state.invalid = 0;
+  assert(transition.cas_state_strong(transition_lock, transition_state));
+  assert(transition.has_recompute_recipe() && transition.is_recomputable());
+
+  transition_state = transition.load_state();
+  transition_state.state = starfish::cache::PINNED;
+  transition_state.ref_cnt = 1;
+  transition.set_state(transition_state);
+  transition_lock = transition_state;
+  transition_lock.invalid = 1;
+  assert(transition.cas_state_strong(transition_state, transition_lock));
+  auto *detached = transition.detach_recompute_recipe_locked();
+  assert(detached == transition_inputs.input_state());
+  transition_state = transition_lock;
+  transition_state.invalid = 0;
+  transition_state.dirty = 1;
+  assert(transition.cas_state_strong(transition_lock, transition_state));
+  detached->release();
+  assert(!transition.has_recompute_recipe());
+  assert(!transition.is_recomputable());
+  assert(transition.load_state().state == starfish::cache::PINNED);
+  assert(transition.load_state().ref_cnt == 1);
+  transition.unpin();
+  transition.set_free();
+  transition_inputs.reset();
+  transition_context.reset();
+  assert(Context::destroyed == 2);
+
+  // Entry relocation in the runtime calls take_six_metadata_from() before
+  // take_recompute_recipe_from(). The binding pointer, not the already-moved
+  // routing byte, is the source of truth for the bound hint.
+  auto relocation_context = std::make_shared<Context>(60);
+  starfish::recompute::Inputs relocation_inputs =
+      starfish::recompute::Inputs::immutable_compute_owned(
+          relocation_context);
+  FarObjectEntry relocation_source;
+  FarObjectEntry relocation_destination;
+  relocation_source.reset<true>(reinterpret_cast<void *>(0x1900),
+                                FarObjectEntry::RemoteAddrInvalid48,
+                                sizeof(int));
+  relocation_destination.set_free();
+  relocation_source.set_simple_heat_hot(true);
+  assert(relocation_source.try_bind_recompute_recipe(relocation_inputs,
+                                                      rebuild, 1));
+  relocation_destination.take_six_metadata_from(relocation_source);
+  relocation_destination.take_recompute_recipe_from(relocation_source);
+  assert(!relocation_source.has_recompute_recipe());
+  assert(relocation_destination.has_recompute_recipe());
+  assert(relocation_destination.is_recomputable());
+  assert(relocation_destination.simple_heat_hot());
+  relocation_destination.set_free();
+  relocation_source.set_free();
+  relocation_inputs.reset();
+  relocation_context.reset();
+  assert(Context::destroyed == 3);
+
   FarObjectEntry flag_only;
   flag_only.reset<true>(reinterpret_cast<void *>(0x2000),
                         FarObjectEntry::RemoteAddrInvalid48, sizeof(int));

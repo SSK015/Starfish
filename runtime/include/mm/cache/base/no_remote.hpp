@@ -60,7 +60,9 @@ struct FarObjectEntry {
   void *ptr;
 };
 
-inline bool check_fetch(auto &&, auto &&) { return true; }
+inline bool check_fetch(auto &&, auto &&, class DereferenceScope * = nullptr) {
+  return true;
+}
 
 inline size_t check_cq() { return 0; }
 

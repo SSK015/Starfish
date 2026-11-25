@@ -266,9 +266,6 @@ inline void ConcurrentArrayCache::record_reference_access(
 
 inline void ConcurrentArrayCache::record_local_fast_path_reference(
     const FarObjectEntry &entry, profile::ReferenceKind kind) const {
-  if (kind == profile::ReferenceKind::Write) {
-    guard_recompute_mutation(entry);
-  }
   const_cast<ConcurrentArrayCache *>(this)->record_resident_profile_reference(
       entry, kind);
   if (!hybrid_profiling_enabled()) {
@@ -282,9 +279,6 @@ inline void ConcurrentArrayCache::record_local_fast_path_reference(
 
 inline void ConcurrentArrayCache::record_non_fast_path_reference(
     const FarObjectEntry &entry, profile::ReferenceKind kind) const {
-  if (kind == profile::ReferenceKind::Write) {
-    guard_recompute_mutation(entry);
-  }
   const_cast<ConcurrentArrayCache *>(this)->record_resident_profile_reference(
       entry, kind);
   record_reference_access(entry, kind, 1);
@@ -292,9 +286,6 @@ inline void ConcurrentArrayCache::record_non_fast_path_reference(
 
 inline void ConcurrentArrayCache::record_local_fast_path_access(
     const FarObjectEntry &entry, profile::ReferenceKind kind) const {
-  if (kind == profile::ReferenceKind::Write) {
-    guard_recompute_mutation(entry);
-  }
   const_cast<ConcurrentArrayCache *>(this)->record_resident_profile_reference(
       entry, kind);
   if (!hybrid_profiling_enabled()) {
@@ -312,9 +303,6 @@ inline void ConcurrentArrayCache::record_local_fast_path_access(
 
 inline void ConcurrentArrayCache::record_non_fast_path_access(
     const FarObjectEntry &entry, profile::ReferenceKind kind) const {
-  if (kind == profile::ReferenceKind::Write) {
-    guard_recompute_mutation(entry);
-  }
   const_cast<ConcurrentArrayCache *>(this)->record_resident_profile_reference(
       entry, kind);
   if (hybrid_profile_object_access_enabled()) {

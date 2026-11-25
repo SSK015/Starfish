@@ -9,12 +9,15 @@ namespace {
 struct RecomputeRecipeSnapshot {
   recompute::InputState *inputs = nullptr;
   uint64_t arg = 0;
+  uint64_t remote = FarObjectEntry::RemoteAddrInvalid48;
 };
 
 // Snapshot the binding while holding the existing entry move lock, then keep
-// the InputState alive across the user callback. The callback is deliberately
-// passed only immutable context and an argument; it must write the supplied
-// destination and must not touch cache state.
+// the InputState alive across replay. Legacy EntryFn callbacks receive only
+// immutable context and must not touch cache state. ScopedEntryFn callbacks
+// run on this requesting fibre with the active scope, after the entry lock has
+// been released and outside CQ completion handling, so they may read declared
+// far inputs without recursively acquiring the output entry.
 inline bool snapshot_recompute_recipe(FarObjectEntry *entry,
                                       RecomputeRecipeSnapshot *snapshot) {
   if (entry == nullptr || snapshot == nullptr) return false;
@@ -42,6 +45,7 @@ inline bool snapshot_recompute_recipe(FarObjectEntry *entry,
     binding.inputs->retain();
     snapshot->inputs = binding.inputs;
     snapshot->arg = binding.arg;
+    snapshot->remote = entry->remote_addr();
 
     auto unlocked = locked;
     unlocked.invalid = 0;
@@ -72,8 +76,27 @@ inline FarObjectEntry *current_recipe_entry(
 
 }  // namespace
 
+inline bool ConcurrentArrayCache::has_lost_recipe_backing(
+    FarObjectEntry &entry, size_t endpoint) const {
+  auto state = entry.load_state(std::memory_order_acquire);
+  if (state.state != REMOTE || state.invalid || !entry.has_recompute_recipe())
+    return false;
+  auto locked = state;
+  locked.invalid = 1;
+  if (!entry.cas_state_strong(state, locked)) return false;
+  const auto remote = entry.remote_addr();
+  const bool bound = entry.recompute_binding().inputs != nullptr;
+  auto unlocked = locked;
+  unlocked.invalid = 0;
+  ASSERT(entry.cas_state_strong(locked, unlocked));
+  return bound && remote != FarObjectEntry::RemoteAddrInvalid48 &&
+         ::starfish::get_config().map_remote_addr(remote).first == endpoint &&
+         ec_recovery_endpoint_is_dead(endpoint);
+}
+
 inline bool ConcurrentArrayCache::recompute_recipe_assist_wait(
-    FarObjectEntry *entry, size_t qp_idx, size_t client_idx) {
+    FarObjectEntry *entry, size_t qp_idx, size_t client_idx,
+    DereferenceScope *scope) {
   (void)qp_idx;
   if (entry == nullptr || entry->is_local() ||
       entry->load_state(std::memory_order_acquire).state != FETCHING ||
@@ -140,6 +163,16 @@ inline bool ConcurrentArrayCache::recompute_recipe_assist_wait(
     return true;
   }
 
+  // An asynchronous poll without a scope leaves scoped replay to its waiter.
+  // Recheck FETCHING under the owner bit before retaining any recipe snapshot.
+  if (scope == nullptr && snapshot.inputs->requires_scope()) {
+    release_recompute_snapshot(snapshot);
+    release_degraded_read_owner(block);
+    FarObjectEntry *owner = current_recipe_entry(block);
+    unpin_fetch_entry_for_recovery(owner != nullptr ? owner : entry);
+    return false;
+  }
+
   const auto stable_obj = block->obj_meta_data.load(std::memory_order_acquire);
   if (stable_obj.is_null()) {
     release_recompute_snapshot(snapshot);
@@ -148,10 +181,29 @@ inline bool ConcurrentArrayCache::recompute_recipe_assist_wait(
     return true;
   }
   const size_t bytes = stable_obj.size;
+  // The entry lock has been released. The retained input snapshot and
+  // block owner pin keep this particular restoration valid across a batch.
+  if (const auto loss = snapshot.inputs->on_loss) {
+    try {
+      if (snapshot.remote != FarObjectEntry::RemoteAddrInvalid48) {
+        const auto endpoint =
+            ::starfish::get_config().map_remote_addr(snapshot.remote).first;
+        if (ec_recovery_endpoint_is_dead(endpoint))
+          loss(snapshot.inputs->context.get(), endpoint);
+      } else {
+        // Virtual evictions have no flat address; only report confirmed losses.
+        for (size_t ep = 0; ep < ec_recovery_endpoint_count(); ++ep)
+          if (ec_recovery_endpoint_is_dead(ep))
+            loss(snapshot.inputs->context.get(), ep);
+      }
+    } catch (...) {
+      // A failed optional preparation cannot suppress authoritative replay.
+    }
+  }
   bool rebuilt = false;
   try {
-    rebuilt =
-        snapshot.inputs->invoke(block->get_object_ptr(), bytes, snapshot.arg);
+    rebuilt = snapshot.inputs->invoke(block->get_object_ptr(), bytes,
+                                      snapshot.arg, scope);
   } catch (...) {
     rebuilt = false;
   }

@@ -55,6 +55,9 @@ struct EntryStateBits {
 
   template <bool Mut>
   __attribute__((always_inline)) bool is_deref_fast_path() const {
+    if (invalid) [[unlikely]] {
+      return false;
+    }
 #ifdef ASSERT_ALL_LOCAL
     return true;
 #else
@@ -92,6 +95,7 @@ class FarObjectEntry {
   // alignment gap so Recovery's placement bit 2 remains Recomputable.
   enum RoutingFlag : uint8_t {
     SimpleHeatHot = 1u << 0,
+    RecomputeRecipeBound = 1u << 1,
   };
   std::atomic<uint8_t> routing_flags_{0};
   uint32_t logical_owner_id_{0};
@@ -292,8 +296,29 @@ class FarObjectEntry {
            0;
   }
 
+  // This atomic hint is safe to inspect without the move lock. The binding
+  // itself remains entry-owned plain storage and may only be read or changed
+  // while invalid=1 is held.
   bool has_recompute_recipe() const {
-    return recompute_binding_.inputs != nullptr;
+    return (routing_flags_.load(std::memory_order_acquire) &
+            RecomputeRecipeBound) != 0;
+  }
+
+  // Caller must hold invalid=1. The returned reference is transferred to the
+  // caller, which releases it after publishing the unlocked entry state.
+  recompute::InputState *detach_recompute_recipe_locked() noexcept {
+    const auto current = load_state(std::memory_order_relaxed);
+    assert(current.invalid);
+    if (current.state != LOCAL && current.state != PINNED &&
+        current.state != MARKED) {
+      return nullptr;
+    }
+    recompute::InputState *input_state = recompute_binding_.inputs;
+    if (input_state == nullptr) return nullptr;
+    recompute_binding_ = {};
+    update_routing_flag(RecomputeRecipeBound, false);
+    update_placement_flag(Recomputable, false);
+    return input_state;
   }
 
   recompute::Binding recompute_binding() const { return recompute_binding_; }
@@ -301,10 +326,12 @@ class FarObjectEntry {
   // Bind one immutable input set and callback before the entry has acquired
   // its first remote address. The entry invalid bit is the existing per-entry
   // move lock used to serialize this publication with eviction/moves.
+  template <typename Callback>
   bool try_bind_recompute_recipe(const recompute::Inputs &inputs,
-                                 recompute::EntryFn callback, uint64_t arg) {
+                                 Callback callback, uint64_t arg) {
     if (!inputs.valid() || callback == nullptr) return false;
-    recompute::InputState *input_state = inputs.input_state();
+    auto *input_state = inputs.input_state()->plan_for(callback);
+    if (!input_state) return false;
     auto current = load_state();
     for (;;) {
       if (current.invalid) return false;
@@ -318,10 +345,10 @@ class FarObjectEntry {
       if (!cas_state_weak(current, locked)) continue;
 
       bool accepted = false;
-      if (remote_invalid() && !has_recompute_recipe() &&
-          input_state->register_callback(callback)) {
+      if (remote_invalid() && !has_recompute_recipe()) {
         input_state->retain();
         recompute_binding_ = {input_state, arg};
+        update_routing_flag(RecomputeRecipeBound, true);
         set_recomputable();
         accepted = true;
       }
@@ -344,7 +371,10 @@ class FarObjectEntry {
   void release_recompute_recipe() noexcept {
     recompute::InputState *input_state = recompute_binding_.inputs;
     recompute_binding_ = {};
-    if (input_state != nullptr) input_state->release();
+    if (input_state != nullptr) {
+      update_routing_flag(RecomputeRecipeBound, false);
+      input_state->release();
+    }
   }
 
   void clear_recompute_metadata() noexcept {
@@ -358,8 +388,13 @@ class FarObjectEntry {
   void take_recompute_recipe_from(FarObjectEntry &source) noexcept {
     if (this == &source) return;
     release_recompute_recipe();
+    recompute::InputState *source_inputs = source.recompute_binding_.inputs;
     recompute_binding_ = source.recompute_binding_;
     source.recompute_binding_ = {};
+    if (source_inputs != nullptr) {
+      update_routing_flag(RecomputeRecipeBound, true);
+      source.update_routing_flag(RecomputeRecipeBound, false);
+    }
     const bool source_recomputable = source.is_recomputable();
     update_placement_flag(Recomputable, source_recomputable);
     source.update_placement_flag(Recomputable, false);

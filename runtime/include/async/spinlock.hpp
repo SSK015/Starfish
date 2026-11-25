@@ -139,7 +139,7 @@ class Spinlock {
     m_flag.clear(std::memory_order_release);
   }
 
-  void lock(DereferenceScope &scope) {
+  void lock(DereferenceScope &scope, bool release_scope_on_wait = false) {
     // printf("%p scope lock %p\n", fibre_self(), this);
     const bool diag = detail::spinlock_diag_enabled();
     uint64_t start_cycles = diag ? get_cycles() : 0;
@@ -154,7 +154,7 @@ class Spinlock {
                                   get_cycles() - start_cycles);
         next_log += period ? period : next_log;
       }
-      if (detail::lock_wait_scope_yield_enabled()) {
+      if (release_scope_on_wait || detail::lock_wait_scope_yield_enabled()) {
         // We do not own this lock yet. Protect declared references
         // while leaving the old epoch, then retry the same request
         // after a cooperative yield, without waiting for a GC round.

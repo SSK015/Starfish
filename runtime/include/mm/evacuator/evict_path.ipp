@@ -352,7 +352,19 @@ retry:
         entry->set_client_idx(rdma::thread_info.thread_id);
         if (six_dirty_routing_enabled())
           entry->set_six_pending_evict(old_state.dirty);
+        const bool recipe_flat_write =
+            recomputable && entry->has_recompute_recipe();
+        if (recipe_flat_write &&
+            !::starfish::allocator::try_begin_recompute_flat_write(block)) {
+          auto unlocked = lock_state;
+          unlocked.invalid = 0;
+          ASSERT(entry->cas_state_strong(lock_state, unlocked));
+          return BUSY;
+        }
         if (!entry->cas_state_strong(lock_state, evict_state)) [[unlikely]] {
+          if (recipe_flat_write) {
+            ::starfish::allocator::end_recompute_flat_write(block);
+          }
           if (direct_source)
             ::starfish::allocator::release_ec_write_source(block);
           if (split_direct_source)

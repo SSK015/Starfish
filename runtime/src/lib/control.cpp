@@ -5,6 +5,7 @@
 #include "mm/placement/behavior_group_runtime.hpp"
 #include "async/fork_join.hpp"
 #include "async/uthreads.hpp"
+#include "ft/recompute/recovery_stats.hpp"
 
 #include <vector>
 #include <cstdlib>
@@ -86,12 +87,13 @@ void runtime_init(const rdma::Configure &config, bool enable_cache) {
 
   if (mode & Configure::MODE_ENABLE_UTHREAD) {
     if (config.enable_eager_evict) {
-      uthread::runtime_init(separate_background
-                                ? config.max_thread_cnt
-                                : config.max_thread_cnt +
-                                      config.evacuate_thread_cnt);
+      uthread::runtime_init(
+          separate_background
+              ? config.max_thread_cnt
+              : config.max_thread_cnt + config.evacuate_thread_cnt,
+          config.max_thread_cnt);
     } else {
-      uthread::runtime_init(config.max_thread_cnt);
+      uthread::runtime_init(config.max_thread_cnt, config.max_thread_cnt);
     }
     if (separate_background) {
       register_current_cluster_thread_ids(config.max_thread_cnt);
@@ -111,6 +113,12 @@ void runtime_init(const rdma::Configure &config, bool enable_cache) {
 }
 
 void runtime_destroy() {
+  if ((mode & Configure::MODE_ENABLE_CACHE) &&
+      recompute::RecoveryStats::metrics_requested()) {
+    const auto stats = Cache::get_default()->recomputable_stats();
+    recompute::RecoveryStats::global().print(stats.registered, stats.restored,
+                                                stats.failures);
+  }
   // Removal happens while Client storage is still alive. The application
   // fibres have joined before runtime destruction; cache teardown follows.
   remove_read_batch_yield_progress();
@@ -140,7 +148,7 @@ using namespace starfish::rdma;
 static Configure global_config;
 void runtime_init(const rdma::Configure &config, bool enable_cache) {
   global_config = config;
-  uthread::runtime_init(config.max_thread_cnt);
+  uthread::runtime_init(config.max_thread_cnt, config.max_thread_cnt);
 #ifdef USE_BUMP_ALLOCATOR
   void *heap_ptr = mmap(
       nullptr, allocator::HeapSize, PROT_READ | PROT_WRITE,

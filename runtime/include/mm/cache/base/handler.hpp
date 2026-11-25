@@ -59,7 +59,7 @@ class DataMissHandlerImpl : public DataMissHandler {
     auto __on_miss__ = starfish::cache::DataMissHandlerImpl([&](auto __entry__, auto __ddl__) {
 #ifndef MISS_FOR_COUNT
 #define ON_MISS_END_X                                           \
-    if (starfish::cache::check_fetch(__entry__, __ddl__)) return; \
+    if (starfish::cache::check_fetch(__entry__, __ddl__, &scope)) return; \
     __last_on_miss__(__entry__, __ddl__);                       \
     });
 #else

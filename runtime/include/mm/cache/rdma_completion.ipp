@@ -157,6 +157,9 @@ retry:
           new_state.state = REMOTE;
           if (!entry.cas_state_weak(old_state, new_state)) goto retry;
         }
+        if (::starfish::allocator::recompute_flat_write_pending(block)) {
+          ::starfish::allocator::end_recompute_flat_write(block);
+        }
         block->obj_meta_data.store(far_obj_t::null(),
                                    std::memory_order_release);
         // The block remains linked from marked_list until a reclaim pass.
@@ -168,12 +171,21 @@ retry:
         // maybe another rdma request (write back) in the progress
         // do not mark it as remote to prevent reallocating memory to
         // other object
+        const bool recipe_flat_write =
+            ::starfish::allocator::recompute_flat_write_pending(block);
+        if (recipe_flat_write) new_state.state = LOCAL;
         if (!entry.cas_state_weak(old_state, new_state)) goto retry;
+        if (recipe_flat_write) {
+          ::starfish::allocator::end_recompute_flat_write(block);
+        }
       }
       break;
     case EntryState::LOCAL: {
       if (new_state.ref_cnt != 0 || !::starfish::get_config().exclusive_cache) {
         if (!entry.cas_state_weak(old_state, new_state)) goto retry;
+        if (::starfish::allocator::recompute_flat_write_pending(block)) {
+          ::starfish::allocator::end_recompute_flat_write(block);
+        }
         break;
       }
 
@@ -214,6 +226,9 @@ retry:
       }
       auto expected = lock_state;
       ASSERT(entry.cas_state_strong(expected, new_state));
+      if (::starfish::allocator::recompute_flat_write_pending(block)) {
+        ::starfish::allocator::end_recompute_flat_write(block);
+      }
       return;
     }
     case EntryState::BUSY:
@@ -333,6 +348,9 @@ retry:
     ASSERT(entry.cas_state_strong(next, published_state));
     // Recipe-only durable state: no bytes were written, but the binding
     // and dead remote identity remain available for a future recompute.
+    if (::starfish::allocator::recompute_flat_write_pending(block)) {
+      ::starfish::allocator::end_recompute_flat_write(block);
+    }
     block->obj_meta_data.store(far_obj_t::null(), std::memory_order_release);
     ::starfish::allocator::block_to_region(block)->pending_reclaims.fetch_add(
         1, std::memory_order_release);
@@ -376,6 +394,9 @@ retry:
     auto published_state = cleanup_state;
     published_state.invalid = 0;
     ASSERT(entry.cas_state_strong(cleanup_state, published_state));
+    if (::starfish::allocator::recompute_flat_write_pending(block)) {
+      ::starfish::allocator::end_recompute_flat_write(block);
+    }
     if (recipe) {
       recomputable_failed_writes_.fetch_add(1, std::memory_order_relaxed);
     }
@@ -384,6 +405,9 @@ retry:
   if (!last_write_reference) {
     next.invalid = 0;
     if (!entry.cas_state_strong(lock_state, next)) goto retry;
+    if (::starfish::allocator::recompute_flat_write_pending(block)) {
+      ::starfish::allocator::end_recompute_flat_write(block);
+    }
     if (recipe) {
       recomputable_failed_writes_.fetch_add(1, std::memory_order_relaxed);
     }
@@ -400,6 +424,9 @@ retry:
   auto published_state = cleanup_state;
   published_state.invalid = 0;
   ASSERT(entry.cas_state_strong(cleanup_state, published_state));
+  if (::starfish::allocator::recompute_flat_write_pending(block)) {
+    ::starfish::allocator::end_recompute_flat_write(block);
+  }
   if (recipe) {
     recomputable_failed_writes_.fetch_add(1, std::memory_order_relaxed);
   }
@@ -540,8 +567,10 @@ retry:
     }
 
     uint64_t old_remote = entry.remote_addr();
-    // T7: Invariant check - fetch from remote must have a valid remote address
-    if (old_remote == FarObjectEntry::RemoteAddrInvalid48) {
+    // A recipe-only virtual eviction has no remote bytes. Its synthetic
+    // recovery completion still publishes LOCAL through this common path.
+    if (old_remote == FarObjectEntry::RemoteAddrInvalid48 &&
+        !source_is_recompute) {
       std::string err = "FETCH_FAIL: remote_addr is invalid for obj=" +
                         std::to_string(obj.obj_id) +
                         " state=" + std::to_string(old_state.state) + "\n";
@@ -629,19 +658,21 @@ retry:
       return;
     }
 
-    auto free_start = get_cycles();
-    {
-      scope_diag::Guard remote_free_guard(fibre_self(),
-                                          scope_diag::REMOTE_FREE);
-      remote_allocator.deallocate(old_remote);
-    }
-    auto remote_free_cycles = get_cycles() - free_start;
-    profile::count_excl_remote_free_on_fetch_cycles(remote_free_cycles);
-    profile::count_excl_remote_free_on_fetch(obj.size);
-    constexpr int64_t RemoteFreeLogThreshold = 10000000;  // 10M cycles
-    if (remote_free_cycles > RemoteFreeLogThreshold) {
-      profile::count_excl_remote_free_on_fetch_slow(remote_free_cycles,
-                                                    obj.size);
+    if (old_remote != FarObjectEntry::RemoteAddrInvalid48) {
+      auto free_start = get_cycles();
+      {
+        scope_diag::Guard remote_free_guard(fibre_self(),
+                                            scope_diag::REMOTE_FREE);
+        remote_allocator.deallocate(old_remote);
+      }
+      auto remote_free_cycles = get_cycles() - free_start;
+      profile::count_excl_remote_free_on_fetch_cycles(remote_free_cycles);
+      profile::count_excl_remote_free_on_fetch(obj.size);
+      constexpr int64_t RemoteFreeLogThreshold = 10000000;  // 10M cycles
+      if (remote_free_cycles > RemoteFreeLogThreshold) {
+        profile::count_excl_remote_free_on_fetch_slow(remote_free_cycles,
+                                                      obj.size);
+      }
     }
   } else {
     auto new_state = old_state;

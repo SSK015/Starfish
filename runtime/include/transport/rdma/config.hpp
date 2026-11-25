@@ -13,6 +13,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -294,6 +295,16 @@ struct Configure {
   bool is_ec_batch_mode() const {
     return behavior_group || ft_method_type == FT_EC_BATCH;
   }
+  bool supports_partition_recipes() const {
+    return exclusive_cache && is_ec_batch_mode();
+  }
+
+  void require_partition_recipe_support() const {
+    if (!supports_partition_recipes())
+      throw std::invalid_argument(
+          "partition recipes require exclusive_cache=1 and EC-batch mode");
+  }
+
   // ft_method=sponge only: the sponge commit path (control CQ ACKs) is the
   // only user of check_sponge_ack_cq_ft(); ec_batch never commits through it,
   // so polling must stay off for ec_batch and none.

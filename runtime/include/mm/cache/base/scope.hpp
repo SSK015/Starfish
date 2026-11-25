@@ -2,9 +2,13 @@
 #include "mm/cache/base/object.hpp"
 #include "mm/cache/entry.hpp"
 #include <cstdint>
+#include <initializer_list>
 #include <iostream>
 
 namespace starfish {
+namespace recompute {
+template <typename T> class RemoteObject;
+}
 namespace cache {
 class DereferenceScope {
   friend class ConcurrentArrayCache;
@@ -42,6 +46,19 @@ class DereferenceScope {
   // cache instance.
   bool mark_recomputable(far_obj_t obj, const recompute::Inputs &inputs,
                          recompute::EntryFn callback, uint64_t arg);
+
+  // Object-level recipe API. Protected inputs stay alive and read-only for
+  // the lifetime of the output recipe; output is first in all_objects.
+  template <typename T, typename Fn>
+  bool mark_recomputable(
+      recompute::RemoteObject<T> &output,
+      std::initializer_list<recompute::RemoteObject<T>> protected_inputs,
+      Fn callback,
+      std::initializer_list<recompute::RemoteObject<T>> all_objects);
+
+  // Container-level recipe API is defined by the container adapter.
+  template <typename Table = void, typename Output, typename Input, typename Producer>
+  bool mark_recomputable(Output &output, Input input, Producer producer);
 
   DereferenceScope(const DereferenceScope &) = delete;
 

@@ -468,7 +468,9 @@ void ClientControl::post_stop() {
   for (size_t ep_idx = 0; ep_idx < server_count; ep_idx++) {
     if (endpoint_qps[ep_idx].control_qp == nullptr) continue;
 
-    if (config.ft_background_rebuild) {
+    // An EC endpoint may have failed during recipe replay even when background
+    // rebuild is off. Use the bounded STOP path for its control queue as well.
+    if (config.is_ec_batch_mode() || config.ft_background_rebuild) {
       QueuePair *control_qp = endpoint_qps[ep_idx].control_qp.get();
       if (control_qp->queue_pair == nullptr) continue;
       const uint32_t control_qp_num = control_qp->queue_pair->qp_num;

@@ -181,7 +181,7 @@ class FarVector<T, GroupSize>::LiteIterator : public GenericIterator<Mut> {
         cache::OnMissScope oms(__entry__, &scope);
         for (InIteratorType *obj_p = this->cursor - 1; obj_p >= lim; obj_p--) {
           auto res = Cache::get_default()->prefetch(obj_p->obj(), oms);
-          if (Cache::get_default()->check_fetch(__entry__, __ddl__)) {
+          if (Cache::get_default()->check_fetch(__entry__, __ddl__, &scope)) {
             return;
           }
         }
@@ -219,7 +219,7 @@ class FarVector<T, GroupSize>::LiteIterator : public GenericIterator<Mut> {
         cache::OnMissScope oms(__entry__, &scope);
         for (InIteratorType *obj_p = this->cursor + 1; obj_p < lim; obj_p++) {
           auto res = Cache::get_default()->prefetch(obj_p->obj(), oms);
-          if (Cache::get_default()->check_fetch(__entry__, __ddl__)) {
+          if (Cache::get_default()->check_fetch(__entry__, __ddl__, &scope)) {
             return;
           }
         }

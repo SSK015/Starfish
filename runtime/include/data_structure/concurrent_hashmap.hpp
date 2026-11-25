@@ -7,9 +7,15 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <type_traits>
+#include <unordered_map>
+#include <functional>
 #include <x86intrin.h>
 #include <utility>
 #include <memory>
+#include <mutex>
+#include <stdexcept>
 #include <vector>
 
 #include "async/context.hpp"
@@ -17,22 +23,40 @@
 #include "async/spinlock.hpp"
 #include "lib/cpu_cycles.hpp"
 #include "async/parallel.hpp"
+#include "data_structure/ordinal_table.hpp"
+#include "ft/recompute/partition_recipes.hpp"
 
 namespace starfish {
 
 template <typename Key, typename Val, typename Hash = std::hash<Key>>
 class ConcurrentHashMap {
  private:
-  using object_allocated_hook_t = void (*)(far_obj_t);
-  // The legacy allocation hook is intentionally kept unchanged for the
-  // existing applications.  A recipe hook additionally receives the
-  // allocation scope and the caller-owned recipe context/argument.  The
-  // hook runs only after both fields of KVData have been initialized.
-  using object_recipe_hook_t = void (*)(far_obj_t, DereferenceScope &,
-                                        const void *, uint64_t);
+  template <class Map> friend class PartitionedHashMaps;
 
- public:
-  using recipe_hook_t = object_recipe_hook_t;
+  using object_allocated_hook_t = void (*)(far_obj_t);
+
+  // Allocated only for maps enrolled in a recipe-enabled collection. The
+  // callback captures weak references so neither the map nor its job cycles.
+  struct PendingPartitionRecipe {
+    enum class State { unmarked, pending, consumed, ordinary_started };
+
+    std::mutex mutex;
+    std::weak_ptr<recompute::PartitionRecipes> plans;
+    size_t partition;
+    State state = State::unmarked;
+    std::function<recompute::Inputs(size_t)> prepare;
+
+    PendingPartitionRecipe(
+        const std::shared_ptr<recompute::PartitionRecipes> &job, size_t id)
+        : plans(job), partition(id) {}
+  };
+  std::unique_ptr<PendingPartitionRecipe> partition_recipe_;
+
+  // Collection construction finishes enrollment before exposing any maps.
+  void enable_partition_recipes(
+      const std::shared_ptr<recompute::PartitionRecipes> &plans, size_t id) {
+    partition_recipe_ = std::make_unique<PendingPartitionRecipe>(plans, id);
+  }
 
  private:
   struct KVData {
@@ -83,26 +107,54 @@ class ConcurrentHashMap {
   const uint32_t kNumEntries_;
   std::unique_ptr<BucketEntry[]> buckets_;
   object_allocated_hook_t object_allocated_hook_;
-  object_recipe_hook_t object_recipe_hook_;
-  const void *object_recipe_context_{nullptr};
 
-  void invoke_allocation_hooks(far_obj_t obj, DereferenceScope &scope,
-                               bool invoke_recipe, const void *recipe_context,
-                               uint64_t recipe_arg) {
-    if (object_allocated_hook_ != nullptr) {
-      object_allocated_hook_(obj);
-    }
-    if (invoke_recipe && object_recipe_hook_ != nullptr &&
-        recipe_context != nullptr) {
-      object_recipe_hook_(obj, scope, recipe_context, recipe_arg);
-    }
+  void invoke_allocation_hook(far_obj_t obj) {
+    if (object_allocated_hook_ != nullptr) object_allocated_hook_(obj);
   }
 
+  template <bool ObserveRemote>
+  bool get_impl(const Key &key, Val *val, __DMH__, DereferenceScope &scope,
+                bool debug_locked, bool *was_remote);
+
   bool put_impl(const Key &key, Val val, __DMH__, DereferenceScope &scope,
-                bool invoke_recipe, const void *recipe_context,
-                uint64_t recipe_arg);
+                const recompute::Inputs *recipe_inputs, uint64_t recipe_arg);
+  bool put_recomputable(const Key &key, Val val,
+                        const recompute::Inputs &inputs, uint64_t locator,
+                        __DMH__, DereferenceScope &scope);
+  bool put_recomputable(const Key &key, Val val,
+                        const recompute::Inputs &inputs, uint64_t locator,
+                        DereferenceScope &scope) {
+    ON_MISS_BEGIN
+    ON_MISS_END
+    return put_recomputable(key, std::move(val), inputs, locator,
+                            __on_miss__, scope);
+  }
+#ifndef NO_REMOTE
+  bool has_lost_recipe_output(size_t endpoint) const {
+    auto *cache = Cache::get_default();
+    for (size_t i = 0; i < kNumEntries_; ++i) {
+      if (cache->has_lost_recipe_backing(buckets_[i].ptr.get_entry(), endpoint))
+        return true;
+    }
+    return false;
+  }
+#else
+  bool has_lost_recipe_output(size_t) const { return false; }
+#endif
 
   void do_remove(BucketEntry *bucket, BucketEntry *entry);
+
+  static bool restore_kv_image(void *dst, size_t bytes, const Key &key,
+                               const Val &value)
+      requires(std::is_standard_layout_v<KVData> &&
+               std::is_trivially_copyable_v<KVData>) {
+    if (!dst || bytes != sizeof(KVData)) return false;
+    auto *image = static_cast<unsigned char *>(dst);
+    std::memset(image, 0, bytes);
+    std::memcpy(image + offsetof(KVData, key), &key, sizeof(key));
+    std::memcpy(image + offsetof(KVData, val), &value, sizeof(value));
+    return true;
+  }
 
   size_t get_hash(const Key &key) { return Hash{}(key); }
 
@@ -127,6 +179,11 @@ class ConcurrentHashMap {
   }
 
  public:
+  template <bool Track>
+  using PublicationTable =
+      recompute::OrdinalTable<Key, Val, Hash, recompute::publication_mode(Track)>;
+  using DefaultRecipeTable = PublicationTable<true>;
+
   // Observational counters only; leave other benchmarks' reporting enabled
   // by default. OFF skips both the locality probe and the global atomic RMW.
   static bool deref_stats_enabled() {
@@ -137,25 +194,247 @@ class ConcurrentHashMap {
     return enabled;
   }
   ConcurrentHashMap(uint32_t num_entries_shift,
-                    object_allocated_hook_t object_allocated_hook = nullptr,
-                    object_recipe_hook_t object_recipe_hook = nullptr);
+                    object_allocated_hook_t object_allocated_hook = nullptr);
   ~ConcurrentHashMap() = default;
 
-  void set_recipe_context(const void *context) {
-    object_recipe_context_ = context;
+  template <class Table, class Input, class Producer>
+  bool arm_partition_recipe(const std::shared_ptr<ConcurrentHashMap> &map,
+                            Input input, Producer producer) {
+    // std::function stores a copyable closure, including the input snapshot
+    // and producer. Replay invokes the producer through a const closure.
+    static_assert(std::is_copy_constructible_v<Input> &&
+                  std::is_copy_constructible_v<Producer>,
+                  "partition recipe input and producer must be copyable");
+    starfish::get_config().require_partition_recipe_support();
+    if (!partition_recipe_)
+      throw std::invalid_argument(
+          "partition recipes require an output owned by PartitionedHashMaps");
+    if (uthread::get_application_worker_count() == 0)
+      throw std::logic_error(
+          "partition recipes require an initialized application worker pool");
+    if (map.get() != this)
+      throw std::invalid_argument("recipe annotation refers to a different map");
+    auto &pending = *partition_recipe_;
+    std::lock_guard<std::mutex> lock(pending.mutex);
+    using State = PendingPartitionRecipe::State;
+    if (pending.state == State::ordinary_started)
+      throw std::logic_error(
+          "late partition recipe registration after ordinary publication has started");
+    if (pending.state != State::unmarked)
+      throw std::logic_error("partition recipe has already been marked");
+    if (pending.plans.expired())
+      throw std::logic_error("partition recipe job has expired");
+    pending.prepare =
+        [weak_map = std::weak_ptr<ConcurrentHashMap>(map),
+         weak_plans = pending.plans, partition = pending.partition,
+         input = std::move(input), producer = std::move(producer)](
+            size_t expected_rows) mutable {
+          auto output = weak_map.lock();
+          auto plans = weak_plans.lock();
+          if (!output || !plans)
+            throw std::logic_error("partition recipe map or job has expired");
+          return prepare_recomputable<Table>(
+              *plans, partition, output, std::move(input),
+              std::move(producer), expected_rows);
+        };
+    pending.state = State::pending;
+    return true;
   }
 
-  // These layout accessors let an application recipe restore the exact
-  // key/value byte image without making KVData public or rebuilding a map.
-  static constexpr size_t kv_data_size() { return sizeof(KVData); }
-  static constexpr size_t kv_key_offset() { return offsetof(KVData, key); }
-  static constexpr size_t kv_value_offset() { return offsetof(KVData, val); }
+  template <class Table>
+  bool publish_partition(const Table &rows, DereferenceScope &scope) {
+    // OFF selects the ordinary loop once, without a per-entry mode check.
+    if (!partition_recipe_) return publish_ordinary(*this, rows, scope);
+    decltype(PendingPartitionRecipe::prepare) prepare;
+    {
+      auto &pending = *partition_recipe_;
+      std::lock_guard<std::mutex> lock(pending.mutex);
+      using State = PendingPartitionRecipe::State;
+      switch (pending.state) {
+        case State::unmarked:
+          pending.state = State::ordinary_started;
+          break;
+        case State::ordinary_started:
+          break;
+        case State::pending:
+          prepare = std::move(pending.prepare);
+          pending.prepare = nullptr;
+          // Consumption is final even if preparation or publication fails.
+          pending.state = State::consumed;
+          break;
+        case State::consumed:
+          throw std::logic_error("duplicate partition recipe consumption");
+      }
+    }
+    // Never hold the annotation mutex across far-memory operations or yields.
+    if (!prepare) return publish_ordinary(*this, rows, scope);
+    if constexpr (requires { requires Table::tracks_ordinals; }) {
+      auto inputs = prepare(rows.size());
+      return publish_recomputable_rows(*this, rows, inputs, scope);
+    } else {
+      throw std::invalid_argument("partition recipes require first-insertion ordinals");
+    }
+  }
+
+  class OrdinaryWriter {
+   public:
+    bool put(const Key &key, Val value, uint64_t,
+             DereferenceScope &scope) const {
+      return map_->put(key, std::move(value), scope);
+    }
+
+   private:
+    friend class ConcurrentHashMap;
+    explicit OrdinaryWriter(ConcurrentHashMap &map) : map_(&map) {}
+
+    ConcurrentHashMap *map_;
+  };
+
+  static OrdinaryWriter ordinary_output(ConcurrentHashMap &map) {
+    return OrdinaryWriter(map);
+  }
+
+  class RecomputableWriter {
+   public:
+    bool put(const Key &key, Val value, uint64_t locator,
+             DereferenceScope &scope) {
+      return map_->put_recomputable(key, std::move(value), inputs_, locator,
+                                    scope);
+    }
+
+   private:
+    friend class ConcurrentHashMap;
+    RecomputableWriter(std::shared_ptr<ConcurrentHashMap> map,
+                       recompute::Inputs inputs)
+        : map_(std::move(map)), inputs_(std::move(inputs)) {}
+
+    std::shared_ptr<ConcurrentHashMap> map_;
+    recompute::Inputs inputs_;
+  };
+
+  template <typename Input, typename Build, typename Project>
+  static RecomputableWriter mark_recomputable(
+      recompute::PartitionRecipes &plans, size_t partition,
+      const std::shared_ptr<ConcurrentHashMap> &map, Input input,
+      Build build, Project project) {
+    using Prepared = typename std::remove_reference_t<decltype(
+        std::declval<Build &>()(std::declval<const Input &>()))>::element_type;
+    assert(map != nullptr);
+    std::weak_ptr<ConcurrentHashMap> weak_map(map);
+    auto lost_output = [weak_map](size_t endpoint) {
+      auto output = weak_map.lock();
+      return output != nullptr && output->has_lost_recipe_output(endpoint);
+    };
+    auto project_kv =
+        [project = std::move(project)](const Input &source,
+                                       const Prepared &prepared,
+                                       uint64_t locator, void *destination,
+                                       size_t bytes) {
+          auto emit = [destination, bytes](const Key &key, const Val &value) {
+            return restore_kv_image(destination, bytes, key, value);
+          };
+          return project(source, prepared, locator, emit);
+        };
+    auto inputs = plans.bind(partition, std::move(input), std::move(build),
+                             std::move(lost_output), std::move(project_kv));
+    return RecomputableWriter(map, std::move(inputs));
+  }
+
+  // Publish either a standard unordered map or an ordinal table through the
+  // same container path. The generic table visits its canonical stored key.
+  template <class Table, class Scope>
+  static bool publish_ordinary(ConcurrentHashMap &map, const Table &rows,
+                               Scope &scope) {
+    if constexpr (requires {
+                    rows.visit([](const Key &, const Val &, uint64_t) {
+                      return true;
+                    });
+                  }) {
+      return rows.visit([&](const Key &key, const Val &value, uint64_t) {
+        return map.put(key, value, scope);
+      });
+    } else {
+      for (const auto &[key, value] : rows) {
+        if (!map.put(key, value, scope)) return false;
+      }
+      return true;
+    }
+  }
+
+  struct NoRecipeObserver {
+    void operator()(const Key &, const Val &, uint64_t) const noexcept {}
+  };
+
+  // The producer must enumerate each input deterministically. Ordinals follow
+  // each key's first insertion, and replay uses that producer to recover them.
+  // ReplayTable adds the dense lookup after the replay producer completes.
+  template <class Table, class Input, class Producer,
+            class Observer = NoRecipeObserver>
+  static recompute::Inputs prepare_recomputable(
+      recompute::PartitionRecipes &plans, size_t partition,
+      const std::shared_ptr<ConcurrentHashMap> &map, Input input,
+      Producer producer, size_t expected_rows, Observer observer = {}) {
+    static_assert(Table::tracks_ordinals,
+                  "recomputable publication requires tracked ordinals");
+    using ReplayTable = typename Table::ReplayTable;
+    static_assert(ReplayTable::replay_build,
+                  "ordinal table must expose a replay specialization");
+    if (!map) return {};
+
+    auto build = [producer = std::move(producer), expected_rows](
+                     const Input &source) {
+      auto replay = std::make_unique<ReplayTable>();
+      replay->reserve(expected_rows);
+      producer(*replay, source);
+      if (replay->size() != expected_rows) return std::unique_ptr<ReplayTable>{};
+      replay->seal_replay();
+      return replay;
+    };
+    auto project = [observer = std::move(observer)](
+                       const Input &, const ReplayTable &replay,
+                       uint64_t ordinal, auto &&emit) {
+      return replay.visit_ordinal(
+          ordinal, [&](const Key &key, const Val &value, uint64_t id) {
+            if (!emit(key, value)) return false;
+            std::invoke(observer, key, value, id);
+            return true;
+          });
+    };
+    auto writer = ConcurrentHashMap::mark_recomputable(
+        plans, partition, map, std::move(input), std::move(build),
+        std::move(project));
+    return std::move(writer.inputs_);
+  }
+
+  // Rows stay typed here; the pending callback only prepares shared inputs.
+  template <class Table, class Scope>
+  static bool publish_recomputable_rows(
+      ConcurrentHashMap &map, const Table &rows,
+      const recompute::Inputs &inputs, Scope &scope) {
+    static_assert(Table::tracks_ordinals,
+                  "recomputable publication requires tracked ordinals");
+    return rows.visit([&](const Key &key, const Val &value, uint64_t ordinal) {
+      return map.put_recomputable(key, value, inputs, ordinal, scope);
+    });
+  }
+
+  template <class Table, class Scope, class Input, class Producer,
+            class Observer = NoRecipeObserver>
+  static bool publish_recomputable(
+      recompute::PartitionRecipes &plans, size_t partition,
+      const std::shared_ptr<ConcurrentHashMap> &map, const Table &rows,
+      Scope &scope, Input input, Producer producer, Observer observer = {}) {
+    const auto output = map;
+    if (!output) return false;
+    auto inputs = prepare_recomputable<Table>(
+        plans, partition, output, std::move(input), std::move(producer),
+        rows.size(), std::move(observer));
+    return publish_recomputable_rows(*output, rows, inputs, scope);
+  }
 
   bool get(const Key &key, Val *val, __DMH__, DereferenceScope &scope,
            bool debug_locked = false);
   bool put(const Key &key, Val val, __DMH__, DereferenceScope &scope);
-  bool put_recipe(const Key &key, Val val, uint64_t recipe_arg, __DMH__,
-                  DereferenceScope &scope);
   bool remove(const Key &key, __DMH__, DereferenceScope &scope);
   template <typename Fn>
   void for_each_locked(Fn &&fn, __DMH__, DereferenceScope &scope);
@@ -181,16 +460,19 @@ class ConcurrentHashMap {
     ON_MISS_END
     return get(key, val, __on_miss__, scope);
   }
+  // Report the matched record's location just before the lookup fetched it.
+  bool get_with_remote_status(const Key &key, Val *val, bool &was_remote,
+                              DereferenceScope &scope) {
+    ON_MISS_BEGIN
+    ON_MISS_END
+    was_remote = false;
+    return get_impl<true>(key, val, __on_miss__, scope, false, &was_remote);
+  }
+
   bool put(const Key &key, Val val, DereferenceScope &scope) {
     ON_MISS_BEGIN
     ON_MISS_END
     return put(key, val, __on_miss__, scope);
-  }
-  bool put_recipe(const Key &key, Val val, uint64_t recipe_arg,
-                  DereferenceScope &scope) {
-    ON_MISS_BEGIN
-    ON_MISS_END
-    return put_recipe(key, val, recipe_arg, __on_miss__, scope);
   }
   bool remove(const Key &key, DereferenceScope &scope) {
     ON_MISS_BEGIN
@@ -512,8 +794,7 @@ class ConcurrentHashMap {
       // Write object.
       data->key = *Context::get_key();
       data->val = Context::get_value();
-      hash_map->invoke_allocation_hooks(final_entry->ptr.obj(), scope, false,
-                                        nullptr, 0);
+      hash_map->invoke_allocation_hook(final_entry->ptr.obj());
 
       // Update the bitmap of the final bucket.
       assert(!bucket->has_bitmap(1u << distance_to_orig_bucket));
@@ -846,8 +1127,7 @@ class ConcurrentHashMap {
       // Write object.
       data->key = std::move(key);
       data->val = std::move(val);
-      map->invoke_allocation_hooks(final_entry->ptr.obj(), scope, false,
-                                   nullptr, 0);
+      map->invoke_allocation_hook(final_entry->ptr.obj());
 
       // Update the bitmap of the final bucket.
       assert(!bucket->has_bitmap(1u << distance_to_orig_bucket));
@@ -863,12 +1143,10 @@ class ConcurrentHashMap {
 
 template <typename Key, typename Val, typename Hash>
 inline ConcurrentHashMap<Key, Val, Hash>::ConcurrentHashMap(
-    uint32_t num_entries_shift, object_allocated_hook_t object_allocated_hook,
-    object_recipe_hook_t object_recipe_hook)
+    uint32_t num_entries_shift, object_allocated_hook_t object_allocated_hook)
     : kHashMask_((1 << num_entries_shift) - 1),
       kNumEntries_((1 << num_entries_shift) + kNeighborhood),
       object_allocated_hook_(object_allocated_hook),
-      object_recipe_hook_(object_recipe_hook),
       size(0) {
   assert(((kHashMask_ + 1) >> num_entries_shift) == 1);
   buckets_.reset(new BucketEntry[kNumEntries_]);
@@ -889,6 +1167,14 @@ inline bool ConcurrentHashMap<Key, Val, Hash>::get(const Key &key, Val *val,
                                                    __DMH__,
                                                    DereferenceScope &scope,
                                                    bool debug_locked) {
+  return get_impl<false>(key, val, __on_miss__, scope, debug_locked, nullptr);
+}
+
+template <typename Key, typename Val, typename Hash>
+template <bool ObserveRemote>
+inline bool ConcurrentHashMap<Key, Val, Hash>::get_impl(
+    const Key &key, Val *val, __DMH__, DereferenceScope &scope,
+    bool debug_locked, bool *was_remote) {
   uint32_t hash = get_hash(key);
   uint32_t bucket_idx = hash & kHashMask_;
   BucketEntry *bucket = &(buckets_[bucket_idx]);
@@ -908,8 +1194,13 @@ inline bool ConcurrentHashMap<Key, Val, Hash>::get(const Key &key, Val *val,
       auto offset = __builtin_ctz(bitmap);
       entry = &buckets_[bucket_idx + offset];
       if (!entry->ptr.is_null()) [[likely]] {
+        bool remote = false;
+        if constexpr (ObserveRemote) {
+          remote = entry->ptr.get_entry().load_state().state == cache::REMOTE;
+        }
         LiteAccessor<KVData> data = access_entry(entry, __on_miss__, scope);
         if (!data.is_null() && data->key == key) {
+          if constexpr (ObserveRemote) *was_remote = remote;
           *val = data->val;
           if constexpr (Lock) {
             bucket->spin.unlock();
@@ -952,21 +1243,20 @@ template <typename Key, typename Val, typename Hash>
 inline bool ConcurrentHashMap<Key, Val, Hash>::put(const Key &key, Val val,
                                                    __DMH__,
                                                    DereferenceScope &scope) {
-  return put_impl(key, std::move(val), __on_miss__, scope, false, nullptr, 0);
+  return put_impl(key, std::move(val), __on_miss__, scope, nullptr, 0);
 }
 
 template <typename Key, typename Val, typename Hash>
-inline bool ConcurrentHashMap<Key, Val, Hash>::put_recipe(
-    const Key &key, Val val, uint64_t recipe_arg, __DMH__,
-    DereferenceScope &scope) {
-  return put_impl(key, std::move(val), __on_miss__, scope, true,
-                  object_recipe_context_, recipe_arg);
+inline bool ConcurrentHashMap<Key, Val, Hash>::put_recomputable(
+    const Key &key, Val val, const recompute::Inputs &inputs,
+    uint64_t locator, __DMH__, DereferenceScope &scope) {
+  return put_impl(key, std::move(val), __on_miss__, scope, &inputs, locator);
 }
 
 template <typename Key, typename Val, typename Hash>
 inline bool ConcurrentHashMap<Key, Val, Hash>::put_impl(
     const Key &key, Val val, __DMH__, DereferenceScope &scope,
-    bool invoke_recipe, const void *recipe_context, uint64_t recipe_arg) {
+    const recompute::Inputs *recipe_inputs, uint64_t recipe_arg) {
   // 1. get bucket index
   uint32_t hash = get_hash(key);
   uint32_t bucket_idx = hash & kHashMask_;
@@ -1078,8 +1368,12 @@ inline bool ConcurrentHashMap<Key, Val, Hash>::put_impl(
   // Write object.
   data->key = key;
   data->val = std::move(val);
-  invoke_allocation_hooks(final_entry->ptr.obj(), scope, invoke_recipe,
-                          recipe_context, recipe_arg);
+  invoke_allocation_hook(final_entry->ptr.obj());
+  if (recipe_inputs != nullptr) {
+    scope.mark_recomputable(final_entry->ptr.obj(), *recipe_inputs,
+                            &recompute::PartitionRecipes::replay,
+                            recipe_arg);
+  }
 
   // Update the bitmap of the final bucket.
   assert(!bucket->has_bitmap(1u << distance_to_orig_bucket));

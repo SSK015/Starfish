@@ -3273,12 +3273,17 @@ class ConcurrentArrayCache {
     return accepted;
   }
 
+  // A transient move or eviction may be skipped. Ordinary demand will still
+  // recover the entry. Only probe local metadata, never fetch or wait here.
+  bool has_lost_recipe_backing(FarObjectEntry &entry, size_t endpoint) const;
+
   // Register the immutable-input recipe used when an EC-batch flat object
   // loses its only remote copy.  The entry owns one intrusive InputState
   // reference after a successful bind; the callback itself is never invoked
   // from a CQ completion handler (see recompute_recipe_path.ipp).
+  template <typename Callback>
   bool register_recompute_recipe(far_obj_t obj, const recompute::Inputs &inputs,
-                                 recompute::EntryFn callback, uint64_t arg) {
+                                 Callback callback, uint64_t arg) {
     const auto &config = ::starfish::get_config();
     if (obj.is_null() || !config.exclusive_cache ||
         !config.is_ec_batch_mode()) {
@@ -3293,13 +3298,178 @@ class ConcurrentArrayCache {
     return accepted;
   }
 
-  // A recipe promises immutable output.  Keep the old flag-only annotation
-  // mode writable; only a bound recipe rejects a mutable dereference.
-  void guard_recompute_mutation(const FarObjectEntry &entry) const {
-    if (entry.has_recompute_recipe()) {
-      ERROR("mutable access to a recompute recipe object");
+  // A mutable dereference is the explicit transition from reconstructed
+  // immutable state to ordinary writable state. The local bytes must already
+  // be valid; remote/FETCHING entries keep their recipe until fetch/recovery
+  // publishes LOCAL, where the caller retries this transition.
+  void wait_recompute_recipe_writeback(FarObjectEntry &entry) {
+    if (!entry.has_recompute_recipe()) return;
+    size_t passes = 0;
+    for (;;) {
+      auto state = entry.load_state(std::memory_order_acquire);
+      if (!entry.has_recompute_recipe()) return;
+      if (state.invalid || state.state == BUSY) {
+        uthread::yield();
+        continue;
+      }
+      if (state.state != LOCAL && state.state != PINNED &&
+          state.state != MARKED && state.state != EVICTING) {
+        return;
+      }
+      void *local_addr = entry.local_addr();
+      if (local_addr == nullptr) return;
+      auto *block =
+          static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
+      const bool flat_write_pending =
+          ::starfish::allocator::recompute_flat_write_pending(block);
+      if (!flat_write_pending && state.state != EVICTING) return;
+
+      if (!flat_write_pending) {
+        // EVICTING itself means a write owns the entry reference. This
+        // fallback covers an older/staged route that has not published the
+        // per-block marker yet; do not wait on unrelated LOCAL pins.
+        const size_t client_idx = entry.get_client_idx();
+        auto *client = rdma::get_client(client_idx);
+        size_t harvested = 0;
+        if (client != nullptr) {
+          for (size_t qp = 0; qp < client->get_local_qp_count(); ++qp) {
+            for (size_t endpoint = 0; endpoint < client->get_endpoint_count();
+                 ++endpoint) {
+              harvested += check_cq_idx_with_client_idx_endpoint(
+                  qp, client_idx, endpoint);
+            }
+          }
+        }
+        if (harvested == 0 || (++passes & 63u) == 0) uthread::yield();
+        continue;
+      }
+
+      // Pin the local block and rescue an in-flight eviction without waiting
+      // on unrelated reader refs. The per-block marker, not ref_cnt, names
+      // the flat DMA source whose completion must be drained.
+      if (state.ref_cnt == 255) {
+        uthread::yield();
+        continue;
+      }
+      auto pinned = state;
+      pinned.inc_ref_cnt();
+      if (pinned.state == MARKED || pinned.state == EVICTING) {
+        pinned.state = LOCAL;
+        pinned.inc_hotness();
+      }
+      if (!entry.cas_state_weak(state, pinned)) continue;
+
+      // Drain the posting client without holding invalid=1, so completion can
+      // commit or roll back the old flat allocation before a writer takes
+      // ownership.
+      const size_t client_idx = entry.get_client_idx();
+      auto *client = rdma::get_client(client_idx);
+      while (::starfish::allocator::recompute_flat_write_pending(block)) {
+        size_t harvested = 0;
+        if (client != nullptr) {
+          for (size_t qp = 0; qp < client->get_local_qp_count(); ++qp) {
+            for (size_t endpoint = 0; endpoint < client->get_endpoint_count();
+                 ++endpoint) {
+              harvested += check_cq_idx_with_client_idx_endpoint(
+                  qp, client_idx, endpoint);
+            }
+          }
+        }
+        if (::starfish::get_config().is_ec_batch_mode()) {
+          harvested += ec_batch_poll_all_cqs_once();
+        }
+        if (harvested == 0 || (++passes & 63u) == 0) uthread::yield();
+      }
+      entry.unpin();
+      return;
     }
   }
+
+  bool detach_recompute_recipe_if_local(far_obj_t obj) {
+    if (obj.is_null()) return false;
+    auto &entry = get_entry_of(obj);
+    if (!entry.has_recompute_recipe()) return false;
+
+    wait_ec_write_source(entry);
+    wait_recompute_recipe_writeback(entry);
+    for (;;) {
+      auto current = entry.load_state(std::memory_order_acquire);
+      if (current.invalid || current.state == BUSY) {
+        uthread::yield();
+        continue;
+      }
+      if (!entry.has_recompute_recipe()) return false;
+      if (current.state == EVICTING) {
+        wait_recompute_recipe_writeback(entry);
+        continue;
+      }
+      if (current.state != LOCAL && current.state != PINNED &&
+          current.state != MARKED && current.state != EVICTING) {
+        return false;
+      }
+      if (entry.local_addr() == nullptr) return false;
+
+      auto locked = current;
+      locked.invalid = 1;
+      if (!entry.cas_state_weak(current, locked)) continue;
+      if (locked.state == EVICTING) {
+        auto unlocked = locked;
+        unlocked.invalid = 0;
+        ASSERT(entry.cas_state_strong(locked, unlocked));
+        wait_recompute_recipe_writeback(entry);
+        continue;
+      }
+      if (!entry.has_recompute_recipe() ||
+          (locked.state != LOCAL && locked.state != PINNED &&
+           locked.state != MARKED) ||
+          entry.local_addr() == nullptr) {
+        auto unlocked = locked;
+        unlocked.invalid = 0;
+        ASSERT(entry.cas_state_strong(locked, unlocked));
+        return false;
+      }
+
+      const uint64_t old_remote = entry.remote_addr();
+      const bool had_backup = entry.has_remote_backup_reservation();
+      const bool drop_flat_remote =
+          old_remote != FarObjectEntry::RemoteAddrInvalid48;
+      if (had_backup) {
+        entry.set_remote_backup_reservation(false);
+      }
+      if (drop_flat_remote) {
+        entry.set_remote_invalid();
+      }
+
+      recompute::InputState *input_state =
+          entry.detach_recompute_recipe_locked();
+      ASSERT(input_state != nullptr);
+      auto unlocked = locked;
+      unlocked.invalid = 0;
+      unlocked.dirty = 1;
+      unlocked.inc_hotness();
+      if (unlocked.state == MARKED || unlocked.state == EVICTING) {
+        unlocked.state = LOCAL;
+      }
+      ASSERT(entry.cas_state_strong(locked, unlocked));
+      if (had_backup) {
+        release_remote_backup_budget(obj.size);
+        profile::count_remote_backup_invalidated(obj.size);
+      }
+      if (drop_flat_remote) remote_allocator.deallocate(old_remote);
+      input_state->release();
+      return true;
+    }
+  }
+
+  // Materialize a recipe output for mutation. This blocks until local bytes
+  // are ready, then atomically drops the recipe, clears Recovery's
+  // recomputable bit, retires the flat backing and marks the entry dirty.
+  bool materialize_recompute_recipe_for_write(
+      far_obj_t obj, DereferenceScope &scope,
+      far_obj_t *resolved_owner = nullptr);
+  void *prepare_recipe_mutable_accessor(far_obj_t obj, void *local_addr,
+                                        far_obj_t *resolved_owner,
+                                        bool *detached);
 
   bool is_recomputable(far_obj_t obj) const {
     return !obj.is_null() && obj.get_entry_ptr()->is_recomputable();
@@ -3728,7 +3898,6 @@ class ConcurrentArrayCache {
                          bool sync_batch_eligible = false) {
     auto &entry = get_entry_of(obj);
     uint64_t remote_addr = entry.remote_addr();
-    assert(remote_addr != FarObjectEntry::RemoteAddrInvalid48);
     void *local_addr = entry.local_addr();
     auto block =
         static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
@@ -3738,6 +3907,16 @@ class ConcurrentArrayCache {
     size_t qp_idx = client->get_qp_idx();
     const auto &config = ::starfish::get_config();
     if constexpr (IsReadRequest) {
+      if (remote_addr == FarObjectEntry::RemoteAddrInvalid48) {
+        if (!entry.has_recompute_recipe()) {
+          ERROR("FETCH_FAIL: invalid remote address without a recompute recipe");
+        }
+        // A virtual recipe eviction has no flat address to read. Publish the
+        // same per-block recovery gate as a failed READ; the fetch wait will
+        // rebuild the local bytes and complete the normal FETCHING epoch.
+        ::starfish::allocator::begin_normal_read_recovery(block);
+        return;
+      }
       if (config.is_ec_batch_mode() && !entry.is_recomputable() &&
           ec_batch_uses_split(obj.size)) {
         // A large object's remote address anchors data fragment 0;
@@ -3747,6 +3926,8 @@ class ConcurrentArrayCache {
         (void)post_ec_degraded_read(obj, client_idx, local_addr);
         return;
       }
+    } else {
+      assert(remote_addr != FarObjectEntry::RemoteAddrInvalid48);
     }
     size_t endpoint_idx = 0;
     size_t offset = remote_addr;
@@ -5467,17 +5648,17 @@ class ConcurrentArrayCache {
     return fetch_with_miss_handler(obj, __on_miss__, scope);
   }
 
-  bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl);
+  bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl,
+                   DereferenceScope *scope = nullptr);
 
   void *fetch_with_miss_handler(far_obj_t obj, const DataMissHandler &handler,
                                 DereferenceScope &scope);
   // An accessor move can replace the Entry during recovery. Callers must
   // use the returned owner instead of dereferencing their original pointer.
-  [[nodiscard]] FarObjectEntry *fetch_wait_until_local(FarObjectEntry *entry,
-                                                       void *wait_local_addr,
-                                                       size_t qp_idx,
-                                                       size_t client_idx,
-                                                       size_t endpoint_idx);
+  [[nodiscard]] FarObjectEntry *fetch_wait_until_local(
+      FarObjectEntry *entry, void *wait_local_addr, size_t qp_idx,
+      size_t client_idx, size_t endpoint_idx,
+      DereferenceScope *scope = nullptr);
 
  public:
   static constexpr const char *kProfilingMethodDisabled = "disabled";
@@ -5672,9 +5853,10 @@ class ConcurrentArrayCache {
       ::starfish::allocator::BlockHead *block);
   void handle_ec_read_segment_complete(uint64_t wr_id);
   bool ec_recovery_assist_wait(FarObjectEntry *entry, size_t qp_idx,
-                               size_t client_idx);
+                               size_t client_idx, DereferenceScope *scope);
   bool recompute_recipe_assist_wait(FarObjectEntry *entry, size_t qp_idx,
-                                    size_t client_idx);
+                                    size_t client_idx,
+                                    DereferenceScope *scope);
   void ec_read_recovery_diag_report(const char *where);
 
   // Observability of the degraded read path / of the write-side group

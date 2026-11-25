@@ -10,7 +10,8 @@ namespace starfish {
 
 namespace cache {
 
-bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl);
+bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl,
+                 DereferenceScope *scope = nullptr);
 size_t check_cq();
 bool at_local(far_obj_t obj);
 
@@ -69,10 +70,10 @@ struct UniqueFarPtrBase {
   template <bool Mut = false, typename Scope>
   __attribute__((always_inline)) LiteAccessor<T, Mut> access(
       Scope &&scope) const {
-    if constexpr (Mut) {
-      Cache::get_default()->guard_recompute_mutation(entry);
-    }
     bool fast = entry.load_state().is_deref_fast_path<Mut>();
+    if constexpr (Mut) {
+      if (entry.has_recompute_recipe()) fast = false;
+    }
     if (fast) [[likely]] {
       Cache::get_default()->record_local_fast_path_access(
           entry,
@@ -89,10 +90,10 @@ struct UniqueFarPtrBase {
   template <bool Mut = false, typename Scope>
   __attribute__((always_inline)) LiteAccessor<T, Mut> access(
       __DMH__, Scope &&scope) const {
-    if constexpr (Mut) {
-      Cache::get_default()->guard_recompute_mutation(entry);
-    }
     bool fast = entry.load_state().is_deref_fast_path<Mut>();
+    if constexpr (Mut) {
+      if (entry.has_recompute_recipe()) fast = false;
+    }
     if (fast) [[likely]] {
       Cache::get_default()->record_local_fast_path_access(
           entry,
@@ -275,13 +276,21 @@ class LiteAccessor {
 
   LiteAccessor<T, true> as_mut() const {
     check(block, local_ptr);
-    Cache::get_default()->guard_recompute_mutation(*get_obj().get_entry_ptr());
+    auto cache = Cache::get_default();
+    auto obj = get_obj();
+    void *writable_addr = const_cast<T *>(local_ptr);
+    bool detached = false;
+    if (obj.get_entry_ptr()->has_recompute_recipe()) {
+      writable_addr = cache->prepare_recipe_mutable_accessor(
+          obj, writable_addr, &obj, &detached);
+    }
     if constexpr (!Mut) {
-      Cache::get_default()->mark_dirty(get_obj());
+      if (!detached) cache->mark_dirty(obj);
     }
     LiteAccessor<T, true> mut_accessor;
-    mut_accessor.block = block;
-    mut_accessor.local_ptr = const_cast<T *>(local_ptr);
+    mut_accessor.block =
+        static_cast<allocator::BlockHead *>(writable_addr) - 1;
+    mut_accessor.local_ptr = static_cast<T *>(writable_addr);
     return mut_accessor;
   }
 
@@ -414,13 +423,21 @@ class LiteAccessor<void, Mut> {
 
   LiteAccessor<void, true> as_mut() const {
     check(block, local_ptr);
-    Cache::get_default()->guard_recompute_mutation(*get_obj().get_entry_ptr());
+    auto cache = Cache::get_default();
+    auto obj = get_obj();
+    void *writable_addr = const_cast<void *>(local_ptr);
+    bool detached = false;
+    if (obj.get_entry_ptr()->has_recompute_recipe()) {
+      writable_addr = cache->prepare_recipe_mutable_accessor(
+          obj, writable_addr, &obj, &detached);
+    }
     if constexpr (!Mut) {
-      Cache::get_default()->mark_dirty(get_obj());
+      if (!detached) cache->mark_dirty(obj);
     }
     LiteAccessor<void, true> mut_accessor;
-    mut_accessor.block = block;
-    mut_accessor.local_ptr = const_cast<void *>(local_ptr);
+    mut_accessor.block =
+        static_cast<allocator::BlockHead *>(writable_addr) - 1;
+    mut_accessor.local_ptr = writable_addr;
     return mut_accessor;
   }
 

@@ -161,15 +161,15 @@ class ChunkedGraph {
           for (i = std::max(i, j + 1);
                i < chunks.size() && i < j + prefetch_distance; i++) {
             cache->prefetch(chunks[i].obj(), oms);
-            if (i % 8 == 0 && cache::check_fetch(__entry__, __ddl__)) break;
+            if (i % 8 == 0 && cache::check_fetch(__entry__, __ddl__, &scope)) break;
           }
-          while (!cache::check_fetch(__entry__, __ddl__)) {
+          while (!cache::check_fetch(__entry__, __ddl__, &scope)) {
             uthread::yield();
           }
         } else {
           do {
             uthread::yield();
-          } while (!cache::check_fetch(__entry__, __ddl__));
+          } while (!cache::check_fetch(__entry__, __ddl__, &scope));
         }
         ON_MISS_END
         LiteAccessor<EdgeListChunkHeader> chunk(chunks[j], __on_miss__, scope);
@@ -227,12 +227,12 @@ class ChunkedGraph {
               for (i = std::max(i, j + 1); i < chunks.size() && i < j + 1024;
                    i++) {
                 cache->prefetch(chunks[i].obj(), oms);
-                if (i % 8 == 0 && cache::check_fetch(__entry__, __ddl__)) break;
+                if (i % 8 == 0 && cache::check_fetch(__entry__, __ddl__, &scope)) break;
               }
             } else {
               do {
                 uthread::yield();
-              } while (!cache::check_fetch(__entry__, __ddl__));
+              } while (!cache::check_fetch(__entry__, __ddl__, &scope));
             }
             ON_MISS_END
             LiteAccessor<EdgeListChunkHeader> chunk(chunks[j], __on_miss__,
@@ -568,13 +568,13 @@ class ChunkedGraph {
                  j++) {
               out_edge_lists.prefetch(out_edges[vertices[j]], oms);
               if (j % 8 == 0 &&
-                  starfish::cache::check_fetch(__entry__, __ddl__))
+                  starfish::cache::check_fetch(__entry__, __ddl__, &scope))
                 break;
             }
           } else {
             do {
               uthread::yield();
-            } while (!cache::check_fetch(__entry__, __ddl__));
+            } while (!cache::check_fetch(__entry__, __ddl__, &scope));
           }
           ON_MISS_END
           edge_list = out_edge_lists.get(out_edges[vertex], __on_miss__, scope);

@@ -7,6 +7,17 @@ import json
 from pathlib import Path
 
 
+def checksum_counts(counts: dict[str, int]) -> str:
+    """Match wordcount's sorted FNV-1a checksum on Linux x86-64."""
+    value = 1469598103934665603
+    for word, count in sorted(counts.items()):
+        payload = word.encode("ascii") + b"\0" + count.to_bytes(8, "little")
+        for byte in payload:
+            value ^= byte
+            value = (value * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+    return f"0x{value:016x}"
+
+
 def build(output: Path, force: bool) -> None:
     output.mkdir(parents=True, exist_ok=True)
     paths = [output / "input.txt", output / "expected-counts.json", output / "manifest.json"]
@@ -35,6 +46,7 @@ def build(output: Path, force: bool) -> None:
     manifest = {
         "unique_words": len(counts),
         "total_words": sum(counts.values()),
+        "expected_checksum": checksum_counts(counts),
         "bytes": input_path.stat().st_size,
         "sha256": hashlib.sha256(input_path.read_bytes()).hexdigest(),
         "description": "deterministic full-dictionary functional fixture, not a performance baseline",

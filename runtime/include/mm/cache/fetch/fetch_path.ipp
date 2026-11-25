@@ -115,7 +115,11 @@ inline bool ConcurrentArrayCache::post_fetch_lite(far_obj_t obj,
                                                   bool sync_batch_eligible) {
   auto &entry = get_entry_of(obj);
   auto old_state = entry.load_state(std::memory_order::relaxed);
-  if (fetch_lite_fast_path<Mut>(old_state)) [[likely]] {
+  bool fast_path = fetch_lite_fast_path<Mut>(old_state);
+  if constexpr (Mut) {
+    if (entry.has_recompute_recipe()) fast_path = false;
+  }
+  if (fast_path) [[likely]] {
     assert(entry.local_addr() != nullptr);
     if constexpr (Profile) {
       record_local_fast_path_access(entry, Mut ? profile::ReferenceKind::Write
@@ -127,22 +131,27 @@ inline bool ConcurrentArrayCache::post_fetch_lite(far_obj_t obj,
     }
     return true;
   }
-  return post_fetch_lite_slow_path<Mut, Profile>(entry, obj, scope,
-                                                 sync_batch_eligible);
+  const bool at_local = post_fetch_lite_slow_path<Mut, Profile>(
+      entry, obj, scope, sync_batch_eligible);
+  if constexpr (Mut) {
+    if (at_local) (void)detach_recompute_recipe_if_local(obj);
+  }
+  return at_local;
 }
 
 template <bool Mut, bool Profile>
 inline bool ConcurrentArrayCache::post_fetch_lite_slow_path(
     FarObjectEntry &entry, far_obj_t obj, DereferenceScope &scope,
     bool sync_batch_eligible) {
-  if constexpr (Mut) {
-    // Reject before invalidating retained backups or dirtying the state.
-    // Flag-only recomputable annotations remain writable; only a bound
-    // immutable recipe is protected.
-    guard_recompute_mutation(entry);
-  }
   auto old_state = entry.load_state(std::memory_order::relaxed);
 retry:
+  if constexpr (Mut) {
+    if (entry.has_recompute_recipe()) {
+      wait_ec_write_source(entry);
+      wait_recompute_recipe_writeback(entry);
+      old_state = entry.load_state(std::memory_order_acquire);
+    }
+  }
   if (old_state.invalid) [[unlikely]] {
     auto spin_start = get_cycles();
     profile::count_excl_move_lock_spin();
@@ -302,21 +311,28 @@ retry:
 }
 
 inline bool ConcurrentArrayCache::check_fetch(FarObjectEntry *entry,
-                                              fetch_ddl_t &ddl) {
+                                              fetch_ddl_t &ddl,
+                                              DereferenceScope *scope) {
   const auto state = entry->load_state(std::memory_order_acquire);
   if (state.invalid || state.state == BUSY) return false;
   fetch_ddl_t now = __rdtsc();
   auto client_idx = entry->get_client_idx();
   auto *client = rdma::get_client(client_idx);
   size_t qp_idx = client->get_qp_idx();
-  auto [endpoint_idx, _offset] =
-      ::starfish::get_config().map_remote_addr(entry->remote_addr());
+  if (recompute_recipe_assist_wait(entry, qp_idx, client_idx, scope)) {
+    return entry->is_local();
+  }
+  const uint64_t current_remote = entry->remote_addr();
+  const size_t endpoint_idx =
+      current_remote == FarObjectEntry::RemoteAddrInvalid48
+          ? 0
+          : ::starfish::get_config().map_remote_addr(current_remote).first;
   // EC read-side recovery (ft_method=ec_batch): the poll below only reaps the
   // endpoint of the object's own segment, and that may be the endpoint that
   // is gone.  Re-post the entry once as a degraded read of its slot group and
   // reap every endpoint instead.  False - and nothing changes - unless
   // ec_batch runs and that endpoint is dead.
-  if (ec_recovery_assist_wait(entry, qp_idx, client_idx)) {
+  if (ec_recovery_assist_wait(entry, qp_idx, client_idx, scope)) {
     return entry->is_local();
   }
   if (now >= ddl) [[unlikely]] {
@@ -331,7 +347,7 @@ inline bool ConcurrentArrayCache::check_fetch(FarObjectEntry *entry,
 
 inline FarObjectEntry *ConcurrentArrayCache::fetch_wait_until_local(
     FarObjectEntry *entry, void *wait_local_addr, size_t qp_idx,
-    size_t client_idx, size_t endpoint_idx) {
+    size_t client_idx, size_t endpoint_idx, DereferenceScope *scope) {
   // Keep the allocator block as a fallback wait identity. Accessor moves transfer
   // FETCHING and the recipe binding to a new FarObjectEntry, while the
   // original waiter's entry pointer becomes FREE; resolving this metadata
@@ -371,11 +387,14 @@ inline FarObjectEntry *ConcurrentArrayCache::fetch_wait_until_local(
         endpoint_idx =
             ::starfish::get_config().map_remote_addr(current_remote).first;
       }
+      if (recompute_recipe_assist_wait(entry, qp_idx, client_idx, scope)) {
+        continue;
+      }
       // While the endpoint of this object's own segment is gone, the
       // degraded read of its slot group is what completes the fetch; the
       // assist reaps the CQEs of every endpoint itself (the four reads of
       // the group do not arrive on the dead one).
-      if (ec_recovery_assist_wait(entry, qp_idx, client_idx)) {
+      if (ec_recovery_assist_wait(entry, qp_idx, client_idx, scope)) {
         continue;
       }
       check_cq_idx_with_client_idx_endpoint(qp_idx, client_idx, endpoint_idx);
@@ -383,6 +402,62 @@ inline FarObjectEntry *ConcurrentArrayCache::fetch_wait_until_local(
   }
   scope_diag::clear_pending(diag_fibre);
   return entry;
+}
+
+inline void *ConcurrentArrayCache::prepare_recipe_mutable_accessor(
+    far_obj_t obj, void *local_addr, far_obj_t *resolved_owner,
+    bool *detached) {
+  if (detached != nullptr) *detached = false;
+  if (local_addr == nullptr) {
+    ERROR("mutable recipe accessor has no local buffer");
+  }
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
+  auto owner = block->obj_meta_data.load(std::memory_order_acquire);
+  if (owner.is_null()) {
+    ERROR("mutable recipe accessor lost its block owner");
+  }
+  obj = owner;
+  auto *entry = &get_entry_of(obj);
+  if (!entry->has_recompute_recipe()) {
+    if (resolved_owner != nullptr) *resolved_owner = obj;
+    return local_addr;
+  }
+
+  auto state = entry->load_state(std::memory_order_acquire);
+  if (state.invalid || state.state == BUSY || state.state == FETCHING) {
+    const size_t client_idx = entry->get_client_idx();
+    auto *client = rdma::get_client(client_idx);
+    const size_t qp_idx = client != nullptr ? client->get_qp_idx() : 0;
+    const uint64_t remote_addr = entry->remote_addr();
+    const size_t endpoint_idx =
+        remote_addr == FarObjectEntry::RemoteAddrInvalid48
+            ? 0
+            : ::starfish::get_config().map_remote_addr(remote_addr).first;
+    entry = fetch_wait_until_local(entry, local_addr, qp_idx, client_idx,
+                                   endpoint_idx);
+    local_addr = entry->local_addr();
+    if (local_addr == nullptr) {
+      ERROR("mutable recipe accessor completed without local bytes");
+    }
+    block =
+        static_cast<::starfish::allocator::BlockHead *>(local_addr) - 1;
+    owner = block->obj_meta_data.load(std::memory_order_acquire);
+    if (owner.is_null()) {
+      ERROR("mutable recipe accessor lost its owner after fetch");
+    }
+    obj = owner;
+    entry = &get_entry_of(obj);
+  }
+
+  if (entry->has_recompute_recipe()) {
+    if (detach_recompute_recipe_if_local(obj)) {
+      if (detached != nullptr) *detached = true;
+    } else if (entry->has_recompute_recipe()) {
+      ERROR("mutable recipe accessor is not backed by local bytes");
+    }
+  }
+  if (resolved_owner != nullptr) *resolved_owner = obj;
+  return local_addr;
 }
 
 inline void *ConcurrentArrayCache::fetch_with_miss_handler(
@@ -397,11 +472,14 @@ inline void *ConcurrentArrayCache::fetch_with_miss_handler(
     auto client_idx = entry->get_client_idx();
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
-    auto [endpoint_idx, _offset] =
-        ::starfish::get_config().map_remote_addr(entry->remote_addr());
+    const uint64_t remote_addr = entry->remote_addr();
+    const size_t endpoint_idx =
+        remote_addr == FarObjectEntry::RemoteAddrInvalid48
+            ? 0
+            : ::starfish::get_config().map_remote_addr(remote_addr).first;
     handler(entry, ddl);
     entry = fetch_wait_until_local(entry, wait_local_addr, qp_idx, client_idx,
-                                   endpoint_idx);
+                                   endpoint_idx, &scope);
   }
   profile::resume_work(work_suspended);
   void *local_ptr = entry->local_addr();
@@ -414,8 +492,21 @@ inline void *ConcurrentArrayCache::fetch_lite(far_obj_t obj,
                                               const DataMissHandler &handler,
                                               DereferenceScope &scope) {
   auto entry = &get_entry_of(obj);
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) {
+      far_obj_t resolved_owner = obj;
+      (void)materialize_recompute_recipe_for_write(obj, scope,
+                                                   &resolved_owner);
+      if (!resolved_owner.is_null()) obj = resolved_owner;
+      entry = &get_entry_of(obj);
+    }
+  }
   auto state = entry->load_state(std::memory_order::relaxed);
-  if (fetch_lite_fast_path<Mut>(state)) [[likely]] {
+  bool fast_path = fetch_lite_fast_path<Mut>(state);
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) fast_path = false;
+  }
+  if (fast_path) [[likely]] {
     record_local_fast_path_access(*entry, Mut ? profile::ReferenceKind::Write
                                               : profile::ReferenceKind::Read);
     void *local_ptr = entry->local_addr();
@@ -429,8 +520,21 @@ template <bool Mut>
 inline void *ConcurrentArrayCache::fetch_lite_no_profile(
     far_obj_t obj, const DataMissHandler &handler, DereferenceScope &scope) {
   auto entry = &get_entry_of(obj);
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) {
+      far_obj_t resolved_owner = obj;
+      (void)materialize_recompute_recipe_for_write(obj, scope,
+                                                   &resolved_owner);
+      if (!resolved_owner.is_null()) obj = resolved_owner;
+      entry = &get_entry_of(obj);
+    }
+  }
   auto state = entry->load_state(std::memory_order::relaxed);
-  if (fetch_lite_fast_path<Mut>(state)) [[likely]] {
+  bool fast_path = fetch_lite_fast_path<Mut>(state);
+  if constexpr (Mut) {
+    if (entry->has_recompute_recipe()) fast_path = false;
+  }
+  if (fast_path) [[likely]] {
     record_local_fast_path_reference(
         *entry,
         Mut ? profile::ReferenceKind::Write : profile::ReferenceKind::Read);
@@ -448,16 +552,26 @@ inline void *ConcurrentArrayCache::fetch_lite_no_profile(
     auto client_idx = entry->get_client_idx();
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
-    auto [endpoint_idx, _offset] =
-        ::starfish::get_config().map_remote_addr(entry->remote_addr());
+    const uint64_t remote_addr = entry->remote_addr();
+    const size_t endpoint_idx =
+        remote_addr == FarObjectEntry::RemoteAddrInvalid48
+            ? 0
+            : ::starfish::get_config().map_remote_addr(remote_addr).first;
 
     handler(entry, ddl);
     entry = fetch_wait_until_local(entry, wait_local_addr, qp_idx, client_idx,
-                                   endpoint_idx);
+                                   endpoint_idx, &scope);
   }
 
   profile::resume_work(work_suspended);
   void *local_ptr = entry->local_addr();
+  if constexpr (Mut) {
+    auto *block = static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
+    const auto owner = block->obj_meta_data.load(std::memory_order_acquire);
+    if (!owner.is_null()) {
+      (void)detach_recompute_recipe_if_local(owner);
+    }
+  }
   record_simple_local_access(local_ptr);
   return local_ptr;
 }
@@ -476,23 +590,54 @@ inline void *ConcurrentArrayCache::fetch_lite_slow_path(
     auto client_idx = entry->get_client_idx();
     auto *client = rdma::get_client(client_idx);
     size_t qp_idx = client->get_qp_idx();
-    auto [endpoint_idx, _offset] =
-        ::starfish::get_config().map_remote_addr(entry->remote_addr());
+    const uint64_t remote_addr = entry->remote_addr();
+    const size_t endpoint_idx =
+        remote_addr == FarObjectEntry::RemoteAddrInvalid48
+            ? 0
+            : ::starfish::get_config().map_remote_addr(remote_addr).first;
 
     handler(entry, ddl);
     entry = fetch_wait_until_local(entry, wait_local_addr, qp_idx, client_idx,
-                                   endpoint_idx);
+                                   endpoint_idx, &scope);
   }
 
   profile::resume_work(work_suspended);
   void *local_ptr = entry->local_addr();
+  if constexpr (Mut) {
+    auto *block = static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
+    const auto owner = block->obj_meta_data.load(std::memory_order_acquire);
+    if (!owner.is_null()) {
+      (void)detach_recompute_recipe_if_local(owner);
+    }
+  }
   record_simple_local_access(local_ptr);
   return local_ptr;
+}
+
+inline bool ConcurrentArrayCache::materialize_recompute_recipe_for_write(
+    far_obj_t obj, DereferenceScope &scope, far_obj_t *resolved_owner) {
+  if (resolved_owner != nullptr) *resolved_owner = obj;
+  if (obj.is_null() || !get_entry_of(obj).has_recompute_recipe()) return false;
+  ON_MISS_BEGIN
+  ON_MISS_END
+  void *local_ptr = fetch_lite<false>(obj, __on_miss__, scope);
+  auto *block = static_cast<::starfish::allocator::BlockHead *>(local_ptr) - 1;
+  const auto owner = block->obj_meta_data.load(std::memory_order_acquire);
+  if (resolved_owner != nullptr) *resolved_owner = owner;
+  return !owner.is_null() && detach_recompute_recipe_if_local(owner);
 }
 
 template <bool Mut>
 inline std::pair<bool, void *> ConcurrentArrayCache::async_fetch_lite(
     far_obj_t obj, DereferenceScope &scope) {
+  if constexpr (Mut) {
+    if (get_entry_of(obj).has_recompute_recipe()) {
+      ON_MISS_BEGIN
+      ON_MISS_END
+      void *local_addr = fetch_lite<Mut>(obj, __on_miss__, scope);
+      return {true, local_addr};
+    }
+  }
   bool at_local = post_fetch_lite<Mut, true>(obj, scope);
   return {at_local, get_entry_of(obj).local_addr()};
 }
@@ -501,6 +646,15 @@ template <bool Mut>
 inline std::pair<bool, void *>
 ConcurrentArrayCache::async_fetch_lite_no_profile(far_obj_t obj,
                                                   DereferenceScope &scope) {
+  if constexpr (Mut) {
+    if (get_entry_of(obj).has_recompute_recipe()) {
+      ON_MISS_BEGIN
+      ON_MISS_END
+      void *local_addr =
+          fetch_lite_no_profile<Mut>(obj, __on_miss__, scope);
+      return {true, local_addr};
+    }
+  }
   bool at_local = post_fetch_lite<Mut, false>(obj, scope);
   return {at_local, get_entry_of(obj).local_addr()};
 }

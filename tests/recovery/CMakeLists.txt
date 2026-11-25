@@ -26,6 +26,7 @@ set(RECOVERY_CPU_TESTS
     entry_frequency
     entry_frequency_lifecycle
     entry_frequency_oom
+    recovery_stats_wordcount
     recomputable_entry
     recompute_recipe)
 
@@ -37,6 +38,8 @@ foreach(test_name IN LISTS RECOVERY_CPU_TESTS)
     add_test(NAME recovery_${test_name} COMMAND test_${test_name})
     set_tests_properties(recovery_${test_name} PROPERTIES TIMEOUT 60)
 endforeach()
+
+target_include_directories(test_recovery_stats_wordcount PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../runtime/include")
 
 # Count real coefficient expansions in the test, not in the production hot path.
 target_link_options(test_ec_isal_codec PRIVATE -Wl,--wrap=ec_init_tables)
@@ -57,3 +60,22 @@ set_tests_properties(recovery_background_rebuild_control PROPERTIES TIMEOUT 60)
 add_test(NAME recovery_background_rebuild_creation_race
          COMMAND test_background_rebuild_manager creation-race)
 set_tests_properties(recovery_background_rebuild_creation_race PROPERTIES TIMEOUT 60)
+
+add_executable(test_partition_recipes partition_recipes.cpp)
+target_compile_options(test_partition_recipes PRIVATE -UNDEBUG)
+target_link_libraries(test_partition_recipes PRIVATE ${COMMON_LIBS})
+add_test(NAME recovery_partition_recipes COMMAND test_partition_recipes)
+set_tests_properties(recovery_partition_recipes PROPERTIES TIMEOUT 30)
+
+add_executable(test_ordinal_table ordinal_table.cpp)
+target_include_directories(test_ordinal_table PRIVATE "${PROJECT_SOURCE_DIR}/runtime/include")
+target_compile_options(test_ordinal_table PRIVATE -UNDEBUG)
+target_link_libraries(test_ordinal_table PRIVATE ${COMMON_LIBS})
+add_test(NAME recovery_ordinal_table COMMAND test_ordinal_table)
+set_tests_properties(recovery_ordinal_table PROPERTIES TIMEOUT 30)
+
+# Manual real-RDMA paper-style single-object recomputation fixture. It requires
+# an external seven-endpoint harness, so it is intentionally not a CTest test.
+add_executable(paper_object_recovery paper_object_fixture.cpp)
+target_compile_options(paper_object_recovery PRIVATE -UNDEBUG)
+target_link_libraries(paper_object_recovery PRIVATE ${COMMON_LIBS})

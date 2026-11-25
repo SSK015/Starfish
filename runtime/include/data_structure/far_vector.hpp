@@ -204,7 +204,7 @@ class FarVector {
             for (size_t prefetch_i = i + 1; prefetch_i < lim; prefetch_i++) {
               Cache::get_default()->prefetch(that.groups_[prefetch_i].obj(),
                                              oms);
-              if (cache::check_fetch(__entry__, __ddl__)) {
+              if (cache::check_fetch(__entry__, __ddl__, &scope)) {
                 return;
               }
             }

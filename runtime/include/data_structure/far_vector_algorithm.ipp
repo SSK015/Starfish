@@ -80,7 +80,7 @@ void FarVector<T, GroupSize>::merge_sort_inrecursive(in_iterator_t *begin_group,
             cache::OnMissScope oms(__entry__, &scope);
             for (in_iterator_t *uptr = group_uptr + 1; uptr < lim; uptr++) {
               Cache::get_default()->prefetch(uptr->obj(), oms);
-              if (cache::check_fetch(__entry__, __ddl__)) {
+              if (cache::check_fetch(__entry__, __ddl__, &scope)) {
                 return;
               }
             }
@@ -169,7 +169,7 @@ void FarVector<T, GroupSize>::inc_group_idx(in_iterator_t *&group,
       cache::OnMissScope oms(__entry__, scope);
       for (in_iterator_t *uptr = group + 1; uptr < lim; uptr++) {
         Cache::get_default()->prefetch(uptr->obj(), oms);
-        if (cache::check_fetch(__entry__, __ddl__)) {
+        if (cache::check_fetch(__entry__, __ddl__, scope)) {
           return;
         }
       }
@@ -305,7 +305,7 @@ void FarVector<T, GroupSize>::merge_sort_recursive(
       cache::OnMissScope oms(__entry__, &root_scope);
       for (in_iterator_t *uptr = begin + 1; uptr < lim; uptr++) {
         Cache::get_default()->prefetch(uptr->obj(), oms);
-        if (cache::check_fetch(__entry__, __ddl__)) {
+        if (cache::check_fetch(__entry__, __ddl__, &root_scope)) {
           return;
         }
       }

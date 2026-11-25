@@ -126,6 +126,24 @@ int run() {
                "post-release ordinary READ pin is accounted");
   block.pending_rdma_reads.store(0, std::memory_order_release);
 
+  // A flat recipe write and an EC write must never own the same DMA source.
+  block.normal_read_recovery_active.store(1);
+  checks.check(try_begin_recompute_flat_write(&block) &&
+                   block_has_completion_owner(&block),
+               "flat eviction holds the recovered block until WRITE completion");
+  checks.check(!try_begin_recompute_flat_write(&block) &&
+                   !try_borrow_ec_write_source(&block, true) &&
+                   !try_claim_degraded_read(&block) &&
+                   acquire_normal_read_pin(&block) == 0,
+               "active flat write excludes other DMA owners");
+  end_recompute_flat_write(&block);
+  checks.check(!block_has_completion_owner(&block) &&
+                   block.normal_read_recovery_active.load() == 1,
+               "flat WRITE completion preserves the closed read gate");
+  block.pending_rdma_reads.store(1);
+  checks.check(!try_begin_recompute_flat_write(&block),
+               "flat write waits for previously posted reads to drain");
+
   std::printf("EC_DIRECT_SOURCE_GATE checks=%d failures=%d\n", checks.count,
               checks.failures);
   if (checks.failures == 0) std::puts("EC_DIRECT_SOURCE_GATE_PASS");

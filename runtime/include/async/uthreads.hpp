@@ -1,9 +1,11 @@
 #pragma once
 #include <sched.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -36,9 +38,26 @@ inline void remove_yield_no_ready_progress() {
   yield_no_ready_progress.store(nullptr, std::memory_order_release);
 }
 
-inline void runtime_init(size_t workers = 1) { es = FibreInit(1, workers); }
+// Runtime initialization/destruction are quiescent lifecycle operations.
+// Snapshot the initialized application pool, including libfibre overrides,
+// before any separately created background cluster can become the caller.
+// Runtime callers cap application slots to exclude shared evacuation capacity.
+inline size_t application_worker_count = 0;
 
-inline void runtime_destroy() {}
+inline void runtime_init(
+    size_t workers = 1,
+    size_t application_worker_slots = std::numeric_limits<size_t>::max()) {
+  es = FibreInit(1, workers);
+  const size_t actual_workers =
+      ::Context::CurrCluster().getWorkerSysIDs(nullptr, 0);
+  application_worker_count = std::min(actual_workers, application_worker_slots);
+}
+
+inline void runtime_destroy() { application_worker_count = 0; }
+
+inline size_t get_application_worker_count() {
+  return application_worker_count;
+}
 
 inline bool separate_background_cluster_enabled() {
   static const bool enabled = [] {

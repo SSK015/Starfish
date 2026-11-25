@@ -177,7 +177,7 @@ variable alone does not select an external checkout. See
 | [Llama 2 chat demo](apps/llama/README.md) (`apps/llama/`) | `run_chat_far` |
 | `apps/bfs/` | `gapbs_bfs_chunked` |
 | `apps/mg/` | `mg` |
-| `apps/wordcount/` | `wordcount_far`, `wordcount_native`, `word_length_stats` |
+| [Wordcount](apps/wordcount/README.md) | `wordcount_native`, `wordcount_far`, `wordcount_recipes`, `word_length_stats` |
 | `apps/nq/` | `nhop_graph` |
 | `apps/kvs/` | `kvs_throughput` |
 | `apps/bandwidth_microbenchmark/` | `bandwidth_microbenchmark`, `bandwidth_microbenchmark_512` |

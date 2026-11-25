@@ -3,8 +3,9 @@
 
 namespace starfish::cache {
 
-inline bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl) {
-  return Cache::get_default()->check_fetch(entry, ddl);
+inline bool check_fetch(FarObjectEntry *entry, fetch_ddl_t &ddl,
+                        DereferenceScope *scope) {
+  return Cache::get_default()->check_fetch(entry, ddl, scope);
 }
 
 inline size_t check_cq() { return Cache::get_default()->check_cq(); }

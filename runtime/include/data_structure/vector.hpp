@@ -120,7 +120,7 @@ class DenseVector {
     for (prefetch_idx = std::max(i + 1, prefetch_idx);
          prefetch_idx * GroupSize < end; prefetch_idx++) {
       cache->prefetch(groups_[prefetch_idx].obj(), oms);
-      if (cache::check_fetch(__entry__, __ddl__)) return;
+      if (cache::check_fetch(__entry__, __ddl__, &scope)) return;
     }
     ON_MISS_END
     for (i = start / GroupSize; i * GroupSize < end; i++) {

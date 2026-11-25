@@ -8,8 +8,8 @@ JOBS="${JOBS:-2}"
 DRY_RUN=0
 ENABLE_PAPI=0
 TARGETS=(libcache libasync server run_chat_far gapbs_bfs_chunked mg
-  wordcount_far wordcount_native word_length_stats kvs_throughput nhop_graph
-  bandwidth_microbenchmark bandwidth_microbenchmark_512)
+  wordcount_apps kvs_throughput nhop_graph bandwidth_microbenchmark
+  bandwidth_microbenchmark_512)
 CMAKE_ARGS=()
 
 usage() {
@@ -95,14 +95,15 @@ APP_OPTIONS=(-DSTARFISH_BUILD_APPLICATIONS=OFF -DSTARFISH_BUILD_TESTS=OFF
 APPLICATIONS=OFF
 for target in "${TARGETS[@]}"; do
   case "$target" in
-    libcache|libasync|server) ;;
+    libcache|libasync|server|paper_object_recovery) ;;
     *) APPLICATIONS=ON ;;
   esac
   case "$target" in
+    paper_object_recovery) APP_OPTIONS+=(-DSTARFISH_BUILD_TESTS=ON) ;;
     mg) APP_OPTIONS+=(-DSTARFISH_BUILD_MG=ON) ;;
     kvs_throughput) APP_OPTIONS+=(-DSTARFISH_BUILD_KVS=ON) ;;
     nhop_graph) APP_OPTIONS+=(-DSTARFISH_BUILD_NQ=ON) ;;
-    wordcount_far|wordcount_native|word_length_stats)
+    wordcount_apps|wordcount_far|wordcount_recipes|wordcount_native|word_length_stats)
       APP_OPTIONS+=(-DSTARFISH_BUILD_WORDCOUNT=ON) ;;
     wordcount_recovery)
       APP_OPTIONS+=(-DSTARFISH_BUILD_WORDCOUNT=ON -DSTARFISH_BUILD_WORDCOUNT_RECOVERY=ON) ;;
