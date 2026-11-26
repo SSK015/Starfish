@@ -6,6 +6,9 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
@@ -43,16 +46,23 @@ public:
         log("capture", -1, 0, launch_cpus_, target_cpus_);
     }
 
-    void apply(const char *phase, int shard) const {
-        const int set_rc = pthread_setaffinity_np(
-            pthread_self(), sizeof(target_cpus_), &target_cpus_);
+    void apply(const char *phase, std::size_t shard,
+               bool first_for_thread) const {
+        if (shard > static_cast<std::size_t>(
+                        std::numeric_limits<std::int64_t>::max()))
+            throw std::overflow_error("graph-loader shard index exceeds int64");
+        const int set_rc = first_for_thread
+            ? pthread_setaffinity_np(pthread_self(), sizeof(target_cpus_),
+                                     &target_cpus_)
+            : 0;
 
         cpu_set_t actual;
         CPU_ZERO(&actual);
         const int get_rc = sched_getaffinity(0, sizeof(actual), &actual) == 0
                                ? 0
                                : errno;
-        log(phase, shard, set_rc != 0 ? set_rc : get_rc, target_cpus_, actual);
+        const int rc = set_rc != 0 ? set_rc : get_rc;
+        log(phase, static_cast<std::int64_t>(shard), rc, target_cpus_, actual);
 
         if (set_rc != 0) {
             throw std::system_error(set_rc, std::generic_category(),
@@ -62,14 +72,12 @@ public:
             throw std::system_error(get_rc, std::generic_category(),
                                     "read graph-loader affinity");
         }
-
-        // Do not silently change the approved placement after cgroup/hotplug
-        // changes. This also rejects any CPU outside the captured intersection.
-        if (!CPU_EQUAL(&actual, &target_cpus_)) {
+        if (!CPU_EQUAL(&actual, &target_cpus_))
             throw std::runtime_error(
                 "graph-loader affinity differs from the requested CPU mask");
-        }
     }
+
+    void report_phase(const char *, std::size_t, std::size_t, int) const {}
 
     std::string target_cpu_list() const { return cpu_list(target_cpus_); }
 
@@ -138,7 +146,7 @@ private:
 #endif
     }
 
-    static void log(const char *phase, int shard, int rc,
+    static void log(const char *phase, std::int64_t shard, int rc,
                     const cpu_set_t &requested, const cpu_set_t &actual) {
         std::lock_guard<std::mutex> lock(log_mutex());
         std::cerr << "nq_graph_loader_affinity"

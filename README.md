@@ -175,10 +175,10 @@ variable alone does not select an external checkout. See
 | Source directory | Executable targets |
 | --- | --- |
 | [Llama 2 chat demo](apps/llama/README.md) (`apps/llama/`) | `run_chat_far` |
-| `apps/bfs/` | `gapbs_bfs_chunked` |
+| [BFS](apps/graph_input/README.md) (`apps/bfs/`) | `gapbs_bfs_chunked` |
 | `apps/mg/` | `mg` |
 | [Wordcount](apps/wordcount/README.md) | `wordcount_native`, `wordcount_far`, `wordcount_recipes`, `word_length_stats` |
-| `apps/nq/` | `nhop_graph` |
+| [NQ](apps/graph_input/README.md) (`apps/nq/`) | `nhop_graph` |
 | `apps/kvs/` | `kvs_throughput` |
 | `apps/bandwidth_microbenchmark/` | `bandwidth_microbenchmark`, `bandwidth_microbenchmark_512` |
 

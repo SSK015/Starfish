@@ -3,7 +3,7 @@
 // without starting the runtime or requiring Friendster/RDMA data.
 
 #include "graph_load_affinity.hpp"
-#include "graph_utils.hpp"
+#include "../../graph_input/graph_loader.hpp"
 
 #include <algorithm>
 #include <array>
@@ -184,7 +184,7 @@ int main() {
         uint64_t vertices = 0;
         std::ostringstream captured;
         std::streambuf *old = std::cout.rdbuf(captured.rdbuf());
-        const bool ok = readGraph_parallel(fixture.base.string(), adjacency,
+        const bool ok = graph_input::read_graph(fixture.base.string(), adjacency,
                                            vertices, load_affinity);
         std::cout.rdbuf(old);
         assert(ok);

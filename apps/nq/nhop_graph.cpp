@@ -25,7 +25,8 @@
 #include "lib/timer.hpp"
 #include "async/uthreads.hpp"
 
-#include "graph_utils.hpp"
+#include "graph_load_affinity.hpp"
+#include "../graph_input/graph_loader.hpp"
 using namespace starfish;
 
 const int HOP_NUM = 3;
@@ -199,7 +200,7 @@ bool readGraph(const std::string& filename,
 
     uint64_t start_time = read_tsc();
     auto progress_start = std::chrono::steady_clock::now();
-    if (!readGraph_parallel(filename, adjList, numVertices, load_affinity)) {
+    if (!graph_input::read_graph(filename, adjList, numVertices, load_affinity)) {
         return false;
     }
     if (latency_oracle) {
@@ -217,19 +218,19 @@ bool readGraph(const std::string& filename,
     size_t total_size = 0;
     size_t real_size = 0;
     auto print_build_progress = [&](const char *phase, size_t vertices_done) {
-        if (!graph_progress_enabled()) {
+        if (!graph_input::graph_progress_enabled()) {
             return;
         }
         std::cout << "nhop_graph_build_progress"
                   << " phase=" << phase
-                  << " elapsed_s=" << graph_elapsed_s(progress_start)
+                  << " elapsed_s=" << graph_input::graph_elapsed_s(progress_start)
                   << " vertices_done=" << vertices_done
                   << " total_vertices=" << adjList.size()
                   << " total_size=" << total_size
                   << " real_size=" << real_size
                   << " remote_used_bytes="
                   << allocator::remote::remote_global_heap.get_used_bytes()
-                  << " rss_bytes=" << graph_current_rss_bytes() << std::endl;
+                  << " rss_bytes=" << graph_input::graph_current_rss_bytes() << std::endl;
     };
     const size_t progress_step = std::max<size_t>(1, adjList.size() / 100);
     print_build_progress("start", 0);
@@ -403,26 +404,23 @@ int main(int argc, char *argv[]) {
     profile::reset_all();
     std::vector<std::vector<uint64_t>> adjList;
     std::vector<nq_latency::OracleQuery> latency_oracle;
-    uint64_t numVertices;
+    uint64_t numVertices = 0;
     auto phase_before = collect_phase_stats();
     auto phase_start = std::chrono::steady_clock::now();
-    if (latency_options) {
-        bool loaded = false;
-        try {
-            loaded = readGraph(graph_path, adjList, numVertices, graph_load_affinity,
-                               &latency_oracle);
-        } catch (const std::exception& error) {
-            std::fprintf(stderr, "\nnq_latency_error reason=graph_load detail=%s\n",
-                         error.what());
-        }
-        if (!loaded) {
-            Cache::quiesce_default();
-            adjacency_lists.clear();
-            runtime_destroy();
-            return 2;
-        }
-    } else {
-        readGraph(graph_path, adjList, numVertices, graph_load_affinity);
+    bool loaded = false;
+    try {
+        loaded = readGraph(graph_path, adjList, numVertices, graph_load_affinity,
+                           latency_options ? &latency_oracle : nullptr);
+    } catch (const std::exception &error) {
+        const char *tag = latency_options ? "nq_latency_error reason=graph_load"
+                                          : "nq_graph_load_error";
+        std::fprintf(stderr, "\n%s detail=%s\n", tag, error.what());
+    }
+    if (!loaded) {
+        Cache::quiesce_default();
+        adjacency_lists.clear();
+        runtime_destroy();
+        return 2;
     }
     auto phase_stop = std::chrono::steady_clock::now();
     print_phase_stats(

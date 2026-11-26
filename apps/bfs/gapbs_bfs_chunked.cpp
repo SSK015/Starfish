@@ -10,11 +10,13 @@
 #include <numeric>
 #include <random>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 #include "mm/cache/cache.hpp"
 #include "data_structure/chunked_graph.hpp"
-#include "graph_utils.hpp"
+#include "graph_load_affinity.hpp"
+#include "../graph_input/graph_loader.hpp"
 #include "lib/control.hpp"
 #include "lib/debug.hpp"
 #include "async/parallel.hpp"
@@ -343,7 +345,8 @@ void read_graph(const std::string &filename, Graph &graph,
                 const GraphLoadAffinity &loader_affinity) {
     std::vector<std::vector<uint64_t>> adj_list;
     uint64_t start_tsc = __rdtsc();
-    ASSERT(readGraph_parallel(filename, adj_list, num_vertices, loader_affinity));
+    if (!graph_input::read_graph(filename, adj_list, num_vertices, loader_affinity))
+        throw std::runtime_error("graph input loading failed; see graph_input_error");
     uint64_t end_tsc = __rdtsc();
     std::cout << "readGraph_parallel time: " << end_tsc - start_tsc
               << " cycles" << std::endl;
@@ -886,7 +889,14 @@ int main(int argc, char *argv[]) {
     uint64_t num_vertices = 0;
     auto phase_before = collect_phase_stats();
     auto phase_start = std::chrono::steady_clock::now();
-    load_or_generate_graph(graph_path, graph, num_vertices, loader_affinity);
+    try {
+        load_or_generate_graph(graph_path, graph, num_vertices, loader_affinity);
+    } catch (const std::exception &error) {
+        std::cerr << "gapbs_graph_load_error detail=" << error.what() << std::endl;
+        runtime_quiesce_cache();
+        runtime_destroy();
+        return 2;
+    }
     auto phase_stop = std::chrono::steady_clock::now();
     print_phase_stats(
         "load_build",
